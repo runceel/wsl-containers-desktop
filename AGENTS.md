@@ -12,6 +12,15 @@ WSL Containers Desktop は、WinUI 3 / .NET C# で作る WSL (Windows Subsystem 
 > **現状:** このセッションではアプリ本体の実装は行わず、開発プロセス・Copilot運用ルールの
 > 初期セットアップのみを行っています。WinUIプロジェクト本体の雛形作成は別セッションで着手します。
 
+**本アプリが管理対象とする基盤技術（重要・必読）:** 本アプリは Microsoft Build 2026 で発表された
+ばかりの **WSL Containers**（`wslc` CLI / WSL Container API, Public Preview）をGUIで管理するアプリです。
+2026年時点でまだ新しく一般的な資料が少ない技術であるため、設計・実装に着手する前に必ず
+[`docs/reference/wsl-containers-platform.md`](docs/reference/wsl-containers-platform.md) を読んでください。
+このドキュメントはPreview版APIの仕様サマリと一次情報源へのリンクをまとめた**外部プラットフォームの
+参照資料**です（`docs/design/` とは異なり、自分たちの設計ではなく外部の事実を記録する場所。
+詳細は [`docs/reference/README.md`](docs/reference/README.md)）。仕様が変わりやすいため、実装前に
+Microsoft Learn MCP（下記セットアップ参照）や公式ドキュメントで最新情報を確認してください。
+
 ## プロジェクト構成方針（クリーンアーキテクチャ）
 
 本プロジェクトは **クリーンアーキテクチャを意識した4層構成** を採用します
@@ -87,6 +96,16 @@ Refactor後もGreenを維持していること、振り返りフェーズはADR/
 - 変更があったら追記ではなく**上書き**する。
 - 実務手順は [`design-doc-maintenance` skill](.github/skills/design-doc-maintenance/SKILL.md) を参照。
 
+## 外部プラットフォームの参照資料 (`docs/reference/`)
+
+[`docs/reference/`](docs/reference/README.md) は、`docs/design/` とは異なり
+**外部の製品・プラットフォームの仕様**を記録する場所です。
+
+- 現時点では [`wsl-containers-platform.md`](docs/reference/wsl-containers-platform.md)
+  （本アプリが管理対象とする WSL Containers / `wslc` の仕様サマリ）を収録。
+- Public Preview中の機能を扱うため、各ドキュメントに「最終確認日」を明記し、
+  実装前には一次情報源や Microsoft Learn MCP で最新化を確認すること。
+
 ## モデルルーティング（コスト最適化）
 
 [ADR-0004](docs/adr/0004-adopt-model-routing-for-simple-changes.md) に基づき、作業の性質でモデルを使い分けます。
@@ -120,6 +139,13 @@ Refactor後もGreenを維持していること、振り返りフェーズはADR/
 - `dotnet-msbuild` plugin — ビルド失敗診断・品質・最適化（18 skills）
 - `dotnet-nuget` plugin — パッケージ管理
 
+### `microsoft-docs` plugin（`microsoftdocs/mcp`）
+
+- Microsoft Learn の公式ドキュメントを直接検索・取得できるMCPツールを提供する。
+- 本プロジェクトが対象とする WSL Containers（`wslc`）は2026年に発表されたばかりの
+  Public Preview機能で情報の鮮度が重要なため、実装・設計時は積極的にこれを使って
+  一次情報を確認すること（[`docs/reference/wsl-containers-platform.md`](docs/reference/wsl-containers-platform.md) も参照）。
+
 ## セットアップ（他の開発者・新しい環境向け）
 
 このリポジトリのCopilot運用には、上記のplugin/marketplaceが必要です。
@@ -132,10 +158,16 @@ copilot plugin install dotnet@dotnet-agent-skills
 copilot plugin install dotnet-test@dotnet-agent-skills
 copilot plugin install dotnet-msbuild@dotnet-agent-skills
 copilot plugin install dotnet-nuget@dotnet-agent-skills
+copilot plugin install microsoftdocs/mcp
 ```
 
 > 複数の `copilot plugin install` を同時並行で実行すると、marketplaceのgit clone処理が
 > 競合し破損することがあります。**必ず1つずつ順番に**実行してください。
+>
+> `microsoftdocs/mcp` はGitHubリポジトリからの直接インストール（`owner/repo`形式）です。
+> CLIから「Direct plugin installs (repos, URLs, local paths) are deprecated」という警告が
+> 出る場合がありますが、本執筆時点ではこの形式のみが利用可能です。marketplace経由の
+> インストール方法が提供されたら、そちらに切り替えてください。
 
 `winui`/`dotnet`（awesome-copilot marketplace）は個々の開発環境で別途導入済みである前提です。
 
@@ -154,6 +186,7 @@ copilot plugin install dotnet-nuget@dotnet-agent-skills
 | Skill | `.github/skills/feature-workflow/SKILL.md` | 6フェーズ開発フローのオーケストレーション |
 | Skill | `.github/skills/adr-workflow/SKILL.md` | ADR作成・更新の実務手順 |
 | Skill | `.github/skills/design-doc-maintenance/SKILL.md` | 設計ドキュメントのスナップショット更新手順 |
+| Reference | `docs/reference/wsl-containers-platform.md` | WSL Containers(`wslc`)プラットフォームの仕様サマリ |
 
 ## スコープ外（今回未着手）
 
