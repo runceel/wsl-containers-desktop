@@ -41,7 +41,11 @@ public async Task StartAsync_ContainerIsStopped_TransitionsToRunning()
 | Refactor | プロダクションコード・テストコード双方の構造改善（挙動不変） | 新しい振る舞いの追加、テストの期待値変更 |
 
 - Red フェーズで書くテストは、事前にラバーダック（`rubber-duck` agent）でレビュー済みの
-  仕様・詳細設計を反映したものにする。
+  仕様・詳細設計を反映したものにする。「テスト作成」フェーズのレビューでは、具体的な
+  入出力・アサーション値・エッジケースまで確定させておくこと
+  （[ADR-0008](../../docs/adr/0008-expand-model-routing-to-mechanical-workflow-steps.md)
+  により、`tdd-red` agentは既定でコスト最適化モデルを使うため、ここが曖昧なまま
+  Redフェーズに進まないこと）。
 - Green フェーズでは「テストを通す」以上の実装をしない（過剰実装をしない）。
 - Refactor フェーズでは各変更のたびにテストを再実行し、常にGreenを維持する。
 

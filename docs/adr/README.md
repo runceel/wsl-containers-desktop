@@ -58,5 +58,6 @@ docs/adr/NNNN-kebab-case-title.md
 | [0005](0005-adopt-clean-architecture-layering.md) | クリーンアーキテクチャに基づく層分割を採用する | Accepted |
 | [0006](0006-adopt-slnx-solution-file-format.md) | C#ソリューションファイル形式として.slnxを採用する | Accepted |
 | [0007](0007-disable-windows-app-sdk-deployment-manager-auto-initialize.md) | WslContainersDesktop.AppでWindowsAppSdkDeploymentManagerInitializeを無効化する | Accepted |
+| [0008](0008-expand-model-routing-to-mechanical-workflow-steps.md) | モデルルーティング方針をワークフロー内の機械的ステップへ拡張する | Accepted |
 
 新しいADRを追加したら、この表にも1行追加すること。

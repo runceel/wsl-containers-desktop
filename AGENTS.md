@@ -1,18 +1,8 @@
 # AGENTS.md — WSL Containers Desktop 開発ガイド
 
 このドキュメントは、GitHub Copilot（およびその他のAIコーディングエージェント）が
-このリポジトリで作業する際の運用ルールをまとめたものです。
-
-## プロジェクト概要
-
-WSL Containers Desktop は、WinUI 3 / .NET C# で作る WSL (Windows Subsystem for Linux)
-上のコンテナ管理用デスクトップアプリです。Docker Desktop と同等の機能セット
-（コンテナ/イメージ/ボリューム/ネットワークの管理、ログ表示等）を目標としています。
-
-> **現状:** Issue #3（土台: 空のWinUIウィンドウ起動）でプロジェクト本体（`.slnx`/各層の`.csproj`）を
-> スキャフォールドし、`NavigationView`によるプレースホルダ画面切り替えとローカライズ基盤を実装済みです。
-> 実際のドメイン/ユースケースロジック（Domain/Application/Infrastructure層）はまだ空で、
-> 今後の機能実装で積み上げていきます。
+このリポジトリで作業する際の運用ルールをまとめたものです。プロジェクトの概要・人間の
+コントリビューター向けのセットアップ手順は [`README.md`](README.md) を参照してください。
 
 **本アプリが管理対象とする基盤技術（重要・必読）:** 本アプリは Microsoft Build 2026 で発表された
 ばかりの **WSL Containers**（`wslc` CLI / WSL Container API, Public Preview）をGUIで管理するアプリです。
@@ -21,7 +11,8 @@ WSL Containers Desktop は、WinUI 3 / .NET C# で作る WSL (Windows Subsystem 
 このドキュメントはPreview版APIの仕様サマリと一次情報源へのリンクをまとめた**外部プラットフォームの
 参照資料**です（`docs/design/` とは異なり、自分たちの設計ではなく外部の事実を記録する場所。
 詳細は [`docs/reference/README.md`](docs/reference/README.md)）。仕様が変わりやすいため、実装前に
-Microsoft Learn MCP（下記セットアップ参照）や公式ドキュメントで最新情報を確認してください。
+Microsoft Learn MCP（`microsoft-docs` plugin。未導入なら下記「既存の再利用可能なskill/agent」参照）や
+公式ドキュメントで最新情報を確認してください。
 
 ## プロジェクト構成方針（クリーンアーキテクチャ）
 
@@ -110,12 +101,15 @@ Refactor後もGreenを維持していること、振り返りフェーズはADR/
 
 ## モデルルーティング（コスト最適化）
 
-[ADR-0004](docs/adr/0004-adopt-model-routing-for-simple-changes.md) に基づき、作業の性質でモデルを使い分けます。
+[ADR-0004](docs/adr/0004-adopt-model-routing-for-simple-changes.md) /
+[ADR-0008](docs/adr/0008-expand-model-routing-to-mechanical-workflow-steps.md) に基づき、
+作業の性質でモデルを使い分けます。
 
 | 作業の性質 | 使うagent/モデル |
 |---|---|
-| タイポ修正、フォーマット、挙動を変えないリネーム等の機械的な小修正 | [`quick-fix` agent](.github/agents/quick-fix.agent.md)（`mai-code-1-flash-picker` 固定） |
-| 設計、ラバーダック、TDD各フェーズ、ADR作成など判断を伴う作業 | 通常の高性能モデル（既定モデル） |
+| タイポ修正、フォーマット、挙動を変えないリネーム、ADR/design一覧表への追記、ラバーダック指摘の軽微反映等の機械的な小修正 | [`quick-fix` agent](.github/agents/quick-fix.agent.md)（`mai-code-1-flash-picker` 固定） |
+| TDD Redフェーズ（テスト作成フェーズで入出力・アサーション値・エッジケースまで確定済みの場合） | [`tdd-red` agent](.github/agents/tdd-red.agent.md)（`mai-code-1-flash-picker` 既定。仕様未確定・新規設計判断発生時は通常モデルへエスカレーション） |
+| 設計、ラバーダック、TDD Green/Refactor、ADR作成など判断を伴う作業 | 通常の高性能モデル（既定モデル） |
 | どちらか迷う場合 | **必ず通常フロー側を選ぶ**（コスト削減より品質・仕様漏れ防止を優先） |
 
 ## 既存の再利用可能なskill/agent（重複させないこと）
@@ -148,30 +142,11 @@ Refactor後もGreenを維持していること、振り返りフェーズはADR/
   Public Preview機能で情報の鮮度が重要なため、実装・設計時は積極的にこれを使って
   一次情報を確認すること（[`docs/reference/wsl-containers-platform.md`](docs/reference/wsl-containers-platform.md) も参照）。
 
-## セットアップ（他の開発者・新しい環境向け）
+## セットアップ
 
-このリポジトリのCopilot運用には、上記のplugin/marketplaceが必要です。
-未導入の環境では以下を実行してください（Copilot CLIのユーザー設定に対する変更のため、
-リポジトリのクローンだけでは再現されません）。
-
-```powershell
-copilot plugin marketplace add dotnet/skills
-copilot plugin install dotnet@dotnet-agent-skills
-copilot plugin install dotnet-test@dotnet-agent-skills
-copilot plugin install dotnet-msbuild@dotnet-agent-skills
-copilot plugin install dotnet-nuget@dotnet-agent-skills
-copilot plugin install microsoftdocs/mcp
-```
-
-> 複数の `copilot plugin install` を同時並行で実行すると、marketplaceのgit clone処理が
-> 競合し破損することがあります。**必ず1つずつ順番に**実行してください。
->
-> `microsoftdocs/mcp` はGitHubリポジトリからの直接インストール（`owner/repo`形式）です。
-> CLIから「Direct plugin installs (repos, URLs, local paths) are deprecated」という警告が
-> 出る場合がありますが、本執筆時点ではこの形式のみが利用可能です。marketplace経由の
-> インストール方法が提供されたら、そちらに切り替えてください。
-
-`winui`/`dotnet`（awesome-copilot marketplace）は個々の開発環境で別途導入済みである前提です。
+Copilot CLIでの開発に必要なplugin導入手順は人間の開発環境セットアップに関する内容のため、
+[`README.md`](README.md) の「セットアップ」節を参照してください。上記pluginが未導入の環境で
+作業していると判明した場合は、その手順をユーザーに案内してください。
 
 ## このリポジトリ独自のCopilot資産
 
