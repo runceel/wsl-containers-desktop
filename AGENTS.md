@@ -29,8 +29,11 @@ WSL Containers Desktop は、WinUI 3 / .NET C# で作る WSL (Windows Subsystem 
 逆方向の依存・層飛ばしの依存は禁止です。詳細は
 [`.github/instructions/csharp.instructions.md`](.github/instructions/csharp.instructions.md) を参照。
 
-**注意:** 2025年現在、実際の `.sln`/各層の `.csproj` はまだ作成されていません
+**注意:** 2025年現在、実際の `.slnx`/各層の `.csproj` はまだ作成されていません
 （方針のみ確定）。プロジェクト本体の着手時にこの節と `architecture-overview.md` を更新してください。
+
+ソリューションファイルは、従来の `.sln` ではなく **`.slnx`**（XMLベースの新形式、.NET SDK 9.0.200以上で
+`dotnet new sln` により生成）を採用します（[ADR-0006](docs/adr/0006-adopt-slnx-solution-file-format.md)）。
 
 ## 開発フロー（必須）
 
@@ -154,6 +157,6 @@ copilot plugin install dotnet-nuget@dotnet-agent-skills
 
 ## スコープ外（今回未着手）
 
-- WinUIプロジェクト本体の雛形作成（`.sln`/各層の`.csproj`）
+- WinUIプロジェクト本体の雛形作成（`.slnx`/各層の`.csproj`）
 - 実際の機能実装・テストコード
 - CI/CD（GitHub Actions）ワークフローの新規構築
