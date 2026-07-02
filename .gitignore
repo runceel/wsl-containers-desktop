@@ -1,0 +1,8 @@
+# .impeccable/ はローカルツールのキャッシュディレクトリ（コミット対象外）
+.impeccable/
+
+# .NET / Visual Studio 標準除外（将来のプロジェクト本体追加に備え先出し）
+bin/
+obj/
+.vs/
+*.user
