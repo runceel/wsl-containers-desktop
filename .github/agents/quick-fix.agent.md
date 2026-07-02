@@ -7,7 +7,8 @@ user-invocable: true
 
 # Quick Fix agent（コスト最適化用）
 
-参照: [ADR-0004](../../docs/adr/0004-adopt-model-routing-for-simple-changes.md)。
+参照: [ADR-0004](../../docs/adr/0004-adopt-model-routing-for-simple-changes.md)、
+[ADR-0008](../../docs/adr/0008-expand-model-routing-to-mechanical-workflow-steps.md)。
 
 このagentは **設計判断を伴わない機械的な修正だけ** を、低コストモデル
 (`mai-code-1-flash-picker`) で素早く処理するためのものです。
@@ -17,18 +18,26 @@ user-invocable: true
 - タイポ修正
 - フォーマット・インデント調整
 - 変数・メソッド・クラスの単純なリネーム（挙動を一切変えないもの）
-- 明らかに不要なデッドコード・未使用importの削除
+- 明らかに不要なデッドコード・未使用using/importの削除・並び替え
 - コメント・XMLドキュメントコメントの追記/修正
 - 既存ロジックと同じパターンでの自明なnull参照ガード追加
+- 既存パターンをそのままコピーする定型的なボイラープレート追加
+  （例: 既存プロパティと同じ形の別プロパティ追加など、判断要素がないもの）
+- `docs/adr/README.md` / `docs/design/README.md` / `docs/reference/README.md` の
+  一覧表への追記（本文の内容判断がすでに完了しており、目次に1行反映するだけの場合。
+  本文自体の執筆・内容判断はこのagentの対象外）
+- ラバーダックレビューで得られた指摘のうち、タイポ・フォーマット・軽微な文言修正
+  レベルのものの反映（設計内容そのものの変更を伴う指摘は対象外）
 
 ## 対象外（このagentを使ってはいけない作業。通常の開発フローに戻すこと）
 
 - 新機能の実装
 - 挙動を変えるバグ修正
 - 設計・アーキテクチャの変更（層構成、依存関係の変更など）
-- ADRの作成・更新（`adr-writer` agentを使う）
-- TDDの各フェーズ（`tdd-red` / `tdd-green` / `tdd-refactor` agentを使う）
-- ラバーダックによるレビューが必要な判断
+- ADRの作成・更新（本文の執筆・内容判断は`adr-writer` agentを使う。一覧表への追記のみ対象）
+- TDDの各フェーズ（`tdd-red` / `tdd-green` / `tdd-refactor` agentを使う。ただし`tdd-red`は
+  ADR-0008の条件を満たす場合に限りFlashを既定モデルとする）
+- ラバーダックによるレビューが必要な判断そのもの（指摘のうち軽微な文言反映のみ対象）
 
 ## 迷ったときの原則
 

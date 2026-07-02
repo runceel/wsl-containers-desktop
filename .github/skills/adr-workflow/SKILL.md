@@ -25,7 +25,10 @@ ADRの運用ルールの全体像は [`docs/adr/README.md`](../../../docs/adr/RE
 3. [`docs/adr/template.md`](../../../docs/adr/template.md) をコピーして新規ファイルを作成。
 4. `Context` / `Decision` / `Consequences` を埋める（[`docs/adr/README.md`](../../../docs/adr/README.md) の
    不変性ルールを厳守: 一度書いたら本文は書き換えない）。
-5. [`docs/adr/README.md`](../../../docs/adr/README.md) の一覧表に1行追加する。
+5. [`docs/adr/README.md`](../../../docs/adr/README.md) の一覧表に1行追加する
+   （内容判断が完了した後の目次反映のみであれば、
+   [ADR-0008](../../../docs/adr/0008-expand-model-routing-to-mechanical-workflow-steps.md)により
+   `quick-fix` agentに委譲してよい）。
 6. 関連する `docs/design/` のドキュメントがあれば、そこから今回のADRへリンクを追加する。
 
 ## 既存の決定を覆す場合

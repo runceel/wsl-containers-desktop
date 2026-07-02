@@ -110,12 +110,15 @@ Refactor後もGreenを維持していること、振り返りフェーズはADR/
 
 ## モデルルーティング（コスト最適化）
 
-[ADR-0004](docs/adr/0004-adopt-model-routing-for-simple-changes.md) に基づき、作業の性質でモデルを使い分けます。
+[ADR-0004](docs/adr/0004-adopt-model-routing-for-simple-changes.md) /
+[ADR-0008](docs/adr/0008-expand-model-routing-to-mechanical-workflow-steps.md) に基づき、
+作業の性質でモデルを使い分けます。
 
 | 作業の性質 | 使うagent/モデル |
 |---|---|
-| タイポ修正、フォーマット、挙動を変えないリネーム等の機械的な小修正 | [`quick-fix` agent](.github/agents/quick-fix.agent.md)（`mai-code-1-flash-picker` 固定） |
-| 設計、ラバーダック、TDD各フェーズ、ADR作成など判断を伴う作業 | 通常の高性能モデル（既定モデル） |
+| タイポ修正、フォーマット、挙動を変えないリネーム、ADR/design一覧表への追記、ラバーダック指摘の軽微反映等の機械的な小修正 | [`quick-fix` agent](.github/agents/quick-fix.agent.md)（`mai-code-1-flash-picker` 固定） |
+| TDD Redフェーズ（テスト作成フェーズで入出力・アサーション値・エッジケースまで確定済みの場合） | [`tdd-red` agent](.github/agents/tdd-red.agent.md)（`mai-code-1-flash-picker` 既定。仕様未確定・新規設計判断発生時は通常モデルへエスカレーション） |
+| 設計、ラバーダック、TDD Green/Refactor、ADR作成など判断を伴う作業 | 通常の高性能モデル（既定モデル） |
 | どちらか迷う場合 | **必ず通常フロー側を選ぶ**（コスト削減より品質・仕様漏れ防止を優先） |
 
 ## 既存の再利用可能なskill/agent（重複させないこと）
