@@ -5,9 +5,13 @@
 
 ## 状態
 
-プロジェクト本体（`.sln`/各層の`.csproj`）は未作成。以下は今後の実装が従うべき構成方針。
+プロジェクト本体（`.slnx`/各層の`.csproj`）は未作成。以下は今後の実装が従うべき構成方針。
 最初の機能実装に着手した時点で、実際のプロジェクト構成に合わせてこのドキュメントを更新すること
 （プレースホルダのまま放置しない）。
+
+ソリューションファイルは、従来の `.sln` ではなく **`.slnx`**（XMLベースの新形式）を使う
+（[ADR-0006](../adr/0006-adopt-slnx-solution-file-format.md)）。スキャフォールド時は
+`dotnet new sln` で作成する（.NET SDK 9.0.200 以上が必要）。
 
 ## 層構成
 
@@ -44,6 +48,8 @@ flowchart TB
 
 - WSL・コンテナランタイム（Docker Engine / containerd等、採用ランタイムは別途ADRで決定）との
   実際の通信を行うクライアント実装。
+  - 具体的な統合対象は **WSL Containers**（`wslc` CLI / WSL Container API）。
+    仕様サマリは [`docs/reference/wsl-containers-platform.md`](../reference/wsl-containers-platform.md) を参照。
 - 設定やキャッシュの永続化（ファイルI/O、レジストリ等）。
 - Applicationで定義された抽象を実装する。
 

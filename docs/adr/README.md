@@ -56,5 +56,6 @@ docs/adr/NNNN-kebab-case-title.md
 | [0003](0003-select-mstest-as-unit-test-framework.md) | 単体テストフレームワークとしてMSTestを採用する | Accepted |
 | [0004](0004-adopt-model-routing-for-simple-changes.md) | 単純な修正向けのモデルルーティング方針を採用する | Accepted |
 | [0005](0005-adopt-clean-architecture-layering.md) | クリーンアーキテクチャに基づく層分割を採用する | Accepted |
+| [0006](0006-adopt-slnx-solution-file-format.md) | C#ソリューションファイル形式として.slnxを採用する | Accepted |
 
 新しいADRを追加したら、この表にも1行追加すること。
