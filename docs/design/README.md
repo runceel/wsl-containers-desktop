@@ -16,6 +16,7 @@
 | ドキュメント | 内容 |
 |---|---|
 | [`architecture-overview.md`](architecture-overview.md) | システム全体のレイヤー構成・依存関係の現在のスナップショット |
+| [`presentation-navigation.md`](presentation-navigation.md) | Presentation層のナビゲーション基盤・ローカライズ基盤の現在のスナップショット |
 | (機能追加に応じて追加) | 個別機能の設計ドキュメントは `docs/design/<feature-name>.md` として追加していく |
 
 ## 更新のタイミング

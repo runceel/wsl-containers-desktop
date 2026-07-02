@@ -1,0 +1,16 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+namespace WslContainersDesktop_App.Navigation;
+
+/// <summary>
+/// アプリケーション内でナビゲーション可能なページを識別するキー。
+/// </summary>
+public enum NavigationPageKey
+{
+    /// <summary>コンテナー一覧ページ。</summary>
+    Containers,
+
+    /// <summary>設定ページ。</summary>
+    Settings,
+}

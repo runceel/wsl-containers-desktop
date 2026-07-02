@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/WslContainersDesktop.App/WslContainersDesktop.App.csproj" />
+    <Project Path="src/WslContainersDesktop.Application/WslContainersDesktop.Application.csproj" />
+    <Project Path="src/WslContainersDesktop.Domain/WslContainersDesktop.Domain.csproj" />
+    <Project Path="src/WslContainersDesktop.Infrastructure/WslContainersDesktop.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/WslContainersDesktop.App.Tests/WslContainersDesktop.App.Tests.csproj" />
+    <Project Path="tests/WslContainersDesktop.Application.Tests/WslContainersDesktop.Application.Tests.csproj" />
+    <Project Path="tests/WslContainersDesktop.Domain.Tests/WslContainersDesktop.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
