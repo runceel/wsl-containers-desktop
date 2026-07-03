@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Threading.Channels;
 using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Domain;
 
@@ -40,6 +42,22 @@ internal sealed class FakeContainerManagementService : IContainerManagementServi
     public Container? RestartResult { get; set; }
 
     public List<string> DeleteCalls { get; } = [];
+
+    public IReadOnlyList<string> DefaultLogs { get; set; } = [];
+
+    public Exception? GetContainerLogsException { get; set; }
+
+    public Exception? FollowContainerLogsException { get; set; }
+
+    public Channel<string>? FollowLogsChannel { get; set; }
+
+    public TaskCompletionSource<bool>? FollowContainerLogsStarted { get; set; }
+
+    public int FollowCancellationCount { get; private set; }
+
+    public List<string> GetContainerLogsCalls { get; } = [];
+
+    public List<string> FollowContainerLogsCalls { get; } = [];
 
     public Task<IReadOnlyList<Container>> GetContainersAsync(CancellationToken cancellationToken = default)
     {
@@ -108,6 +126,64 @@ internal sealed class FakeContainerManagementService : IContainerManagementServi
         if (DeleteException is not null)
         {
             throw DeleteException;
+        }
+    }
+
+    public Task<IReadOnlyList<string>> GetContainerLogsAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        GetContainerLogsCalls.Add(containerId);
+        if (GetContainerLogsException is not null)
+        {
+            throw GetContainerLogsException;
+        }
+
+        return Task.FromResult(DefaultLogs);
+    }
+
+    public async IAsyncEnumerable<string> FollowContainerLogsAsync(string containerId, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        FollowContainerLogsCalls.Add(containerId);
+        FollowContainerLogsStarted?.TrySetResult(true);
+
+        if (FollowContainerLogsException is not null)
+        {
+            throw FollowContainerLogsException;
+        }
+
+        if (FollowLogsChannel is null)
+        {
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                FollowCancellationCount++;
+                throw;
+            }
+
+            yield break;
+        }
+
+        while (true)
+        {
+            try
+            {
+                if (!await FollowLogsChannel.Reader.WaitToReadAsync(cancellationToken))
+                {
+                    yield break;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                FollowCancellationCount++;
+                throw;
+            }
+
+            while (FollowLogsChannel.Reader.TryRead(out var line))
+            {
+                yield return line;
+            }
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Threading.Channels;
 using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Domain;
 using WslContainersDesktop_App.ViewModels;
@@ -531,5 +532,331 @@ public sealed class ContainersViewModelTests
         Assert.AreEqual(ContainerState.Running, row.State);
         Assert.HasCount(1, sut.Containers);
         Assert.IsNull(sut.ErrorMessage);
+    }
+
+    [TestMethod]
+    public async Task OpenLogsAsync_RunningContainerWithExistingLogs_DisplaysSnapshotAndStartsFollowWithoutDuplicatingSnapshot()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            DefaultLogs = ["old"],
+        };
+        var dispatcher = new RecordingDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher);
+        var followChannel = Channel.CreateUnbounded<string>();
+        service.FollowLogsChannel = followChannel;
+        service.FollowContainerLogsStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        // Act
+        await sut.OpenLogsAsync("c1");
+        await service.FollowContainerLogsStarted.Task;
+        await followChannel.Writer.WriteAsync("new");
+        await WaitForConditionAsync(() => sut.LogLines.Count == 2, TimeSpan.FromSeconds(1));
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "old", "new" }, sut.LogLines.ToList());
+        Assert.AreEqual(1, service.FollowContainerLogsCalls.Count(c => c == "c1"));
+        Assert.IsGreaterThan(0, dispatcher.InvokeCount);
+    }
+
+    [TestMethod]
+    public async Task OpenLogsAsync_StoppedContainerWithExistingLogs_DisplaysSnapshotAndDoesNotStartFollowAndStoppedStatusIsNonEmpty()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Stopped)],
+            DefaultLogs = ["old"],
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+
+        // Act
+        await sut.OpenLogsAsync("c1");
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "old" }, sut.LogLines.ToList());
+        Assert.IsEmpty(service.FollowContainerLogsCalls);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(sut.LogStatusMessage));
+    }
+
+    [TestMethod]
+    public async Task OpenLogsAsync_ContainerHasNoLogs_SetsLogEmptyStateWithoutLogError()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            DefaultLogs = [],
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+
+        // Act
+        await sut.OpenLogsAsync("c1");
+
+        // Assert
+        Assert.IsTrue(sut.IsLogEmpty);
+        Assert.IsFalse(sut.IsLogError);
+    }
+
+    [TestMethod]
+    public async Task OpenLogsAsync_GetLogsThrowsContainerNotFound_ShowsDeletedOrMissingStatusWithoutThrowing()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            GetContainerLogsException = new ContainerNotFoundException("c1"),
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+
+        // Act
+        await sut.OpenLogsAsync("c1");
+
+        // Assert
+        Assert.IsFalse(sut.IsLogError);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(sut.LogStatusMessage));
+    }
+
+    [TestMethod]
+    public async Task OpenLogsAsync_GetLogsThrowsRuntimeException_SetsLogErrorMessageDistinctFromEmpty()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            GetContainerLogsException = new ContainerRuntimeException("logs", 1, "log error"),
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+
+        // Act
+        await sut.OpenLogsAsync("c1");
+
+        // Assert
+        Assert.IsTrue(sut.IsLogError);
+        Assert.AreEqual("log error", sut.LogStatusMessage);
+    }
+
+    [TestMethod]
+    public async Task FollowLiveLine_UsesDispatcherForCollectionMutation()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService();
+        var dispatcher = new RecordingDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher);
+
+        // Act
+        await sut.FollowLiveLine("new");
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "new" }, sut.LogLines.ToList());
+        Assert.AreEqual(1, dispatcher.InvokeCount);
+    }
+
+    [TestMethod]
+    public async Task PauseLogsAsync_LiveLineArrivesWhilePaused_BuffersWithoutAppending()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            DefaultLogs = ["old"],
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+        var followChannel = Channel.CreateUnbounded<string>();
+        service.FollowLogsChannel = followChannel;
+        await sut.OpenLogsAsync("c1");
+        await sut.PauseLogsAsync();
+
+        // Act
+        await followChannel.Writer.WriteAsync("new");
+        await Task.Delay(100);
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "old" }, sut.LogLines.ToList());
+        Assert.IsTrue(sut.IsLogsPaused);
+    }
+
+    [TestMethod]
+    public async Task ResumeLogsAsync_FlushesBufferedLinesInOrder()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            DefaultLogs = ["old"],
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+        var followChannel = Channel.CreateUnbounded<string>();
+        service.FollowLogsChannel = followChannel;
+        await sut.OpenLogsAsync("c1");
+        await sut.PauseLogsAsync();
+        await followChannel.Writer.WriteAsync("new");
+        await Task.Delay(100);
+
+        // Act
+        await sut.ResumeLogsAsync();
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "old", "new" }, sut.LogLines.ToList());
+    }
+
+    [TestMethod]
+    public async Task ClearLogsAsync_WhileFollowing_ClearsDisplayedLinesAndFutureLiveLineStillAppears()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            DefaultLogs = ["old"],
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+        var followChannel = Channel.CreateUnbounded<string>();
+        service.FollowLogsChannel = followChannel;
+        await sut.OpenLogsAsync("c1");
+
+        // Act
+        await sut.ClearLogsAsync();
+        await followChannel.Writer.WriteAsync("new");
+        await Task.Delay(100);
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "new" }, sut.LogLines.ToList());
+    }
+
+    [TestMethod]
+    public async Task ClearLogsAsync_WhilePaused_DiscardsBufferedLinesAndFutureLiveLineStillAppears()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            DefaultLogs = ["old"],
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+        var followChannel = Channel.CreateUnbounded<string>();
+        service.FollowLogsChannel = followChannel;
+        await sut.OpenLogsAsync("c1");
+        await sut.PauseLogsAsync();
+        await followChannel.Writer.WriteAsync("new");
+        await Task.Delay(100);
+
+        // Act
+        await sut.ClearLogsAsync();
+        await sut.ResumeLogsAsync();
+
+        // Assert
+        Assert.IsEmpty(sut.LogLines);
+    }
+
+    [TestMethod]
+    public async Task CloseLogsAsync_CancelsFollowHidesPanelAndIgnoresPostCloseLines()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            DefaultLogs = ["old"],
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+        var followChannel = Channel.CreateUnbounded<string>();
+        service.FollowLogsChannel = followChannel;
+        await sut.OpenLogsAsync("c1");
+
+        // Act
+        await sut.CloseLogsAsync();
+        await followChannel.Writer.WriteAsync("new");
+        await Task.Delay(100);
+
+        // Assert
+        Assert.IsFalse(sut.IsLogPanelVisible);
+        CollectionAssert.AreEqual(new[] { "old" }, sut.LogLines.ToList());
+    }
+
+    [TestMethod]
+    public async Task FollowStreamThrowsRuntimeException_SetsLogErrorMessageAndKeepsExistingLines()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            DefaultLogs = ["old"],
+            FollowContainerLogsException = new ContainerRuntimeException("logs", 1, "follow error"),
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+
+        // Act
+        await sut.OpenLogsAsync("c1");
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "old" }, sut.LogLines.ToList());
+        Assert.IsTrue(sut.IsLogError);
+        Assert.AreEqual("follow error", sut.LogStatusMessage);
+    }
+
+    [TestMethod]
+    public async Task FollowStreamThrowsContainerNotFoundException_ShowsMissingStatusDistinctFromGenericLogError()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            DefaultLogs = ["old"],
+            FollowContainerLogsException = new ContainerNotFoundException("c1"),
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+
+        // Act
+        await sut.OpenLogsAsync("c1");
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "old" }, sut.LogLines.ToList());
+        Assert.IsFalse(sut.IsLogError);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(sut.LogStatusMessage));
+    }
+
+    [TestMethod]
+    public async Task OpenLogsAsync_WhileAlreadyFollowing_CancelsPreviousFollowBeforeStartingNew()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            DefaultLogs = ["old"],
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+        await sut.OpenLogsAsync("c1");
+
+        // Act
+        await sut.OpenLogsAsync("c1");
+
+        // Assert
+        Assert.IsGreaterThan(0, service.FollowCancellationCount);
+    }
+
+    private static async Task WaitForConditionAsync(Func<bool> condition, TimeSpan timeout)
+    {
+        var started = DateTime.UtcNow;
+        while (!condition())
+        {
+            if (DateTime.UtcNow - started > timeout)
+            {
+                Assert.Fail("Condition was not met in time.");
+            }
+
+            await Task.Delay(10);
+        }
+    }
+
+    private sealed class RecordingDispatcher : IUiDispatcher
+    {
+        public int InvokeCount { get; private set; }
+
+        public void Invoke(Action action)
+        {
+            InvokeCount++;
+            action();
+        }
     }
 }

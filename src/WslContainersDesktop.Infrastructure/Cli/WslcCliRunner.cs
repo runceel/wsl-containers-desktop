@@ -7,12 +7,25 @@ namespace WslContainersDesktop.Infrastructure.Cli;
 /// <c>wslc</c> CLI（既定）または任意の実行可能ファイルをプロセスとして起動する
 /// <see cref="IWslcCliRunner"/> の実装。
 /// </summary>
-public sealed class WslcCliRunner(string executablePath = "wslc") : IWslcCliRunner
+public sealed class WslcCliRunner : IWslcCliRunner
 {
+    private readonly IWslcProcessFactory _processFactory;
+
+    public WslcCliRunner(string executablePath = "wslc")
+        : this(new WslcProcessFactory(), executablePath)
+    {
+    }
+
+    public WslcCliRunner(IWslcProcessFactory processFactory, string executablePath = "wslc")
+    {
+        _processFactory = processFactory;
+        ExecutablePath = executablePath;
+    }
+
     /// <summary>
     /// 実行対象の実行可能ファイルパス（既定は <c>"wslc"</c>）。
     /// </summary>
-    public string ExecutablePath { get; } = executablePath;
+    public string ExecutablePath { get; }
 
     public async Task<CliResult> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
     {
@@ -48,5 +61,30 @@ public sealed class WslcCliRunner(string executablePath = "wslc") : IWslcCliRunn
         var standardError = await standardErrorTask;
 
         return new CliResult(process.ExitCode, standardOutput, standardError);
+    }
+
+    public async IAsyncEnumerable<string> StreamLinesAsync(
+        IReadOnlyList<string> arguments,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var process = _processFactory.Create(ExecutablePath, arguments);
+        await process.StartAsync(cancellationToken);
+
+        try
+        {
+            await foreach (var line in process.ReadLinesAsync(cancellationToken))
+            {
+                yield return line;
+            }
+        }
+        finally
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                process.Kill();
+            }
+
+            process.Dispose();
+        }
     }
 }

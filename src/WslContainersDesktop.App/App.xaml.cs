@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
@@ -48,6 +49,7 @@ public partial class App : Application
         services.AddSingleton<IWslcCliRunner, WslcCliRunner>();
         services.AddSingleton<IContainerRuntimeClient, WslcCliContainerRuntimeClient>();
         services.AddSingleton<IContainerManagementService, ContainerManagementService>();
+        services.AddSingleton<IUiDispatcher>(_ => new DispatcherQueueUiDispatcher(DispatcherQueue.GetForCurrentThread()));
 
         // トップレベルページのViewModelはNavigationViewModelと同様、アプリケーション
         // ライフタイムで1インスタンスとする。

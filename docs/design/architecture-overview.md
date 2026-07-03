@@ -10,16 +10,17 @@
 
 | プロジェクト | 種別 | 内容 |
 |---|---|---|
-| `src/WslContainersDesktop.Domain` | classlib | エンティティ・値オブジェクト（現時点では空） |
-| `src/WslContainersDesktop.Application` | classlib | ユースケース・抽象（現時点では空） |
-| `src/WslContainersDesktop.Infrastructure` | classlib | WSL/コンテナランタイム連携の実装（現時点では空） |
-| `src/WslContainersDesktop.App` | WinUI3 MSIXパッケージアプリ（net10.0-windows） | Presentation層。ナビゲーション基盤とローカライズ基盤を実装済み |
-| `tests/WslContainersDesktop.Domain.Tests` | MSTest | Domain層の単体テスト（現時点では空） |
-| `tests/WslContainersDesktop.Application.Tests` | MSTest | Application層の単体テスト（現時点では空） |
-| `tests/WslContainersDesktop.App.Tests` | MSTest | Presentation層（ナビゲーション制御ロジック）の単体テスト |
+| `src/WslContainersDesktop.Domain` | classlib | コンテナエンティティ・状態・状態別操作可否 |
+| `src/WslContainersDesktop.Application` | classlib | コンテナ管理ユースケースとInbound/Outboundポート |
+| `src/WslContainersDesktop.Infrastructure` | classlib | `wslc` CLIラッパーによるWSL Containers連携 |
+| `src/WslContainersDesktop.App` | WinUI3 MSIXパッケージアプリ（net10.0-windows） | Presentation層。ナビゲーション、ローカライズ、DI構成、コンテナ一覧/ログ表示を実装済み |
+| `tests/WslContainersDesktop.Domain.Tests` | MSTest | Domain層の単体テスト |
+| `tests/WslContainersDesktop.Application.Tests` | MSTest | Application層の単体テスト |
+| `tests/WslContainersDesktop.Infrastructure.Tests` | MSTest | Infrastructure層のCLIクライアント/ランナー単体テスト |
+| `tests/WslContainersDesktop.App.Tests` | MSTest | Presentation層（ナビゲーション制御・コンテナ一覧ViewModel）の単体テスト |
 
-Domain/Application/Infrastructureは、後続機能の実装を受け入れる空のプロジェクトとして存在する。
-現時点で振る舞いを持つのはPresentation層のナビゲーション制御ロジックのみ。
+現在の主要な振る舞いは、コンテナ一覧取得、起動・停止・再起動・削除、ログのスナップショット表示と
+ライブ追跡である。
 
 ## 層構成
 
@@ -44,6 +45,8 @@ flowchart TB
 - コンテナ、イメージ、ボリューム、ネットワークなどのエンティティ・値オブジェクト。
 - ドメインルール（例: 状態遷移の妥当性）。
 - 外部フレームワーク（WinUI, WSL API等）への依存を一切持たない。
+- 現在は`Container`と`ContainerState`を定義し、停止中/実行中に応じた起動・停止・再起動・削除の
+  操作可否を`Container`に保持する。
 
 ### Application
 
@@ -51,6 +54,13 @@ flowchart TB
 - Infrastructureが実装すべき抽象（インターフェース）をこの層で定義する
   （例: `IContainerRuntimeClient`）。
 - Domainのみに依存する。
+- `IContainerManagementService`はPresentation層向けのInboundポートであり、一覧取得、起動・停止・
+  再起動・削除、既存ログ取得、ライブログ追跡を提供する。
+- `ContainerManagementService`は操作前に`IContainerRuntimeClient.ListContainersAsync`で対象コンテナの
+  存在と状態を検証する。再起動は`wslc`のサブコマンドではなく停止→起動として扱うが、停止中コンテナを
+  起動にすり替えない。
+- `IContainerRuntimeClient`はInfrastructure層向けのOutboundポートであり、CLI/SDKなど具体的な
+  ランタイム連携方式をApplication層から隠蔽する。
 
 ### Infrastructure
 
@@ -60,17 +70,24 @@ flowchart TB
     仕様サマリは [`docs/reference/wsl-containers-platform.md`](../reference/wsl-containers-platform.md) を参照。
 - 設定やキャッシュの永続化（ファイルI/O、レジストリ等）。
 - Applicationで定義された抽象を実装する。
+- 現在は [ADR-0009](../adr/0009-wrap-wslc-cli-for-infrastructure-layer.md) に基づき、
+  `WslcCliContainerRuntimeClient`が`wslc` CLIを呼び出して`IContainerRuntimeClient`を実装する。
+- `IWslcCliRunner.RunAsync`は短時間で終了するCLI呼び出しの標準出力/標準エラーをまとめて取得する。
+  `IWslcCliRunner.StreamLinesAsync`は`wslc container logs --since <unix-epoch> --follow`のような長時間実行コマンドの
+  stdout/stderrを行単位でストリーミングする。実プロセス起動は`IWslcProcessFactory`/`IWslcProcess`で
+  抽象化し、単体テストは実際の`wslc.exe`に依存しない。
 
 ### Presentation
 
 - WinUI 3のView（XAML）とViewModel（MVVM、CommunityToolkit.Mvvm使用）。
 - アプリのエントリポイントとDIコンテナ構成（Infrastructureの実装をApplicationの抽象へ束縛する）。
-  現時点ではApplication/Infrastructureが空のため、DIコンテナは未導入。ViewModelは
-  `MainWindow`から直接インスタンス化している。Infrastructureとの結合が必要になった時点で
-  `Microsoft.Extensions.DependencyInjection`等の導入を検討する。
+  `App.xaml.cs`をComposition Rootとし、`Microsoft.Extensions.DependencyInjection`でApplicationの抽象と
+  Infrastructure実装を結びつける（[ADR-0010](../adr/0010-adopt-di-container-for-presentation.md)）。
 - ViewModelはApplication層のユースケース/抽象にのみ依存し、Infrastructureの具象クラスを直接参照しない。
 - ナビゲーション基盤・ローカライズ基盤の詳細は
   [`docs/design/presentation-navigation.md`](presentation-navigation.md) を参照。
+- コンテナ一覧ViewModelの状態管理とログ表示の詳細は
+  [`docs/design/containers-view.md`](containers-view.md) を参照。
 
 ## テスト戦略との対応
 
@@ -79,9 +96,3 @@ flowchart TB
 - Presentation層: ナビゲーション制御ロジック（ViewModel等）はMSTestの単体テストで検証し、
   実際の画面切り替え・起動/終了の挙動は`winui-ui-testing` skill（既存のwinui pluginが提供）による
   UIオートメーションテストで検証する。
-
-## 今後の更新予定
-
-- コンテナランタイムとの通信方式（WSL API直接呼び出し / CLIラッパー等）が決まり次第、
-  Infrastructure層の節を具体化する。
-- DIコンテナ導入時に、Presentation節の記述を更新する。

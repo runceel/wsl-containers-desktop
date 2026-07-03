@@ -34,4 +34,18 @@ public interface IContainerRuntimeClient
     /// <param name="containerId">対象コンテナのID。</param>
     /// <param name="cancellationToken">キャンセルトークン。</param>
     Task DeleteAsync(string containerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 指定したコンテナの既存ログを取得する。
+    /// </summary>
+    /// <param name="containerId">対象コンテナのID。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task<IReadOnlyList<string>> GetContainerLogsAsync(string containerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 指定したコンテナの新規ログを追跡する。
+    /// </summary>
+    /// <param name="containerId">対象コンテナのID。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    IAsyncEnumerable<string> FollowContainerLogsAsync(string containerId, CancellationToken cancellationToken = default);
 }

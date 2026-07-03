@@ -4,6 +4,7 @@
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Domain;
 
@@ -14,6 +15,11 @@ namespace WslContainersDesktop_App.ViewModels;
 /// </summary>
 public sealed partial class ContainersViewModel(IContainerManagementService containerManagementService) : ObservableObject
 {
+    private const string StoppedLogStatusMessage = "This container is stopped. Existing logs are displayed, but no live log follow is active.";
+    private const string MissingLogStatusMessage = "The selected container does not exist.";
+
+    private readonly IUiDispatcher _uiDispatcher = new ImmediateUiDispatcher();
+
     /// <summary>
     /// 実行中の操作が対象としているコンテナIDの集合。
     /// busy状態は本来 <see cref="ContainerRowViewModel.IsBusy"/> だけで表現できるが、
@@ -35,10 +41,27 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     /// </summary>
     private readonly HashSet<string> _pendingDeleteContainerIds = [];
 
+    private readonly List<string> _pausedLogBuffer = [];
+
+    private CancellationTokenSource? _logFollowCancellation;
+
+    private Task? _logFollowTask;
+
+    public ContainersViewModel(IContainerManagementService containerManagementService, IUiDispatcher uiDispatcher)
+        : this(containerManagementService)
+    {
+        _uiDispatcher = uiDispatcher;
+    }
+
     /// <summary>
     /// 現在表示中のコンテナ一覧。
     /// </summary>
     public ObservableCollection<ContainerRowViewModel> Containers { get; } = [];
+
+    /// <summary>
+    /// 選択中コンテナのログ行。
+    /// </summary>
+    public ObservableCollection<string> LogLines { get; } = [];
 
     /// <summary>
     /// 直近の操作で発生したエラーメッセージ。エラーがない場合は <see langword="null"/>。
@@ -51,6 +74,43 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     /// </summary>
     [ObservableProperty]
     public partial bool IsEmpty { get; private set; } = true;
+
+    /// <summary>
+    /// ログパネルが表示されているかどうか。
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsLogPanelVisible { get; private set; }
+
+    /// <summary>
+    /// 表示可能なログが空かどうか。
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsLogEmpty { get; private set; } = true;
+
+    /// <summary>
+    /// ログ取得または追跡がエラー状態かどうか。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLogStatusVisible))]
+    public partial bool IsLogError { get; private set; }
+
+    /// <summary>
+    /// ログの画面反映を一時停止しているかどうか。
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsLogsPaused { get; private set; }
+
+    /// <summary>
+    /// ログ表示領域に表示する状態メッセージ。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsLogStatusVisible))]
+    public partial string? LogStatusMessage { get; private set; }
+
+    /// <summary>
+    /// エラーではないログ状態メッセージを表示するかどうか。
+    /// </summary>
+    public bool IsLogStatusVisible => !IsLogError && !string.IsNullOrEmpty(LogStatusMessage);
 
     /// <summary>
     /// コンテナ一覧を手動で再取得する。
@@ -69,6 +129,121 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
             // 失敗時は直前に表示していた一覧を保持したまま、エラーメッセージのみを表示する。
             ErrorMessage = ex.Message;
         }
+    }
+
+    /// <summary>
+    /// 指定したコンテナのログを開く。
+    /// </summary>
+    /// <param name="containerId">対象コンテナID。</param>
+    [RelayCommand]
+    public async Task OpenLogsAsync(string containerId)
+    {
+        await StopLogFollowAsync();
+        ResetLogPanelForOpen();
+
+        Container? container;
+        try
+        {
+            var containers = await containerManagementService.GetContainersAsync();
+            container = containers.FirstOrDefault(c => c.Id == containerId);
+            if (container is null)
+            {
+                ShowMissingLogStatus();
+                return;
+            }
+
+            var logs = await containerManagementService.GetContainerLogsAsync(containerId);
+            AppendDisplayedLogLines(logs);
+
+            ClearLogStatus();
+            UpdateLogEmpty();
+        }
+        catch (ContainerNotFoundException)
+        {
+            ShowMissingLogStatus();
+            return;
+        }
+        catch (Exception ex)
+        {
+            ShowLogError(ex.Message);
+            return;
+        }
+
+        if (container.State == ContainerState.Running)
+        {
+            StartLogFollow(containerId);
+            await Task.Yield();
+        }
+        else
+        {
+            LogStatusMessage = StoppedLogStatusMessage;
+        }
+    }
+
+    /// <summary>
+    /// ログの画面反映を一時停止する。
+    /// </summary>
+    [RelayCommand]
+    public Task PauseLogsAsync()
+    {
+        IsLogsPaused = true;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 一時停止中に受信したログを順序通りに反映し、画面反映を再開する。
+    /// </summary>
+    [RelayCommand]
+    public Task ResumeLogsAsync()
+    {
+        IsLogsPaused = false;
+        AppendDisplayedLogLines(_pausedLogBuffer);
+        _pausedLogBuffer.Clear();
+        UpdateLogEmpty();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 表示中のログだけをクリアする。
+    /// </summary>
+    [RelayCommand]
+    public Task ClearLogsAsync()
+    {
+        LogLines.Clear();
+        _pausedLogBuffer.Clear();
+        UpdateLogEmpty();
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// ログパネルを閉じ、追跡中のログ取得を停止する。
+    /// </summary>
+    [RelayCommand]
+    public async Task CloseLogsAsync()
+    {
+        await StopLogFollowAsync();
+        IsLogPanelVisible = false;
+    }
+
+    /// <summary>
+    /// 受信したライブログ行を現在の一時停止状態に応じて反映する。
+    /// </summary>
+    /// <param name="line">ログ行。</param>
+    public Task FollowLiveLine(string line)
+    {
+        _uiDispatcher.Invoke(() =>
+        {
+            if (IsLogsPaused)
+            {
+                _pausedLogBuffer.Add(line);
+            }
+            else
+            {
+                AppendDisplayedLogLine(line);
+            }
+        });
+
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -255,6 +430,110 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
             // ベストエフォートの再同期。失敗してもUIには何も表示しない。
             return false;
         }
+    }
+
+    private void StartLogFollow(string containerId)
+    {
+        _logFollowCancellation = new CancellationTokenSource();
+        _logFollowTask = FollowLogStreamAsync(containerId, _logFollowCancellation.Token);
+    }
+
+    private async Task StopLogFollowAsync()
+    {
+        if (_logFollowCancellation is null)
+        {
+            return;
+        }
+
+        await _logFollowCancellation.CancelAsync();
+        if (_logFollowTask is not null)
+        {
+            try
+            {
+                await _logFollowTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        _logFollowCancellation.Dispose();
+        _logFollowCancellation = null;
+        _logFollowTask = null;
+    }
+
+    private async Task FollowLogStreamAsync(string containerId, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await foreach (var line in containerManagementService.FollowContainerLogsAsync(containerId, cancellationToken))
+            {
+                await FollowLiveLine(line);
+            }
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+        }
+        catch (ContainerNotFoundException)
+        {
+            _uiDispatcher.Invoke(ShowMissingLogStatus);
+        }
+        catch (Exception ex)
+        {
+            _uiDispatcher.Invoke(() => ShowLogError(ex.Message));
+        }
+    }
+
+    private void ShowMissingLogStatus()
+    {
+        SetLogStatus(MissingLogStatusMessage, isError: false);
+        UpdateLogEmpty();
+    }
+
+    private void ShowLogError(string message)
+    {
+        SetLogStatus(message, isError: true);
+        UpdateLogEmpty();
+    }
+
+    private void ResetLogPanelForOpen()
+    {
+        LogLines.Clear();
+        _pausedLogBuffer.Clear();
+        IsLogsPaused = false;
+        IsLogPanelVisible = true;
+        ClearLogStatus();
+        UpdateLogEmpty();
+    }
+
+    private void ClearLogStatus()
+    {
+        SetLogStatus(message: null, isError: false);
+    }
+
+    private void SetLogStatus(string? message, bool isError)
+    {
+        IsLogError = isError;
+        LogStatusMessage = message;
+    }
+
+    private void AppendDisplayedLogLines(IEnumerable<string> lines)
+    {
+        foreach (var line in lines)
+        {
+            AppendDisplayedLogLine(line);
+        }
+    }
+
+    private void AppendDisplayedLogLine(string line)
+    {
+        LogLines.Add(line);
+        UpdateLogEmpty();
+    }
+
+    private void UpdateLogEmpty()
+    {
+        IsLogEmpty = LogLines.Count == 0;
     }
 
     /// <summary>
