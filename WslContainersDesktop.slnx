@@ -9,5 +9,6 @@
     <Project Path="tests/WslContainersDesktop.App.Tests/WslContainersDesktop.App.Tests.csproj" />
     <Project Path="tests/WslContainersDesktop.Application.Tests/WslContainersDesktop.Application.Tests.csproj" />
     <Project Path="tests/WslContainersDesktop.Domain.Tests/WslContainersDesktop.Domain.Tests.csproj" />
+    <Project Path="tests/WslContainersDesktop.Infrastructure.Tests/WslContainersDesktop.Infrastructure.Tests.csproj" />
   </Folder>
 </Solution>

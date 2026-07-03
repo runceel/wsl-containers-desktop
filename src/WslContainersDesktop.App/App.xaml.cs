@@ -1,9 +1,15 @@
-﻿using Microsoft.UI.Xaml;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using WslContainersDesktop.Application.Ports;
+using WslContainersDesktop.Application.Services;
+using WslContainersDesktop.Infrastructure.Cli;
+using WslContainersDesktop.Infrastructure.Clients;
+using WslContainersDesktop_App.ViewModels;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -16,7 +22,15 @@ namespace WslContainersDesktop_App;
 public partial class App : Application
 {
     private Window? _window;
-    
+
+    /// <summary>
+    /// Composition Root（<see href="../../docs/adr/0010-adopt-di-container-for-presentation.md">ADR-0010</see>）
+    /// が構築したサービスプロバイダー。<c>Frame.Navigate(Type)</c>ベースの遷移ではページが
+    /// パラメーターレスコンストラクタを要求されるため、ページ側からこのプロパティ経由で
+    /// 依存を解決する。
+    /// </summary>
+    public IServiceProvider Services { get; }
+
     /// <summary>
     /// Initializes the singleton application object.  This is the first line of authored code
     /// executed, and as such is the logical equivalent of main() or WinMain().
@@ -24,6 +38,22 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+        Services = ConfigureServices();
+    }
+
+    private static IServiceProvider ConfigureServices()
+    {
+        var services = new ServiceCollection();
+
+        services.AddSingleton<IWslcCliRunner, WslcCliRunner>();
+        services.AddSingleton<IContainerRuntimeClient, WslcCliContainerRuntimeClient>();
+        services.AddSingleton<IContainerManagementService, ContainerManagementService>();
+
+        // トップレベルページのViewModelはNavigationViewModelと同様、アプリケーション
+        // ライフタイムで1インスタンスとする。
+        services.AddSingleton<ContainersViewModel>();
+
+        return services.BuildServiceProvider();
     }
 
     /// <summary>
