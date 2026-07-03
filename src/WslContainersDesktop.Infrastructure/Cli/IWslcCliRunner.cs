@@ -12,4 +12,11 @@ public interface IWslcCliRunner
     /// <param name="arguments">コマンドライン引数（シェル解釈を経ないargvとして渡される）。</param>
     /// <param name="cancellationToken">キャンセルトークン。</param>
     Task<CliResult> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 指定した引数でCLIプロセスを実行し、標準出力・標準エラーの行を逐次返す。
+    /// </summary>
+    /// <param name="arguments">コマンドライン引数（シェル解釈を経ないargvとして渡される）。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    IAsyncEnumerable<string> StreamLinesAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default);
 }

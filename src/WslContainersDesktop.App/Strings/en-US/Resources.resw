@@ -168,6 +168,42 @@
   <data name="BtnDelete.Content" xml:space="preserve">
     <value>Delete</value>
   </data>
+  <data name="BtnLogs.Content" xml:space="preserve">
+    <value>Logs</value>
+  </data>
+  <data name="BtnMoreActions.Content" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <data name="MenuStart.Text" xml:space="preserve">
+    <value>Start</value>
+  </data>
+  <data name="MenuStop.Text" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="MenuRestart.Text" xml:space="preserve">
+    <value>Restart</value>
+  </data>
+  <data name="MenuDelete.Text" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="TxtLogPanelTitle.Text" xml:space="preserve">
+    <value>Container logs</value>
+  </data>
+  <data name="BtnPauseLogs.Content" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="BtnResumeLogs.Content" xml:space="preserve">
+    <value>Resume</value>
+  </data>
+  <data name="BtnClearLogs.Content" xml:space="preserve">
+    <value>Clear</value>
+  </data>
+  <data name="BtnCloseLogs.Content" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="TxtLogEmptyState.Text" xml:space="preserve">
+    <value>No logs to display.</value>
+  </data>
   <data name="ContainerState_Running" xml:space="preserve">
     <value>Running</value>
   </data>

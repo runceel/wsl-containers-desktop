@@ -1,6 +1,7 @@
 using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Domain;
+using System.Runtime.CompilerServices;
 
 namespace WslContainersDesktop.Application.Services;
 
@@ -65,6 +66,28 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
         }
 
         await runtimeClient.DeleteAsync(containerId, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<string>> GetContainerLogsAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        await EnsureContainerExistsAsync(containerId, cancellationToken);
+        return await runtimeClient.GetContainerLogsAsync(containerId, cancellationToken);
+    }
+
+    public async IAsyncEnumerable<string> FollowContainerLogsAsync(
+        string containerId,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        await EnsureContainerExistsAsync(containerId, cancellationToken);
+        await foreach (var line in runtimeClient.FollowContainerLogsAsync(containerId, cancellationToken))
+        {
+            yield return line;
+        }
+    }
+
+    private async Task EnsureContainerExistsAsync(string containerId, CancellationToken cancellationToken)
+    {
+        _ = await FindContainerAsync(containerId, cancellationToken);
     }
 
     private async Task<Container> FindContainerAsync(string containerId, CancellationToken cancellationToken)

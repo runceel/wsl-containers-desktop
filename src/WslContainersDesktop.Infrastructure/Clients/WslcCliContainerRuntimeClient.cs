@@ -69,6 +69,41 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
         return RunAsync(["container", "remove", containerId], cancellationToken);
     }
 
+    public async Task<IReadOnlyList<string>> GetContainerLogsAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(["container", "logs", containerId], cancellationToken);
+        var lines = SplitLogResult(result);
+        return lines;
+    }
+
+    public async IAsyncEnumerable<string> FollowContainerLogsAsync(
+        string containerId,
+        [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var since = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString(System.Globalization.CultureInfo.InvariantCulture);
+        IReadOnlyList<string> arguments = ["container", "logs", "--since", since, "--follow", containerId];
+        await using var enumerator = cliRunner.StreamLinesAsync(arguments, cancellationToken).GetAsyncEnumerator(cancellationToken);
+        while (true)
+        {
+            bool hasNext;
+            try
+            {
+                hasNext = await enumerator.MoveNextAsync();
+            }
+            catch (CliStreamException ex)
+            {
+                throw new ContainerRuntimeException(ex.Command, ex.ExitCode, ex.Message, ex);
+            }
+
+            if (!hasNext)
+            {
+                yield break;
+            }
+
+            yield return enumerator.Current.TrimEnd('\r');
+        }
+    }
+
     private async Task<CliResult> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken)
     {
         var result = await cliRunner.RunAsync(arguments, cancellationToken);
@@ -82,5 +117,29 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
         }
 
         return result;
+    }
+
+    private static IReadOnlyList<string> SplitLogLines(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return [];
+        }
+
+        var lines = text.Split('\n').Select(line => line.TrimEnd('\r')).ToList();
+        if (lines.Count > 0 && lines[^1].Length == 0)
+        {
+            lines.RemoveAt(lines.Count - 1);
+        }
+
+        return lines;
+    }
+
+    private static IReadOnlyList<string> SplitLogResult(CliResult result)
+    {
+        var lines = new List<string>();
+        lines.AddRange(SplitLogLines(result.StandardOutput));
+        lines.AddRange(SplitLogLines(result.StandardError));
+        return lines;
     }
 }

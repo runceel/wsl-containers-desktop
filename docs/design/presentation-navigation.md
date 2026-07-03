@@ -40,10 +40,15 @@ UI文字列はすべて `.resw` リソースに外出しされ、コードやXAM
 
 ### DIコンテナ
 
-`WslContainersDesktop.Application`/`Infrastructure`が現時点で空のため、DIコンテナは未導入。
-`MainWindow`が`NavigationViewModel`を直接`new`する。Infrastructureとの結合が必要になった時点で、
-Composition Root（`App.xaml.cs`）にDIコンテナ（`Microsoft.Extensions.DependencyInjection`等）を
-導入することを想定する。
+Composition Rootは`App.xaml.cs`に置く。`Microsoft.Extensions.DependencyInjection`で
+`IContainerRuntimeClient`→`WslcCliContainerRuntimeClient`、
+`IContainerManagementService`→`ContainerManagementService`、`IWslcCliRunner`→`WslcCliRunner`、
+`IUiDispatcher`→`DispatcherQueueUiDispatcher`を登録する。
+
+`ContainersPage`は`Frame.Navigate(Type)`から生成されるためパラメーターレスコンストラクタを持つ。
+ページは`((App)Application.Current).Services`から`ContainersViewModel`を解決し、ViewModel自体は
+Application層の`IContainerManagementService`とUIディスパッチ抽象`IUiDispatcher`だけに依存する。
+詳細は [ADR-0010](../adr/0010-adopt-di-container-for-presentation.md) を参照。
 
 ## ローカライズ
 

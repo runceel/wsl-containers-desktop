@@ -35,7 +35,7 @@ public sealed partial class ContainersPage : Page
 
     private async void BtnDelete_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is not FrameworkElement { DataContext: ContainerRowViewModel row })
+        if (GetContainerRow(sender) is not { } row)
         {
             return;
         }
@@ -59,6 +59,49 @@ public sealed partial class ContainersPage : Page
         }
     }
 
+    private async void BtnLogs_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is Button { CommandParameter: string containerId })
+        {
+            await ViewModel.OpenLogsCommand.ExecuteAsync(containerId);
+        }
+    }
+
+    private async void MenuStart_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetContainerRow(sender) is { } row)
+        {
+            await ViewModel.StartCommand.ExecuteAsync(row);
+        }
+    }
+
+    private async void MenuStop_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetContainerRow(sender) is { } row)
+        {
+            await ViewModel.StopCommand.ExecuteAsync(row);
+        }
+    }
+
+    private async void MenuRestart_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetContainerRow(sender) is { } row)
+        {
+            await ViewModel.RestartCommand.ExecuteAsync(row);
+        }
+    }
+
+    private static ContainerRowViewModel? GetContainerRow(object sender)
+    {
+        return sender switch
+        {
+            MenuFlyoutItem { CommandParameter: ContainerRowViewModel row } => row,
+            Button { CommandParameter: ContainerRowViewModel row } => row,
+            FrameworkElement { DataContext: ContainerRowViewModel row } => row,
+            _ => null,
+        };
+    }
+
     /// <summary>
     /// x:Bind用のbool→Visibility変換関数。値がtrueのとき表示する。
     /// </summary>
@@ -73,4 +116,5 @@ public sealed partial class ContainersPage : Page
     /// x:Bind用のnull/空判定関数。<see cref="InfoBar.IsOpen"/>の表示制御に使用する。
     /// </summary>
     public bool IsNotNullOrEmpty(string? value) => !string.IsNullOrEmpty(value);
+
 }

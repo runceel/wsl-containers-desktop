@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using WslContainersDesktop.Infrastructure.Cli;
 
 namespace WslContainersDesktop.Infrastructure.Tests.Fakes;
@@ -10,11 +11,56 @@ internal sealed class FakeWslcCliRunner : IWslcCliRunner
 {
     public CliResult Result { get; set; } = new(0, string.Empty, string.Empty);
 
+    public Func<IReadOnlyList<string>, CancellationToken, Task<CliResult>>? RunAsyncFunc { get; set; }
+
+    public Func<IReadOnlyList<string>, CancellationToken, IAsyncEnumerable<string>>? StreamLinesAsyncFunc { get; set; }
+
+    public Exception? StreamLinesException { get; set; }
+
     public List<IReadOnlyList<string>> Calls { get; } = [];
+
+    public List<IReadOnlyList<string>> StreamCalls { get; } = [];
 
     public Task<CliResult> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
     {
         Calls.Add(arguments);
+        if (RunAsyncFunc is not null)
+        {
+            return RunAsyncFunc(arguments, cancellationToken);
+        }
+
         return Task.FromResult(Result);
+    }
+
+    public async IAsyncEnumerable<string> StreamLinesAsync(IReadOnlyList<string> arguments, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        StreamCalls.Add(arguments);
+        if (StreamLinesException is not null)
+        {
+            throw StreamLinesException;
+        }
+
+        if (StreamLinesAsyncFunc is not null)
+        {
+            await foreach (var line in StreamLinesAsyncFunc(arguments, cancellationToken))
+            {
+                yield return line;
+            }
+
+            yield break;
+        }
+
+        foreach (var line in Result.StandardOutput.Split(Environment.NewLine, StringSplitOptions.None))
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                yield break;
+            }
+
+            if (line.Length > 0)
+            {
+                yield return line;
+            }
+        }
     }
 }
