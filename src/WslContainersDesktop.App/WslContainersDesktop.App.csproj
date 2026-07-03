@@ -61,6 +61,7 @@
   -->
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.0" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2270" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools.WinApp" Version="0.4.0" />
@@ -68,6 +69,7 @@
   <ItemGroup>
     <ProjectReference Include="..\WslContainersDesktop.Application\WslContainersDesktop.Application.csproj" />
     <ProjectReference Include="..\WslContainersDesktop.Domain\WslContainersDesktop.Domain.csproj" />
+    <ProjectReference Include="..\WslContainersDesktop.Infrastructure\WslContainersDesktop.Infrastructure.csproj" />
   </ItemGroup>
 
   <!--

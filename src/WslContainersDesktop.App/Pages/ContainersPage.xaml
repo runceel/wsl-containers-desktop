@@ -1,19 +1,129 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <Page
     x:Class="WslContainersDesktop_App.Pages.ContainersPage"
+    x:Name="RootPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:WslContainersDesktop_App.Pages"
+    xmlns:vm="using:WslContainersDesktop_App.ViewModels"
+    xmlns:conv="using:WslContainersDesktop_App.Converters"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Padding="24,16,24,16" RowSpacing="24">
+    <Page.Resources>
+        <conv:ContainerStateToDisplayTextConverter x:Key="StateToDisplayTextConverter" />
+        <conv:DateTimeOffsetToLocalStringConverter x:Key="CreatedAtConverter" />
+        <conv:AutomationIdConverter x:Key="AutomationIdConverter" />
+    </Page.Resources>
+
+    <Grid Padding="24,16,24,16" RowSpacing="16">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <TextBlock x:Name="TxtPageTitle" x:Uid="ContainersPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
-        <TextBlock x:Name="TxtPageDescription" x:Uid="ContainersPageDescription" Grid.Row="1" />
+
+        <Grid Grid.Row="0" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0">
+                <TextBlock x:Name="TxtPageTitle" x:Uid="ContainersPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
+                <TextBlock x:Name="TxtPageDescription" x:Uid="ContainersPageDescription" />
+            </StackPanel>
+            <Button
+                x:Name="BtnRefresh"
+                Grid.Column="1"
+                x:Uid="BtnRefresh"
+                VerticalAlignment="Bottom"
+                AutomationProperties.AutomationId="BtnRefresh"
+                Command="{x:Bind ViewModel.RefreshCommand}" />
+        </Grid>
+
+        <InfoBar
+            x:Name="InfoBarError"
+            Grid.Row="1"
+            Severity="Error"
+            IsClosable="False"
+            IsOpen="{x:Bind IsNotNullOrEmpty(ViewModel.ErrorMessage), Mode=OneWay}"
+            Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
+
+        <Grid Grid.Row="2" ColumnSpacing="16" Padding="12,8,12,8" Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsEmpty), Mode=OneWay}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="2*" />
+                <ColumnDefinition Width="120" />
+                <ColumnDefinition Width="160" />
+                <ColumnDefinition Width="360" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="TxtColumnHeaderName" x:Uid="TxtColumnHeaderName" Grid.Column="0" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <TextBlock x:Name="TxtColumnHeaderImage" x:Uid="TxtColumnHeaderImage" Grid.Column="1" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <TextBlock x:Name="TxtColumnHeaderState" x:Uid="TxtColumnHeaderState" Grid.Column="2" Style="{StaticResource BodyStrongTextBlockStyle}" />
+            <TextBlock x:Name="TxtColumnHeaderCreatedAt" x:Uid="TxtColumnHeaderCreatedAt" Grid.Column="3" Style="{StaticResource BodyStrongTextBlockStyle}" />
+        </Grid>
+
+        <ListView
+            x:Name="LstContainers"
+            Grid.Row="3"
+            AutomationProperties.AutomationId="LstContainers"
+            ItemsSource="{x:Bind ViewModel.Containers, Mode=OneWay}"
+            SelectionMode="None"
+            Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsEmpty), Mode=OneWay}">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="vm:ContainerRowViewModel">
+                    <Grid ColumnSpacing="16" Padding="12,8,12,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="160" />
+                            <ColumnDefinition Width="360" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{x:Bind Name, Mode=OneWay}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="1" Text="{x:Bind Image, Mode=OneWay}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="2" Text="{x:Bind State, Mode=OneWay, Converter={StaticResource StateToDisplayTextConverter}}" VerticalAlignment="Center" />
+                        <TextBlock Grid.Column="3" Text="{x:Bind CreatedAt, Mode=OneWay, Converter={StaticResource CreatedAtConverter}}" VerticalAlignment="Center" />
+                        <StackPanel Grid.Column="4" Orientation="Horizontal" Spacing="8">
+                            <Button
+                                x:Uid="BtnStart"
+                                AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnStart}"
+                                IsEnabled="{x:Bind CanStart, Mode=OneWay}"
+                                Command="{Binding ElementName=RootPage, Path=ViewModel.StartCommand}"
+                                CommandParameter="{x:Bind}" />
+                            <Button
+                                x:Uid="BtnStop"
+                                AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnStop}"
+                                IsEnabled="{x:Bind CanStop, Mode=OneWay}"
+                                Command="{Binding ElementName=RootPage, Path=ViewModel.StopCommand}"
+                                CommandParameter="{x:Bind}" />
+                            <Button
+                                x:Uid="BtnRestart"
+                                AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnRestart}"
+                                IsEnabled="{x:Bind CanRestart, Mode=OneWay}"
+                                Command="{Binding ElementName=RootPage, Path=ViewModel.RestartCommand}"
+                                CommandParameter="{x:Bind}" />
+                            <Button
+                                x:Uid="BtnDelete"
+                                AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDelete}"
+                                IsEnabled="{x:Bind CanDelete, Mode=OneWay}"
+                                Click="BtnDelete_Click" />
+                        </StackPanel>
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <StackPanel
+            Grid.Row="3"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Spacing="8"
+            Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsEmpty), Mode=OneWay}">
+            <TextBlock x:Name="TxtEmptyStateTitle" x:Uid="TxtEmptyStateTitle" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <TextBlock x:Name="TxtEmptyStateDescription" x:Uid="TxtEmptyStateDescription" HorizontalAlignment="Center" />
+        </StackPanel>
     </Grid>
 </Page>

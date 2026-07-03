@@ -1,0 +1,332 @@
+// Copyright (c) Microsoft Corporation.
+// Licensed under the MIT License.
+
+using System.Collections.ObjectModel;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using WslContainersDesktop.Application.Ports;
+using WslContainersDesktop.Domain;
+
+namespace WslContainersDesktop_App.ViewModels;
+
+/// <summary>
+/// コンテナ一覧の表示・操作を管理するViewModel。
+/// </summary>
+public sealed partial class ContainersViewModel(IContainerManagementService containerManagementService) : ObservableObject
+{
+    /// <summary>
+    /// 実行中の操作が対象としているコンテナIDの集合。
+    /// busy状態は本来 <see cref="ContainerRowViewModel.IsBusy"/> だけで表現できるが、
+    /// <see cref="RefreshAsync"/> や操作成功後のベストエフォート再同期（<see cref="TryRefreshSilentlyAsync"/>）
+    /// では <see cref="ReplaceContainers"/> によって行インスタンスそのものが作り直されるため、
+    /// 行インスタンスに紐付く <c>IsBusy</c> だけでは再構築後にbusy状態が失われてしまう。
+    /// そこでコンテナID単位で永続する記録をこの集合に持ち、再構築後の新しい行インスタンスへ
+    /// busy状態を復元できるようにしている。
+    /// </summary>
+    private readonly HashSet<string> _busyContainerIds = [];
+
+    /// <summary>
+    /// 削除操作が進行中（実行開始からサーバー側の応答待ちの間）のコンテナIDの集合。
+    /// 削除はUI上「すでに消えたもの」として楽観的に扱うため、この集合に含まれるコンテナIDは
+    /// <see cref="ReplaceContainers"/> による再構築時に一覧へ含めない
+    /// （<see cref="RefreshAsync"/> によるユーザー手動更新や、他の行の操作完了に伴う
+    /// ベストエフォート再同期でサーバーからまだ削除完了前の状態が返ってきても、
+    /// 削除中の行が一覧に再度現れて見えるのを防ぐため）。
+    /// </summary>
+    private readonly HashSet<string> _pendingDeleteContainerIds = [];
+
+    /// <summary>
+    /// 現在表示中のコンテナ一覧。
+    /// </summary>
+    public ObservableCollection<ContainerRowViewModel> Containers { get; } = [];
+
+    /// <summary>
+    /// 直近の操作で発生したエラーメッセージ。エラーがない場合は <see langword="null"/>。
+    /// </summary>
+    [ObservableProperty]
+    public partial string? ErrorMessage { get; private set; }
+
+    /// <summary>
+    /// <see cref="Containers"/> が空かどうか。
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsEmpty { get; private set; } = true;
+
+    /// <summary>
+    /// コンテナ一覧を手動で再取得する。
+    /// </summary>
+    [RelayCommand]
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            var containers = await containerManagementService.GetContainersAsync();
+            ReplaceContainers(containers);
+            ErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            // 失敗時は直前に表示していた一覧を保持したまま、エラーメッセージのみを表示する。
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// 指定したコンテナを起動する。
+    /// </summary>
+    /// <param name="row">対象の行。</param>
+    [RelayCommand]
+    private Task StartAsync(ContainerRowViewModel row)
+    {
+        return ExecuteRowOperationAsync(row, () => containerManagementService.StartAsync(row.Id));
+    }
+
+    /// <summary>
+    /// 指定したコンテナを停止する。
+    /// </summary>
+    /// <param name="row">対象の行。</param>
+    [RelayCommand]
+    private Task StopAsync(ContainerRowViewModel row)
+    {
+        return ExecuteRowOperationAsync(row, () => containerManagementService.StopAsync(row.Id));
+    }
+
+    /// <summary>
+    /// 指定したコンテナを再起動する。
+    /// </summary>
+    /// <param name="row">対象の行。</param>
+    [RelayCommand]
+    private Task RestartAsync(ContainerRowViewModel row)
+    {
+        return ExecuteRowOperationAsync(row, () => containerManagementService.RestartAsync(row.Id));
+    }
+
+    /// <summary>
+    /// 指定したコンテナを削除する。呼び出し前に削除確認はView側で完了している前提。
+    /// 実行中は二重操作を防ぐため <see cref="BeginBusy"/> でコンテナIDをbusy状態にし、
+    /// 成功・失敗いずれの分岐でも <see cref="EndBusy"/> を呼んでbusy状態を解除する
+    /// （呼び出し位置の制約は <see cref="EndBusy"/> のドキュメントを参照）。
+    /// 失敗時は、削除自体は例外で終わったにもかかわらず行が一覧から消えたままになる状況
+    /// （復旧用リフレッシュも失敗し、かつ他の経路でも行が復元されていない場合）に限り、
+    /// 削除開始時に受け取った行を一覧へ戻す（詳細は <see cref="RestoreRowIfDeleteFailedAndMissing"/>
+    /// のドキュメントを参照）。
+    /// </summary>
+    /// <param name="row">対象の行。</param>
+    [RelayCommand]
+    private async Task DeleteAsync(ContainerRowViewModel row)
+    {
+        var id = row.Id;
+        BeginBusy(id);
+        _pendingDeleteContainerIds.Add(id);
+        try
+        {
+            await containerManagementService.DeleteAsync(id);
+            EndBusy(id);
+            _pendingDeleteContainerIds.Remove(id);
+
+            // 削除は一覧から行を取り除くだけで完結する操作のため、Start/Stop/Restartと異なり
+            // バックグラウンドでの全件再同期は行わない（削除後の対象コンテナはサーバー側の
+            // 一覧からも消えている前提であり、再同期の必要性が薄いため）。
+            // 取り除く行は FindLiveRow で再検索したものを使う（理由は同メソッドのドキュメントを参照）。
+            var liveRow = FindLiveRow(id);
+            if (liveRow is not null)
+            {
+                Containers.Remove(liveRow);
+            }
+
+            IsEmpty = Containers.Count == 0;
+            ErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            // 削除処理自体は例外で失敗しているが、行が実際には削除されている等の
+            // 可能性もあるため、ベストエフォートで実際のサーバー状態にUIを合わせ直す。
+            _pendingDeleteContainerIds.Remove(id);
+            var refreshSucceeded = await HandleOperationFailureAsync(id, ex);
+            RestoreRowIfDeleteFailedAndMissing(row, refreshSucceeded);
+        }
+    }
+
+    /// <summary>
+    /// 削除失敗後、行が一覧から消えたままになっている場合に、削除開始時の行を一覧へ戻す。
+    /// </summary>
+    /// <remarks>
+    /// 復旧用リフレッシュ（<see cref="TryRefreshSilentlyAsync"/>）が成功していれば、その時点の
+    /// サーバー側の実際の状態が既に <see cref="Containers"/> へ反映されており、対象コンテナが
+    /// まだ存在するなら一覧にも含まれているはずなので、このメソッドは何もしない。
+    /// 復旧用リフレッシュが失敗した場合のみ、削除中に <see cref="_pendingDeleteContainerIds"/>
+    /// によって <see cref="ReplaceContainers"/> から除外され続けていた行が一覧から消えたまま
+    /// になっている可能性があるため、<see cref="FindLiveRow"/> で確認したうえで、実際にはサーバー
+    /// 側にまだ存在するコンテナとして、削除開始時に捕まえていた行インスタンス（<paramref name="row"/>）
+    /// をそのまま一覧へ戻す。
+    /// </remarks>
+    /// <param name="row">削除開始時に受け取った行インスタンス。</param>
+    /// <param name="refreshSucceeded">削除失敗後の復旧用リフレッシュが成功したかどうか。</param>
+    private void RestoreRowIfDeleteFailedAndMissing(ContainerRowViewModel row, bool refreshSucceeded)
+    {
+        if (refreshSucceeded || FindLiveRow(row.Id) is not null)
+        {
+            return;
+        }
+
+        row.IsBusy = false;
+        Containers.Add(row);
+        IsEmpty = false;
+    }
+
+    /// <summary>
+    /// 指定した行に対する単一コンテナ操作（起動・停止・再起動）を実行する。
+    /// 実行中は二重操作を防ぐため <see cref="BeginBusy"/> でコンテナIDをbusy状態にし、
+    /// 成功・失敗いずれの分岐でも <see cref="EndBusy"/> を呼んでbusy状態を解除する
+    /// （呼び出し位置の制約は <see cref="EndBusy"/> のドキュメントを参照）。
+    /// </summary>
+    /// <param name="row">対象の行。</param>
+    /// <param name="operation">実行する操作。成功時は更新後の <see cref="Container"/> を返す。</param>
+    private async Task ExecuteRowOperationAsync(ContainerRowViewModel row, Func<Task<Container>> operation)
+    {
+        var id = row.Id;
+        BeginBusy(id);
+        try
+        {
+            var updated = await operation();
+            EndBusy(id);
+
+            // 操作成功後は、後続のバックグラウンド再同期を待たずに即座にUIへ反映する
+            // （楽観的更新）。詳細設計フェーズのラバーダックレビューで、再同期が失敗した
+            // 場合に古い状態へ巻き戻さないための対策として導入した。
+            // 反映先は FindLiveRow で再検索した行を使う（理由は同メソッドのドキュメントを参照）。
+            var liveRow = FindLiveRow(id);
+            liveRow?.ApplyFrom(updated);
+            ErrorMessage = null;
+
+            // 楽観的更新の直後にも、他クライアントによる変更等を取り込むためベストエフォートで
+            // 一覧全体を再同期する。
+            await TryRefreshSilentlyAsync();
+        }
+        catch (Exception ex)
+        {
+            // 操作自体は例外で失敗しているが、実際にはサーバー側の状態が変化している
+            // 可能性もあるため、ベストエフォートで実際のサーバー状態にUIを合わせ直す。
+            // 戻り値（再同期の成否）は使わない。DeleteAsyncと異なり、Start/Stop/Restartの
+            // 失敗時には「一覧から消えたままの行を復元する」といった復旧処理が不要なため。
+            await HandleOperationFailureAsync(id, ex);
+        }
+    }
+
+    /// <summary>
+    /// 行操作（起動・停止・再起動・削除）が例外で失敗した場合の共通後処理。
+    /// <see cref="EndBusy"/> で対象行のbusy状態を解除し、エラーメッセージを設定したうえで、
+    /// ベストエフォートの再同期（<see cref="TryRefreshSilentlyAsync"/>）を行う。
+    /// <see cref="EndBusy"/> を再同期より前に呼ぶ理由は <see cref="EndBusy"/> 自体のドキュメントを参照。
+    /// </summary>
+    /// <param name="containerId">対象のコンテナID。</param>
+    /// <param name="exception">発生した例外。</param>
+    /// <returns>
+    /// <see cref="TryRefreshSilentlyAsync"/> の戻り値をそのまま返す。すなわち再同期が成功し
+    /// <see cref="Containers"/> がサーバー側の実際の状態に合わせ直された場合は
+    /// <see langword="true"/>、再同期にも失敗し何も変更されなかった場合は <see langword="false"/>。
+    /// </returns>
+    private async Task<bool> HandleOperationFailureAsync(string containerId, Exception exception)
+    {
+        EndBusy(containerId);
+        ErrorMessage = exception.Message;
+        return await TryRefreshSilentlyAsync();
+    }
+
+    /// <summary>
+    /// 直前の操作成功後、ベストエフォートで一覧全体を再同期する。
+    /// 失敗した場合は直前に適用した楽観的更新を維持するため、例外を握りつぶす。
+    /// </summary>
+    /// <returns>
+    /// 再同期に成功し <see cref="Containers"/> をサーバー側の実際の状態に置き換えられた場合は
+    /// <see langword="true"/>。例外を捕捉した場合は <see langword="false"/> を返し、この場合
+    /// <see cref="Containers"/> や <see cref="_busyContainerIds"/> 等の状態は一切変更しない。
+    /// </returns>
+    private async Task<bool> TryRefreshSilentlyAsync()
+    {
+        try
+        {
+            var containers = await containerManagementService.GetContainersAsync();
+            ReplaceContainers(containers);
+            return true;
+        }
+        catch
+        {
+            // ベストエフォートの再同期。失敗してもUIには何も表示しない。
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 指定したコンテナIDをbusy状態にする。<see cref="_busyContainerIds"/> にIDを記録することで、
+    /// 操作の完了前に <see cref="ReplaceContainers"/> が呼ばれて行インスタンスが再生成されても
+    /// busy状態を復元できるようにする。あわせて、その時点でのライブの <see cref="Containers"/> に
+    /// 該当行が存在すれば、その行の <see cref="ContainerRowViewModel.IsBusy"/> も直接設定する。
+    /// </summary>
+    /// <param name="containerId">busy状態にするコンテナID。</param>
+    private void BeginBusy(string containerId)
+    {
+        _busyContainerIds.Add(containerId);
+        var liveRow = FindLiveRow(containerId);
+        if (liveRow is not null)
+        {
+            liveRow.IsBusy = true;
+        }
+    }
+
+    /// <summary>
+    /// <see cref="BeginBusy"/> で立てたbusy状態を解除する。
+    /// </summary>
+    /// <remarks>
+    /// 呼び出し側は、成功・失敗どちらの分岐であっても、この呼び出しを <c>finally</c> 節ではなく
+    /// 各分岐の中で <see cref="TryRefreshSilentlyAsync"/>（内部で行インスタンスを再生成する
+    /// <see cref="ReplaceContainers"/> を呼ぶ）より前に行う必要がある。もし <c>finally</c> で
+    /// （＝再同期の後で）解除すると、再同期によって作られた新しい行インスタンスは
+    /// <see cref="_busyContainerIds"/> に残ったままの古いIDを見てbusy状態を復元してしまい、
+    /// 実際には完了した操作のbusy表示が解除されなくなる。
+    /// </remarks>
+    /// <param name="containerId">busy状態を解除するコンテナID。</param>
+    private void EndBusy(string containerId)
+    {
+        _busyContainerIds.Remove(containerId);
+        var liveRow = FindLiveRow(containerId);
+        if (liveRow is not null)
+        {
+            liveRow.IsBusy = false;
+        }
+    }
+
+    /// <summary>
+    /// その時点でのライブの <see cref="Containers"/> から、コンテナIDに一致する行インスタンスを探す。
+    /// <see cref="ReplaceContainers"/> によって行インスタンスが再生成された後は、操作開始時に
+    /// 捕まえていた行インスタンスがすでにライブのコレクションに存在しない場合があるため、
+    /// await をまたいだ後の行操作は必ずこのメソッドで再検索した行に対して行う。
+    /// </summary>
+    /// <param name="containerId">検索するコンテナID。</param>
+    /// <returns>見つかった行。存在しない場合は <see langword="null"/>。</returns>
+    private ContainerRowViewModel? FindLiveRow(string containerId) => Containers.FirstOrDefault(r => r.Id == containerId);
+
+    private void ReplaceContainers(IReadOnlyList<Container> containers)
+    {
+        Containers.Clear();
+        foreach (var container in containers)
+        {
+            if (_pendingDeleteContainerIds.Contains(container.Id))
+            {
+                // 削除操作が進行中のコンテナは、サーバーからまだ削除完了前の状態が
+                // 返ってきていても一覧に含めない（削除の楽観的更新）。
+                continue;
+            }
+
+            var row = new ContainerRowViewModel(container);
+            if (_busyContainerIds.Contains(container.Id))
+            {
+                row.IsBusy = true;
+            }
+
+            Containers.Add(row);
+        }
+
+        IsEmpty = Containers.Count == 0;
+    }
+}

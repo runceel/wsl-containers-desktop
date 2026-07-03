@@ -17,6 +17,7 @@
 |---|---|
 | [`architecture-overview.md`](architecture-overview.md) | システム全体のレイヤー構成・依存関係の現在のスナップショット |
 | [`presentation-navigation.md`](presentation-navigation.md) | Presentation層のナビゲーション基盤・ローカライズ基盤の現在のスナップショット |
+| [`containers-view.md`](containers-view.md) | コンテナ一覧ViewModel（`ContainersViewModel`）のbusy状態管理・stale row対策・削除の楽観的更新の現在のスナップショット |
 | (機能追加に応じて追加) | 個別機能の設計ドキュメントは `docs/design/<feature-name>.md` として追加していく |
 
 ## 更新のタイミング
