@@ -210,6 +210,18 @@
   <data name="ContainerState_Stopped" xml:space="preserve">
     <value>Stopped</value>
   </data>
+  <data name="ContainerState_Starting" xml:space="preserve">
+    <value>Starting…</value>
+  </data>
+  <data name="ContainerState_Stopping" xml:space="preserve">
+    <value>Stopping…</value>
+  </data>
+  <data name="ContainerState_Restarting" xml:space="preserve">
+    <value>Restarting…</value>
+  </data>
+  <data name="ContainerState_Deleting" xml:space="preserve">
+    <value>Deleting…</value>
+  </data>
   <data name="DeleteConfirmationDialog_Title" xml:space="preserve">
     <value>Delete container</value>
   </data>

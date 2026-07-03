@@ -21,15 +21,17 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     private readonly IUiDispatcher _uiDispatcher = new ImmediateUiDispatcher();
 
     /// <summary>
-    /// 実行中の操作が対象としているコンテナIDの集合。
-    /// busy状態は本来 <see cref="ContainerRowViewModel.IsBusy"/> だけで表現できるが、
+    /// 実行中の操作が対象としているコンテナIDと、その操作種別の対応。
+    /// busy状態・進行中の操作種別は本来 <see cref="ContainerRowViewModel.IsBusy"/>／
+    /// <see cref="ContainerRowViewModel.PendingOperation"/> だけで表現できるが、
     /// <see cref="RefreshAsync"/> や操作成功後のベストエフォート再同期（<see cref="TryRefreshSilentlyAsync"/>）
     /// では <see cref="ReplaceContainers"/> によって行インスタンスそのものが作り直されるため、
-    /// 行インスタンスに紐付く <c>IsBusy</c> だけでは再構築後にbusy状態が失われてしまう。
-    /// そこでコンテナID単位で永続する記録をこの集合に持ち、再構築後の新しい行インスタンスへ
-    /// busy状態を復元できるようにしている。
+    /// 行インスタンスに紐付くプロパティだけでは再構築後に状態が失われてしまう。
+    /// そこでコンテナID単位で永続する記録をこの辞書に持ち、再構築後の新しい行インスタンスへ
+    /// busy状態と操作種別を復元できるようにしている（busy状態と操作種別は必ず一致するため、
+    /// 単一の情報源として1つの辞書にまとめている。コンテナIDがキーに存在すること自体がbusy中を表す）。
     /// </summary>
-    private readonly HashSet<string> _busyContainerIds = [];
+    private readonly Dictionary<string, ContainerRowOperation> _pendingOperations = [];
 
     /// <summary>
     /// 削除操作が進行中（実行開始からサーバー側の応答待ちの間）のコンテナIDの集合。
@@ -253,7 +255,7 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     [RelayCommand]
     private Task StartAsync(ContainerRowViewModel row)
     {
-        return ExecuteRowOperationAsync(row, () => containerManagementService.StartAsync(row.Id));
+        return ExecuteRowOperationAsync(row, ContainerRowOperation.Starting, () => containerManagementService.StartAsync(row.Id));
     }
 
     /// <summary>
@@ -263,7 +265,7 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     [RelayCommand]
     private Task StopAsync(ContainerRowViewModel row)
     {
-        return ExecuteRowOperationAsync(row, () => containerManagementService.StopAsync(row.Id));
+        return ExecuteRowOperationAsync(row, ContainerRowOperation.Stopping, () => containerManagementService.StopAsync(row.Id));
     }
 
     /// <summary>
@@ -273,7 +275,7 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     [RelayCommand]
     private Task RestartAsync(ContainerRowViewModel row)
     {
-        return ExecuteRowOperationAsync(row, () => containerManagementService.RestartAsync(row.Id));
+        return ExecuteRowOperationAsync(row, ContainerRowOperation.Restarting, () => containerManagementService.RestartAsync(row.Id));
     }
 
     /// <summary>
@@ -291,7 +293,7 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     private async Task DeleteAsync(ContainerRowViewModel row)
     {
         var id = row.Id;
-        BeginBusy(id);
+        BeginBusy(id, ContainerRowOperation.Deleting);
         _pendingDeleteContainerIds.Add(id);
         try
         {
@@ -345,6 +347,7 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
         }
 
         row.IsBusy = false;
+        row.PendingOperation = ContainerRowOperation.None;
         Containers.Add(row);
         IsEmpty = false;
     }
@@ -356,11 +359,12 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     /// （呼び出し位置の制約は <see cref="EndBusy"/> のドキュメントを参照）。
     /// </summary>
     /// <param name="row">対象の行。</param>
+    /// <param name="operationKind">State列に表示する進行中の操作種別。</param>
     /// <param name="operation">実行する操作。成功時は更新後の <see cref="Container"/> を返す。</param>
-    private async Task ExecuteRowOperationAsync(ContainerRowViewModel row, Func<Task<Container>> operation)
+    private async Task ExecuteRowOperationAsync(ContainerRowViewModel row, ContainerRowOperation operationKind, Func<Task<Container>> operation)
     {
         var id = row.Id;
-        BeginBusy(id);
+        BeginBusy(id, operationKind);
         try
         {
             var updated = await operation();
@@ -537,41 +541,46 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     }
 
     /// <summary>
-    /// 指定したコンテナIDをbusy状態にする。<see cref="_busyContainerIds"/> にIDを記録することで、
+    /// 指定したコンテナIDをbusy状態にし、進行中の操作種別を記録する。
+    /// <see cref="_pendingOperations"/> にID→操作種別を記録することで、
     /// 操作の完了前に <see cref="ReplaceContainers"/> が呼ばれて行インスタンスが再生成されても
-    /// busy状態を復元できるようにする。あわせて、その時点でのライブの <see cref="Containers"/> に
-    /// 該当行が存在すれば、その行の <see cref="ContainerRowViewModel.IsBusy"/> も直接設定する。
+    /// busy状態と操作種別を復元できるようにする。あわせて、その時点でのライブの
+    /// <see cref="Containers"/> に該当行が存在すれば、その行の <see cref="ContainerRowViewModel.IsBusy"/>
+    /// と <see cref="ContainerRowViewModel.PendingOperation"/> も直接設定する。
     /// </summary>
     /// <param name="containerId">busy状態にするコンテナID。</param>
-    private void BeginBusy(string containerId)
+    /// <param name="operation">進行中の操作種別。</param>
+    private void BeginBusy(string containerId, ContainerRowOperation operation)
     {
-        _busyContainerIds.Add(containerId);
+        _pendingOperations[containerId] = operation;
         var liveRow = FindLiveRow(containerId);
         if (liveRow is not null)
         {
             liveRow.IsBusy = true;
+            liveRow.PendingOperation = operation;
         }
     }
 
     /// <summary>
-    /// <see cref="BeginBusy"/> で立てたbusy状態を解除する。
+    /// <see cref="BeginBusy"/> で立てたbusy状態と操作種別を解除する。
     /// </summary>
     /// <remarks>
     /// 呼び出し側は、成功・失敗どちらの分岐であっても、この呼び出しを <c>finally</c> 節ではなく
     /// 各分岐の中で <see cref="TryRefreshSilentlyAsync"/>（内部で行インスタンスを再生成する
     /// <see cref="ReplaceContainers"/> を呼ぶ）より前に行う必要がある。もし <c>finally</c> で
     /// （＝再同期の後で）解除すると、再同期によって作られた新しい行インスタンスは
-    /// <see cref="_busyContainerIds"/> に残ったままの古いIDを見てbusy状態を復元してしまい、
-    /// 実際には完了した操作のbusy表示が解除されなくなる。
+    /// <see cref="_pendingOperations"/> に残ったままの古い記録を見てbusy状態・操作種別を
+    /// 復元してしまい、実際には完了した操作の途中状態表示が解除されなくなる。
     /// </remarks>
     /// <param name="containerId">busy状態を解除するコンテナID。</param>
     private void EndBusy(string containerId)
     {
-        _busyContainerIds.Remove(containerId);
+        _pendingOperations.Remove(containerId);
         var liveRow = FindLiveRow(containerId);
         if (liveRow is not null)
         {
             liveRow.IsBusy = false;
+            liveRow.PendingOperation = ContainerRowOperation.None;
         }
     }
 
@@ -598,9 +607,10 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
             }
 
             var row = new ContainerRowViewModel(container);
-            if (_busyContainerIds.Contains(container.Id))
+            if (_pendingOperations.TryGetValue(container.Id, out var operation))
             {
                 row.IsBusy = true;
+                row.PendingOperation = operation;
             }
 
             Containers.Add(row);

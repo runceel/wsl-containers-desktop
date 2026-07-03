@@ -37,6 +37,7 @@ public sealed partial class ContainerRowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanStop))]
     [NotifyPropertyChangedFor(nameof(CanRestart))]
     [NotifyPropertyChangedFor(nameof(CanDelete))]
+    [NotifyPropertyChangedFor(nameof(DisplayState))]
     public partial ContainerState State { get; set; }
 
     /// <summary>
@@ -50,6 +51,19 @@ public sealed partial class ContainerRowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanRestart))]
     [NotifyPropertyChangedFor(nameof(CanDelete))]
     public partial bool IsBusy { get; set; } = false;
+
+    /// <summary>
+    /// この行に対して進行中の操作の種別。State列に途中状態（Stopping等）を表示するために使う。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(DisplayState))]
+    public partial ContainerRowOperation PendingOperation { get; set; } = ContainerRowOperation.None;
+
+    /// <summary>
+    /// State列の表示に使う値。実際の状態と進行中の操作種別を組み合わせる。
+    /// </summary>
+    public ContainerRowDisplayState DisplayState => new(State, PendingOperation);
+
 
     /// <summary>
     /// 「起動」操作を適用できるかどうか。
