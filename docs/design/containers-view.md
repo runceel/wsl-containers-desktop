@@ -103,22 +103,17 @@
 
 ## ログ一覧の自動スクロール
 
-- `Scrolling/ScrollPositionEvaluator.IsAtBottom(verticalOffset, viewportHeight, extentHeight, tolerance)`が、
-  ログ一覧の現在のスクロール位置が末尾とみなせるかどうかを判定する純粋ロジック。コンテンツが
-  ビューポートに収まりスクロール不要な場合は常に末尾とみなす。既定の許容誤差は2.0。
-- `ContainersPage`のコードビハインドが、`LstLogs`（ログ表示用`ListView`）のテンプレート内から
-  `VisualTreeHelper`で内部の`ScrollViewer`を探索してキャッシュし、`ViewChanged`を購読して
-  `_isFollowingLogBottom`（末尾追従中かどうか）を`IsAtBottom`で更新し続ける。この探索はコンストラクタ
-  （`InitializeComponent`直後）で`LstLogs.Loaded`を購読して行う。子コントロールの`Loaded`は親ページの
-  `Loaded`より先に発火し得るため、ページの`Loaded`ハンドラでの購読では間に合わない場合があり、
-  `ContainersPage_Loaded`側でも未取得ならフォールバックとして再探索する。
-- `ViewModel.LogLines`（`ObservableCollection<string>`）の`CollectionChanged`を購読し、
-  `NotifyCollectionChangedAction.Reset`（ログパネルを開いた・再度開いた際の初期化）を検知すると
-  `_isFollowingLogBottom`を`true`にリセットする。これにより、既存の履歴がある状態でログパネルを
-  開いたときも末尾から表示される。
-- 末尾追従中に行が追加されると、`DispatcherQueue.TryEnqueue`でスクロールを1回のディスパッチャー
-  ティックにまとめてスケジュールする（短時間の連続追加でスクロール呼び出しを間引くため）。
-  実行時に改めて`_isFollowingLogBottom`を確認し、スケジュール後にユーザーが手動で上へ
-  スクロールしていた場合はスクロールを行わない。
-- 実際のスクロールは`ScrollViewer.ChangeView(null, extentHeight, null, disableAnimation: true)`で行う。
-- ページの`Unloaded`で`LogLines.CollectionChanged`・`ScrollViewer.ViewChanged`の購読を解除する。
+- WinUI公式の「[Inverted lists](https://learn.microsoft.com/en-us/windows/apps/design/controls/inverted-lists)」
+  パターンに従い、`LstLogs`（ログ表示用`ListView`）の`ItemsPanel`を`ItemsStackPanel`に差し替え、
+  `ItemsUpdatingScrollMode="KeepLastItemInView"`を設定する。これにより「末尾を表示している間は
+  新しい行が追加されると自動的に末尾までスクロールする」「途中までスクロールして読んでいる間は
+  自動スクロールしない」という受け入れ基準をWinUI自身が保証する。
+- 自前で`ScrollViewer`を探索・監視し、スクロール位置から末尾判定を行うコード（旧
+  `Scrolling/ScrollPositionEvaluator`、`ContainersPage`側の`ViewChanged`購読・`ChangeView`呼び出し）は
+  不要となり削除した。`ContainersPage`のコードビハインドはログ表示に関して状態を持たない。
+- 検証の過程で、自前実装には次のような未文書化の挙動への依存があったため、公式パターンへの
+  置き換えに踏み切った: `ScrollViewer.ChangeView`のverticalOffsetは公式ドキュメント上
+  「0から`ScrollableHeight`までの値」が契約であり、範囲外の値（`ExtentHeight`そのものや
+  `double.MaxValue`）が常にクランプされる保証はない。また、新規追加行のレイアウトが
+  `ExtentHeight`に反映されるタイミングとの競合により、自前実装では追従が途中で解除される
+  不具合が発生していた。
