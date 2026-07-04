@@ -19,6 +19,33 @@ public sealed class ImagesPageSourceTests
     }
 
     [TestMethod]
+    public void ImagesPage_HeaderIncludesAccentBar()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\ImagesPage.xaml");
+
+        // Assert
+        StringAssert.Contains(sourceText, "<ColumnDefinition Width=\"4\" />");
+        StringAssert.Contains(sourceText, "Background=\"{ThemeResource WslContainersAccentFillColorDefaultBrush}\"");
+        StringAssert.Contains(sourceText, "CornerRadius=\"{StaticResource ControlCornerRadius}\"");
+    }
+
+    [TestMethod]
+    public void ImagesPage_ListSectionIncludesColumnHeaders()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\ImagesPage.xaml");
+
+        // Assert
+        StringAssert.Contains(sourceText, "x:Name=\"TxtImageColumnName\"");
+        StringAssert.Contains(sourceText, "x:Name=\"TxtImageColumnId\"");
+        StringAssert.Contains(sourceText, "x:Name=\"TxtImageColumnSize\"");
+        StringAssert.Contains(sourceText, "x:Name=\"TxtImageColumnCreatedAt\"");
+        StringAssert.Contains(sourceText, "Grid.Row=\"1\"");
+        StringAssert.Contains(sourceText, "Background=\"{ThemeResource CardBackgroundFillColorDefaultBrush}\"");
+    }
+
+    [TestMethod]
     public void ImagesPage_DeleteClickShowsConfirmationBeforeExecutingDeleteCommand()
     {
         // Arrange

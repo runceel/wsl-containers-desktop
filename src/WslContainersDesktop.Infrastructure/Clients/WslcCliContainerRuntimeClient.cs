@@ -106,6 +106,38 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
         return RunAsync(["volume", "remove", name], cancellationToken);
     }
 
+    public async Task<IReadOnlyList<ContainerNetworkResource>> ListNetworksAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(["network", "list", "--format", "json"], cancellationToken);
+
+        var items = DeserializeJsonList<NetworkListItemDto>(
+            result,
+            command: "network list --format json",
+            failureMessage: "コンテナーネットワーク一覧の解析に失敗しました。");
+        if (items is null)
+        {
+            return [];
+        }
+
+        var networks = new List<ContainerNetworkResource>();
+        foreach (var item in items)
+        {
+            networks.Add(await InspectNetworkAsync(item, cancellationToken));
+        }
+
+        return networks;
+    }
+
+    public Task CreateNetworkAsync(string name, CancellationToken cancellationToken = default)
+    {
+        return RunAsync(["network", "create", name], cancellationToken);
+    }
+
+    public Task DeleteNetworkAsync(string name, CancellationToken cancellationToken = default)
+    {
+        return RunAsync(["network", "remove", name], cancellationToken);
+    }
+
     public Task StartAsync(string containerId, CancellationToken cancellationToken = default)
     {
         return RunAsync(["container", "start", containerId], cancellationToken);
@@ -231,6 +263,28 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
             Driver: string.IsNullOrEmpty(item.Driver) ? listItem.Driver : item.Driver,
             CreatedAt: ParseDateTimeOffsetOrDefault(item.CreatedAt),
             ReferencingContainerNames: []);
+    }
+
+    private async Task<ContainerNetworkResource> InspectNetworkAsync(NetworkListItemDto listItem, CancellationToken cancellationToken)
+    {
+        var result = await RunAsync(["network", "inspect", listItem.Name], cancellationToken);
+
+        var items = DeserializeJsonList<NetworkInspectDto>(
+            result,
+            command: $"network inspect {listItem.Name}",
+            failureMessage: "コンテナーネットワーク詳細情報の解析に失敗しました。");
+        var item = items?.FirstOrDefault();
+        if (item is null)
+        {
+            return new ContainerNetworkResource(listItem.Name, listItem.Driver, DateTimeOffset.MinValue, [], listItem.IsSystem);
+        }
+
+        return new ContainerNetworkResource(
+            Name: string.IsNullOrEmpty(item.Name) ? listItem.Name : item.Name,
+            Driver: string.IsNullOrEmpty(item.Driver) ? listItem.Driver : item.Driver,
+            CreatedAt: ParseDateTimeOffsetOrDefault(item.CreatedAt),
+            ConnectedContainerNames: [],
+            IsSystem: listItem.IsSystem || item.IsSystem);
     }
 
     private static IReadOnlyList<string> SplitLogLines(string text)

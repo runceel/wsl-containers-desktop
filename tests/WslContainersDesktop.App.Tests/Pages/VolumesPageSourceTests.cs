@@ -17,6 +17,18 @@ public sealed class VolumesPageSourceTests
     }
 
     [TestMethod]
+    public void VolumesPage_HeaderIncludesAccentBar()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\VolumesPage.xaml");
+
+        // Assert
+        StringAssert.Contains(sourceText, "<ColumnDefinition Width=\"4\" />");
+        StringAssert.Contains(sourceText, "Background=\"{ThemeResource WslContainersAccentFillColorDefaultBrush}\"");
+        StringAssert.Contains(sourceText, "CornerRadius=\"{StaticResource ControlCornerRadius}\"");
+    }
+
+    [TestMethod]
     public void VolumesPage_DeleteClickShowsConfirmationBeforeExecutingDeleteCommand()
     {
         // Arrange

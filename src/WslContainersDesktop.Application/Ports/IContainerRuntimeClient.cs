@@ -55,6 +55,26 @@ public interface IContainerRuntimeClient
     Task DeleteVolumeAsync(string name, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 現在存在するすべてのコンテナーネットワークを取得する。
+    /// </summary>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task<IReadOnlyList<ContainerNetworkResource>> ListNetworksAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 指定した名前のコンテナーネットワークを作成する。
+    /// </summary>
+    /// <param name="name">作成するネットワーク名。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task CreateNetworkAsync(string name, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 指定したコンテナーネットワークを削除する。
+    /// </summary>
+    /// <param name="name">削除するネットワーク名。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task DeleteNetworkAsync(string name, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 指定したコンテナを起動する。
     /// </summary>
     /// <param name="containerId">対象コンテナのID。</param>
