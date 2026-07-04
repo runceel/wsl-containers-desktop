@@ -51,6 +51,7 @@ public partial class App : Application
         services.AddSingleton<IContainerManagementService, ContainerManagementService>();
         services.AddSingleton<IImageManagementService, ImageManagementService>();
         services.AddSingleton<IVolumeManagementService, VolumeManagementService>();
+        services.AddSingleton<INetworkManagementService, NetworkManagementService>();
         services.AddSingleton<IUiDispatcher>(_ => new DispatcherQueueUiDispatcher(DispatcherQueue.GetForCurrentThread()));
 
         // トップレベルページのViewModelはNavigationViewModelと同様、アプリケーション
@@ -58,6 +59,7 @@ public partial class App : Application
         services.AddSingleton<ContainersViewModel>();
         services.AddSingleton<ImagesViewModel>();
         services.AddSingleton<VolumesViewModel>();
+        services.AddSingleton<NetworksViewModel>();
 
         return services.BuildServiceProvider();
     }

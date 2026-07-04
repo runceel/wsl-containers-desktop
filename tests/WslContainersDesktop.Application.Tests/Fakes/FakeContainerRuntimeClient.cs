@@ -16,6 +16,8 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
 
     public IReadOnlyList<ContainerVolume> Volumes { get; set; } = [];
 
+    public IReadOnlyList<ContainerNetworkResource> Networks { get; set; } = [];
+
     public IReadOnlyDictionary<string, ContainerDetail> ContainerDetailsById { get; set; } = new Dictionary<string, ContainerDetail>();
 
     public Exception? ExceptionToThrow { get; set; }
@@ -37,6 +39,10 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
     public Exception? GetContainerDetailException { get; set; }
 
     public Exception? DeleteVolumeException { get; set; }
+
+    public Exception? CreateNetworkException { get; set; }
+
+    public Exception? DeleteNetworkException { get; set; }
 
     public Func<string, CancellationToken, Task<IReadOnlyList<string>>>? GetContainerLogsAsyncFunc { get; set; }
 
@@ -63,6 +69,10 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
     public List<string> CreateVolumeCalls { get; } = [];
 
     public List<string> DeleteVolumeCalls { get; } = [];
+
+    public List<string> CreateNetworkCalls { get; } = [];
+
+    public List<string> DeleteNetworkCalls { get; } = [];
 
     public Task<IReadOnlyList<Container>> ListContainersAsync(CancellationToken cancellationToken = default)
     {
@@ -213,6 +223,33 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
         if (DeleteVolumeException is not null)
         {
             throw DeleteVolumeException;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task<IReadOnlyList<ContainerNetworkResource>> ListNetworksAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(Networks);
+    }
+
+    public Task CreateNetworkAsync(string name, CancellationToken cancellationToken = default)
+    {
+        CreateNetworkCalls.Add(name);
+        if (CreateNetworkException is not null)
+        {
+            throw CreateNetworkException;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteNetworkAsync(string name, CancellationToken cancellationToken = default)
+    {
+        DeleteNetworkCalls.Add(name);
+        if (DeleteNetworkException is not null)
+        {
+            throw DeleteNetworkException;
         }
 
         return Task.CompletedTask;

@@ -32,17 +32,22 @@
             CornerRadius="{StaticResource OverlayCornerRadius}">
             <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="4" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
+                <Border
+                    Grid.Column="0"
+                    Background="{ThemeResource WslContainersAccentFillColorDefaultBrush}"
+                    CornerRadius="{StaticResource ControlCornerRadius}" />
+                <StackPanel Grid.Column="1">
                     <TextBlock x:Name="TxtVolumesPageTitle" x:Uid="VolumesPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
                     <TextBlock x:Name="TxtVolumesPageDescription" x:Uid="VolumesPageDescription" />
                 </StackPanel>
                 <Button
                     x:Name="BtnRefreshVolumes"
                     x:Uid="BtnRefreshVolumes"
-                    Grid.Column="1"
+                    Grid.Column="2"
                     VerticalAlignment="Bottom"
                     AutomationProperties.AutomationId="BtnRefreshVolumes"
                     Command="{x:Bind ViewModel.RefreshCommand}" />

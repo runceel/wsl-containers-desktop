@@ -61,6 +61,14 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem
+                    x:Name="NavItemNetworks"
+                    x:Uid="NavItemNetworks"
+                    AutomationProperties.AutomationId="NavItemNetworks">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE774;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem
                     x:Name="NavItemSettings"
                     x:Uid="NavItemSettings"
                     AutomationProperties.AutomationId="NavItemSettings">

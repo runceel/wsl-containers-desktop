@@ -33,17 +33,22 @@
             CornerRadius="{StaticResource OverlayCornerRadius}">
             <Grid ColumnSpacing="16">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="4" />
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0">
+                <Border
+                    Grid.Column="0"
+                    Background="{ThemeResource WslContainersAccentFillColorDefaultBrush}"
+                    CornerRadius="{StaticResource ControlCornerRadius}" />
+                <StackPanel Grid.Column="1">
                     <TextBlock x:Name="TxtImagesPageTitle" x:Uid="ImagesPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
                     <TextBlock x:Name="TxtImagesPageDescription" x:Uid="ImagesPageDescription" />
                 </StackPanel>
                 <Button
                     x:Name="BtnRefreshImages"
                     x:Uid="BtnRefreshImages"
-                    Grid.Column="1"
+                    Grid.Column="2"
                     VerticalAlignment="Bottom"
                     AutomationProperties.AutomationId="BtnRefreshImages"
                     Command="{x:Bind ViewModel.RefreshCommand}" />
@@ -90,37 +95,70 @@
         </StackPanel>
 
         <Grid Grid.Row="3">
-            <ListView
-                x:Name="LstImages"
-                AutomationProperties.AutomationId="LstImages"
-                ItemsSource="{x:Bind ViewModel.Images, Mode=OneWay}"
-                SelectionMode="None"
+            <Border
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+                CornerRadius="{StaticResource OverlayCornerRadius}"
                 Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsEmpty), Mode=OneWay}">
-                <ListView.ItemTemplate>
-                    <DataTemplate x:DataType="vm:ImageRowViewModel">
-                        <Grid Padding="8" ColumnSpacing="12">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="2*" />
-                                <ColumnDefinition Width="2*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
-                            <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Id}" />
-                            <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind SizeBytes}" />
-                            <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" />
-                            <Button
-                                x:Uid="BtnDeleteImage"
-                                Grid.Column="4"
-                                VerticalAlignment="Center"
-                                AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDeleteImage}"
-                                CommandParameter="{x:Bind}"
-                                Click="BtnDeleteImage_Click" />
-                        </Grid>
-                    </DataTemplate>
-                </ListView.ItemTemplate>
-            </ListView>
+                <Grid RowSpacing="4">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="12">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="2*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock x:Name="TxtImageColumnName" x:Uid="TxtImageColumnName" Grid.Column="0" FontWeight="SemiBold" />
+                        <TextBlock x:Name="TxtImageColumnId" x:Uid="TxtImageColumnId" Grid.Column="1" FontWeight="SemiBold" />
+                        <TextBlock x:Name="TxtImageColumnSize" x:Uid="TxtImageColumnSize" Grid.Column="2" FontWeight="SemiBold" />
+                        <TextBlock x:Name="TxtImageColumnCreatedAt" x:Uid="TxtImageColumnCreatedAt" Grid.Column="3" FontWeight="SemiBold" />
+                    </Grid>
+
+                    <ListView
+                        x:Name="LstImages"
+                        Grid.Row="1"
+                        AutomationProperties.AutomationId="LstImages"
+                        ItemsSource="{x:Bind ViewModel.Images, Mode=OneWay}"
+                        SelectionMode="None">
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ImageRowViewModel">
+                                <Grid Padding="8" ColumnSpacing="12" HorizontalAlignment="Stretch">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="2*" />
+                                        <ColumnDefinition Width="2*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
+                                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Id}" />
+                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind SizeBytes}" />
+                                    <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" />
+                                    <Button
+                                        x:Uid="BtnDeleteImage"
+                                        Grid.Column="4"
+                                        VerticalAlignment="Center"
+                                        AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDeleteImage}"
+                                        CommandParameter="{x:Bind}"
+                                        Click="BtnDeleteImage_Click" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
 
             <TextBlock
                 x:Name="TxtImagesEmptyState"
