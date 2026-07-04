@@ -9,6 +9,7 @@ public sealed class NavigationPageRegistryTests
     [TestMethod]
     [DataRow(NavigationPageKey.Containers, typeof(ContainersPage))]
     [DataRow(NavigationPageKey.Images, typeof(ImagesPage))]
+    [DataRow(NavigationPageKey.Volumes, typeof(VolumesPage))]
     [DataRow(NavigationPageKey.Settings, typeof(SettingsPage))]
     public void GetPageType_DefinedPageKey_ReturnsExpectedPageType(NavigationPageKey pageKey, Type expectedPageType)
     {

@@ -14,6 +14,9 @@ public enum NavigationPageKey
     /// <summary>コンテナーイメージ一覧ページ。</summary>
     Images,
 
+    /// <summary>コンテナーボリューム一覧ページ。</summary>
+    Volumes,
+
     /// <summary>設定ページ。</summary>
     Settings,
 }

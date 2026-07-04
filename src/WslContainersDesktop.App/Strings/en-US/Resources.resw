@@ -129,6 +129,9 @@
   <data name="NavItemImages.Content" xml:space="preserve">
     <value>Images</value>
   </data>
+  <data name="NavItemVolumes.Content" xml:space="preserve">
+    <value>Volumes</value>
+  </data>
   <data name="NavItemSettings.Content" xml:space="preserve">
     <value>Settings</value>
   </data>
@@ -261,6 +264,39 @@
   <data name="TxtImagesEmptyState.Text" xml:space="preserve">
     <value>No images.</value>
   </data>
+  <data name="VolumesPageTitle.Text" xml:space="preserve">
+    <value>Volumes</value>
+  </data>
+  <data name="VolumesPageDescription.Text" xml:space="preserve">
+    <value>Create and remove container volumes.</value>
+  </data>
+  <data name="BtnRefreshVolumes.Content" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="TxtNewVolumeName.Header" xml:space="preserve">
+    <value>Volume name</value>
+  </data>
+  <data name="BtnCreateVolume.Content" xml:space="preserve">
+    <value>Create</value>
+  </data>
+  <data name="TxtVolumeColumnName.Text" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="TxtVolumeColumnDriver.Text" xml:space="preserve">
+    <value>Driver</value>
+  </data>
+  <data name="TxtVolumeColumnCreatedAt.Text" xml:space="preserve">
+    <value>Created</value>
+  </data>
+  <data name="TxtVolumeColumnUsage.Text" xml:space="preserve">
+    <value>Usage</value>
+  </data>
+  <data name="BtnDeleteVolume.Content" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="TxtVolumesEmptyState.Text" xml:space="preserve">
+    <value>No volumes.</value>
+  </data>
   <data name="ContainerState_Running" xml:space="preserve">
     <value>Running</value>
   </data>
@@ -301,6 +337,18 @@
     <value>Delete</value>
   </data>
   <data name="DeleteImageConfirmationDialog_CloseButtonText" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="DeleteVolumeConfirmationDialog_Title" xml:space="preserve">
+    <value>Delete volume</value>
+  </data>
+  <data name="DeleteVolumeConfirmationDialog_Message" xml:space="preserve">
+    <value>Are you sure you want to delete volume '{0}'? This action cannot be undone.</value>
+  </data>
+  <data name="DeleteVolumeConfirmationDialog_PrimaryButtonText" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="DeleteVolumeConfirmationDialog_CloseButtonText" xml:space="preserve">
     <value>Cancel</value>
   </data>
   <data name="SettingsPageTitle.Text" xml:space="preserve">

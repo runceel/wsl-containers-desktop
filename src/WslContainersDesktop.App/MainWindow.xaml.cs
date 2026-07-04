@@ -33,6 +33,7 @@ public sealed partial class MainWindow : Window
         {
             [NavItemContainers] = NavigationPageKey.Containers,
             [NavItemImages] = NavigationPageKey.Images,
+            [NavItemVolumes] = NavigationPageKey.Volumes,
             [NavItemSettings] = NavigationPageKey.Settings,
         };
 

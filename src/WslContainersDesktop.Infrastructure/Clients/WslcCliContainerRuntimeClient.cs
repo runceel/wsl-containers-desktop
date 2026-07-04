@@ -22,20 +22,10 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
     {
         var result = await RunAsync(["list", "-a", "--format", "json"], cancellationToken);
 
-        List<ContainerListItemDto>? items;
-        try
-        {
-            items = JsonSerializer.Deserialize<List<ContainerListItemDto>>(result.StandardOutput);
-        }
-        catch (JsonException ex)
-        {
-            throw new ContainerRuntimeException(
-                command: "list -a --format json",
-                exitCode: result.ExitCode,
-                message: "コンテナ一覧の解析に失敗しました。",
-                innerException: ex);
-        }
-
+        var items = DeserializeJsonList<ContainerListItemDto>(
+            result,
+            command: "list -a --format json",
+            failureMessage: "コンテナ一覧の解析に失敗しました。");
         if (items is null)
         {
             return [];
@@ -55,20 +45,10 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
     {
         var result = await RunAsync(["image", "list", "--format", "json", "--no-trunc"], cancellationToken);
 
-        List<ImageListItemDto>? items;
-        try
-        {
-            items = JsonSerializer.Deserialize<List<ImageListItemDto>>(result.StandardOutput);
-        }
-        catch (JsonException ex)
-        {
-            throw new ContainerRuntimeException(
-                command: "image list --format json --no-trunc",
-                exitCode: result.ExitCode,
-                message: "コンテナーイメージ一覧の解析に失敗しました。",
-                innerException: ex);
-        }
-
+        var items = DeserializeJsonList<ImageListItemDto>(
+            result,
+            command: "image list --format json --no-trunc",
+            failureMessage: "コンテナーイメージ一覧の解析に失敗しました。");
         if (items is null)
         {
             return [];
@@ -92,6 +72,38 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
     public Task DeleteImageAsync(string imageId, CancellationToken cancellationToken = default)
     {
         return RunAsync(["image", "remove", imageId], cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<ContainerVolume>> ListVolumesAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(["volume", "list", "--format", "json"], cancellationToken);
+
+        var items = DeserializeJsonList<VolumeListItemDto>(
+            result,
+            command: "volume list --format json",
+            failureMessage: "コンテナーボリューム一覧の解析に失敗しました。");
+        if (items is null)
+        {
+            return [];
+        }
+
+        var volumes = new List<ContainerVolume>();
+        foreach (var item in items)
+        {
+            volumes.Add(await InspectVolumeAsync(item, cancellationToken));
+        }
+
+        return volumes;
+    }
+
+    public Task CreateVolumeAsync(string name, CancellationToken cancellationToken = default)
+    {
+        return RunAsync(["volume", "create", name], cancellationToken);
+    }
+
+    public Task DeleteVolumeAsync(string name, CancellationToken cancellationToken = default)
+    {
+        return RunAsync(["volume", "remove", name], cancellationToken);
     }
 
     public Task StartAsync(string containerId, CancellationToken cancellationToken = default)
@@ -123,20 +135,10 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
     {
         var result = await RunAsync(["container", "inspect", containerId], cancellationToken);
 
-        List<ContainerInspectDto>? items;
-        try
-        {
-            items = JsonSerializer.Deserialize<List<ContainerInspectDto>>(result.StandardOutput);
-        }
-        catch (JsonException ex)
-        {
-            throw new ContainerRuntimeException(
-                command: $"container inspect {containerId}",
-                exitCode: result.ExitCode,
-                message: "コンテナ詳細情報の解析に失敗しました。",
-                innerException: ex);
-        }
-
+        var items = DeserializeJsonList<ContainerInspectDto>(
+            result,
+            command: $"container inspect {containerId}",
+            failureMessage: "コンテナ詳細情報の解析に失敗しました。");
         var item = items?.FirstOrDefault();
         if (item is null)
         {
@@ -192,6 +194,43 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
         }
 
         return result;
+    }
+
+    private static List<TDto>? DeserializeJsonList<TDto>(CliResult result, string command, string failureMessage)
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<List<TDto>>(result.StandardOutput);
+        }
+        catch (JsonException ex)
+        {
+            throw new ContainerRuntimeException(
+                command: command,
+                exitCode: result.ExitCode,
+                message: failureMessage,
+                innerException: ex);
+        }
+    }
+
+    private async Task<ContainerVolume> InspectVolumeAsync(VolumeListItemDto listItem, CancellationToken cancellationToken)
+    {
+        var result = await RunAsync(["volume", "inspect", listItem.Name], cancellationToken);
+
+        var items = DeserializeJsonList<VolumeInspectDto>(
+            result,
+            command: $"volume inspect {listItem.Name}",
+            failureMessage: "コンテナーボリューム詳細情報の解析に失敗しました。");
+        var item = items?.FirstOrDefault();
+        if (item is null)
+        {
+            return new ContainerVolume(listItem.Name, listItem.Driver, DateTimeOffset.MinValue, []);
+        }
+
+        return new ContainerVolume(
+            Name: string.IsNullOrEmpty(item.Name) ? listItem.Name : item.Name,
+            Driver: string.IsNullOrEmpty(item.Driver) ? listItem.Driver : item.Driver,
+            CreatedAt: ParseDateTimeOffsetOrDefault(item.CreatedAt),
+            ReferencingContainerNames: []);
     }
 
     private static IReadOnlyList<string> SplitLogLines(string text)

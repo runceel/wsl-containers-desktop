@@ -53,6 +53,14 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem
+                    x:Name="NavItemVolumes"
+                    x:Uid="NavItemVolumes"
+                    AutomationProperties.AutomationId="NavItemVolumes">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8B7;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem
                     x:Name="NavItemSettings"
                     x:Uid="NavItemSettings"
                     AutomationProperties.AutomationId="NavItemSettings">

@@ -35,6 +35,26 @@ public interface IContainerRuntimeClient
     Task DeleteImageAsync(string imageId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 現在存在するすべてのコンテナーボリュームを取得する。
+    /// </summary>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task<IReadOnlyList<ContainerVolume>> ListVolumesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 指定した名前のコンテナーボリュームを作成する。
+    /// </summary>
+    /// <param name="name">作成するボリューム名。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task CreateVolumeAsync(string name, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 指定したコンテナーボリュームを削除する。
+    /// </summary>
+    /// <param name="name">削除するボリューム名。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task DeleteVolumeAsync(string name, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 指定したコンテナを起動する。
     /// </summary>
     /// <param name="containerId">対象コンテナのID。</param>

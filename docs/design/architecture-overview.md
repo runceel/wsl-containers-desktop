@@ -10,18 +10,18 @@
 
 | プロジェクト | 種別 | 内容 |
 |---|---|---|
-| `src/WslContainersDesktop.Domain` | classlib | コンテナ/イメージエンティティ・状態・詳細情報値オブジェクト・状態別操作可否 |
-| `src/WslContainersDesktop.Application` | classlib | コンテナ/イメージ管理ユースケース、execセッション抽象、Inbound/Outboundポート |
+| `src/WslContainersDesktop.Domain` | classlib | コンテナ/イメージ/ボリュームエンティティ・状態・詳細情報値オブジェクト・状態別操作可否 |
+| `src/WslContainersDesktop.Application` | classlib | コンテナ/イメージ/ボリューム管理ユースケース、execセッション抽象、Inbound/Outboundポート |
 | `src/WslContainersDesktop.Infrastructure` | classlib | `wslc` CLIラッパーによるWSL Containers連携 |
-| `src/WslContainersDesktop.App` | WinUI3 MSIXパッケージアプリ（net10.0-windows） | Presentation層。ナビゲーション、ローカライズ、DI構成、コンテナ一覧/詳細/ログ/シェル表示、イメージ一覧/pull/削除を実装済み |
+| `src/WslContainersDesktop.App` | WinUI3 MSIXパッケージアプリ（net10.0-windows） | Presentation層。ナビゲーション、ローカライズ、DI構成、コンテナ一覧/詳細/ログ/シェル表示、イメージ一覧/pull/削除、ボリューム一覧/作成/削除を実装済み |
 | `tests/WslContainersDesktop.Domain.Tests` | MSTest | Domain層の単体テスト |
 | `tests/WslContainersDesktop.Application.Tests` | MSTest | Application層の単体テスト |
 | `tests/WslContainersDesktop.Infrastructure.Tests` | MSTest | Infrastructure層のCLIクライアント/ランナー単体テスト |
-| `tests/WslContainersDesktop.App.Tests` | MSTest | Presentation層（ナビゲーション制御・コンテナ/イメージ一覧ViewModel）の単体テスト |
+| `tests/WslContainersDesktop.App.Tests` | MSTest | Presentation層（ナビゲーション制御・コンテナ/イメージ/ボリューム一覧ViewModel）の単体テスト |
 
 現在の主要な振る舞いは、コンテナ一覧取得、起動・停止・再起動・削除、詳細情報表示、ログの
 スナップショット表示とライブ追跡、稼働中コンテナへの対話的execシェル、イメージ一覧取得、
-イメージpull、イメージ削除である。
+イメージpull、イメージ削除、ボリューム一覧取得、ボリューム作成、ボリューム削除である。
 
 ## 層構成
 
@@ -52,6 +52,8 @@ flowchart TB
   ポートマッピング、環境変数、マウント、ネットワーク、直近の実行状態を保持する。
 - `ContainerImage`はローカルイメージのID、リポジトリ、タグ、サイズ、作成日時を保持し、untaggedを含む
   表示名を`DisplayName`として提供する。
+- `ContainerVolume`はローカルボリュームの名前、ドライバー、作成日時、参照中コンテナ名を保持し、
+  参照有無に応じた削除可否を提供する。
 
 ### Application
 
@@ -72,6 +74,9 @@ flowchart TB
 - `IImageManagementService`はPresentation層向けのInboundポートであり、イメージ一覧取得、pull、
   削除を提供する。pull後の一覧更新や削除確認はPresentation層で扱い、Application層はランタイム操作の
   オーケストレーションと入力検証に留める。
+- `IVolumeManagementService`はPresentation層向けのInboundポートであり、ボリューム一覧取得、作成、
+  削除を提供する。`VolumeManagementService`は一覧取得時にコンテナ詳細のマウント情報から参照中
+  コンテナ名を推定し、削除前にも再評価して参照中ボリュームの削除を拒否する。
 
 ### Infrastructure
 
@@ -86,6 +91,10 @@ flowchart TB
 - イメージ一覧は`wslc image list --format json --no-trunc`のJSONを`ContainerImage`へ変換する。
   pullは`wslc pull <image>`、削除は`wslc image remove <image>`を呼び出す。削除時は強制削除フラグを
   付けず、参照中イメージの拒否は`wslc`のエラーとしてApplication/Presentation層へ伝播する。
+- ボリューム一覧は`wslc volume list --format json`のJSONを基点に、各ボリュームの
+  `wslc volume inspect <name>`から作成日時を補完して`ContainerVolume`へ変換する。作成は
+  `wslc volume create <name>`、削除は`wslc volume remove <name>`を呼び出す。削除時は強制削除フラグを
+  付けず、ランタイム側の拒否はApplication/Presentation層へ伝播する。
 - コンテナ詳細は`wslc container inspect <container-id>`のJSON配列を`ContainerDetail`へ変換する。
 - execシェルは`wslc container exec -i <container-id> /bin/sh`を対話プロセスとして起動する。
   標準入力はLFでコマンドを終端してフラッシュし、標準出力/標準エラーは行ではなくチャンク単位で
@@ -108,6 +117,7 @@ flowchart TB
 - コンテナ一覧ViewModelの状態管理とログ表示の詳細は
   [`docs/design/containers-view.md`](containers-view.md) を参照。
 - イメージ一覧ViewModelの状態管理の詳細は [`docs/design/images-view.md`](images-view.md) を参照。
+- ボリューム一覧ViewModelの状態管理の詳細は [`docs/design/volumes-view.md`](volumes-view.md) を参照。
 
 ## テスト戦略との対応
 
