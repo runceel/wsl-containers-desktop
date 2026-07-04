@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text;
+using WslContainersDesktop.Application.Ports;
 
 namespace WslContainersDesktop.Infrastructure.Cli;
 
@@ -86,5 +87,12 @@ public sealed class WslcCliRunner : IWslcCliRunner
 
             process.Dispose();
         }
+    }
+
+    public async Task<IContainerExecSession> OpenInteractiveAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
+    {
+        var process = _processFactory.CreateInteractive(ExecutablePath, arguments);
+        await process.StartAsync(cancellationToken);
+        return new WslcContainerExecSession(process);
     }
 }

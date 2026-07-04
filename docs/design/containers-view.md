@@ -5,19 +5,22 @@
 ## 概要
 
 `ContainersViewModel`（`ViewModels/ContainersViewModel.cs`）は、コンテナ一覧の取得・起動・停止・
-再起動・削除・ログ表示を担うViewModel。各操作は非同期に実行され、`await` 中に一覧全体が再構築されるケース
-（ユーザーによる手動更新、他操作完了に伴うバックグラウンド再同期）を考慮した設計になっている。
+再起動・削除・詳細表示・ログ表示・対話的シェル表示を担うViewModel。各操作は非同期に実行され、
+`await` 中に一覧全体が再構築されるケース（ユーザーによる手動更新、他操作完了に伴う
+バックグラウンド再同期）を考慮した設計になっている。
 
 ## 一覧UI
 
-- `ContainersPage`はCommunityToolkitの`DataGrid`でコンテナ一覧を表示する。列ヘッダーを常時表示し、
-  `CanUserResizeColumns=true`でユーザーによる列幅変更を有効にする。
+- `ContainersPage`は標準`ListView`を表形式に並べてコンテナ一覧を表示する。CommunityToolkitの
+  `DataGrid`はスクロールバー状態更新タイマー内でUIスレッドCOM例外が発生するため使用しない。
 - 一覧列は名前、イメージ、状態、作成日時、操作を表示する。状態列は`DisplayState`
   （`ContainerRowDisplayState`。実際の`State`と進行中の操作種別`PendingOperation`の組み合わせ）を
   表示用テキストへ変換し、実行中/停止中に加えて起動中・停止処理中・再起動中・削除中といった
   途中状態も一覧上で確認できる。
-- 行操作は常時表示する`Logs`ボタンと`More`メニューに集約する。`More`メニュー内の起動・停止・再起動・削除は
-  対象コンテナの状態に応じて実行可能な項目だけを表示する。
+- 行操作は行右端の`…`ボタンに集約し、`Details`、`Shell`、`Logs`、起動・停止・再起動・削除を
+  メニューとして表示する。起動・停止・再起動・削除は対象コンテナの状態に応じて実行可能な項目だけを表示する。
+- 詳細・ログ・シェルは一覧の下ではなく右側の補助ペインに表示する。複数パネルが開いても一覧領域の高さを
+  維持し、補助ペイン側だけを縦スクロールさせる。
 
 ## 行インスタンスの非永続性と再検索
 
@@ -85,6 +88,18 @@
 - 復旧用リフレッシュが成功していれば、その時点のサーバー側の実際の状態が既に一覧へ
   反映されているため、この復元処理は行わない。
 
+## 詳細パネルの状態管理
+
+- `OpenDetailAsync`は`IContainerManagementService.GetContainerDetailAsync`で対象コンテナの詳細を取得し、
+  `SelectedContainerDetail`と`DetailLines`へ反映して詳細パネルを開く。
+- `DetailLines`はXAML側でそのまま表示できる行単位の文字列であり、ID、名前、イメージ、状態、作成日時、
+  コマンド、エントリポイント、ポート、環境変数、マウント、ネットワーク、開始/終了時刻、終了コードを
+  現在取得できる範囲で整形する。
+- 詳細取得に失敗した場合は詳細パネルを開いたまま`DetailErrorMessage`を設定し、以前の
+  `SelectedContainerDetail`と`DetailLines`はクリアする。
+- `CloseDetailsAsync`は詳細パネルだけを閉じる。ログやシェルなど他の補助パネルが開いている場合、
+  右側の補助ペイン自体は表示したままにする。
+
 ## ログパネルの状態管理
 
 - `OpenLogsAsync`は既存の追跡を停止し、`LogLines`、一時停止バッファ、エラー状態、ステータスメッセージを
@@ -100,6 +115,29 @@
   `LogLines`へ反映する。`ClearLogsAsync`は表示中の行と一時停止バッファを両方クリアするが、
   追跡自体は継続する。
 - `CloseLogsAsync`は追跡用`CancellationTokenSource`をキャンセルしてからログパネルを閉じる。
+
+## シェルパネルの状態管理
+
+- `OpenShellAsync`はシェルパネルを開き、対象コンテナの既存セッションが接続中であればそれを再利用する。
+  接続中セッションがない場合は`IContainerManagementService.OpenExecSessionAsync`で新しい
+  `IContainerExecSession`を開始する。
+- シェルセッションはコンテナID単位で`_execSessions`にキャッシュする。閉じたセッションは再利用せず、
+  次回オープン時に削除して作り直す。別コンテナのシェルを開く場合は、現在表示中のセッションを閉じてから
+  新しい対象へ切り替える。
+- 停止中コンテナなどApplication層がexec開始を拒否した場合は、シェルパネルを開いたまま
+  `ShellStatusMessage`へ接続不可状態を表示し、`IsShellError`でエラー状態にする。
+- `SendShellCommandAsync`は現在のセッションへ入力文字列を送信し、送信後に`ShellCommandText`を空にする。
+  送信前に末尾のCR/LFだけを取り除くため、Windows側の入力で`ls\r`のような文字列になっても
+  シェルへは`ls`として渡る。空白だけの入力、または未接続状態では送信しない。送信に失敗した場合は
+  入力欄の内容を保持し、シェルエラーとして表示する。
+- `ReadShellOutputAsync`は`IContainerExecSession.ReadOutputAsync`から出力チャンクを受け取り、
+  `IUiDispatcher`経由で`ShellOutput`へ追加する。行単位ではなくチャンク単位で表示するため、
+  改行で終わらないプロンプトやコマンド出力もUIへ反映できる。
+- 出力ストリームが終了した場合は通常の切断として`IsShellConnected=false`にし、
+  `ShellStatusMessage`へ切断状態を表示する。読み取り中の例外はシェルエラーとして表示する。
+- `CloseShellAsync`はシェルパネルを閉じる。接続中セッションがある場合はセッションを閉じ、読み取りタスクの
+  終了を待ってから接続状態を解除する。停止中コンテナのようにセッションが作成されていないエラー表示状態でも
+  パネルを閉じられる。閉じる操作はコマンド入力行の`Close shell`ボタンから実行できる。
 
 ## ログ一覧の自動スクロール
 

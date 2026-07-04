@@ -61,9 +61,25 @@ public sealed partial class ContainersPage : Page
 
     private async void BtnLogs_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { CommandParameter: string containerId })
+        if (GetContainerId(sender) is { } containerId)
         {
             await ViewModel.OpenLogsCommand.ExecuteAsync(containerId);
+        }
+    }
+
+    private async void BtnDetails_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetContainerId(sender) is { } containerId)
+        {
+            await ViewModel.OpenDetailsCommand.ExecuteAsync(containerId);
+        }
+    }
+
+    private async void BtnShell_Click(object sender, RoutedEventArgs e)
+    {
+        if (GetContainerId(sender) is { } containerId)
+        {
+            await ViewModel.OpenShellCommand.ExecuteAsync(containerId);
         }
     }
 
@@ -98,6 +114,16 @@ public sealed partial class ContainersPage : Page
             MenuFlyoutItem { CommandParameter: ContainerRowViewModel row } => row,
             Button { CommandParameter: ContainerRowViewModel row } => row,
             FrameworkElement { DataContext: ContainerRowViewModel row } => row,
+            _ => null,
+        };
+    }
+
+    private static string? GetContainerId(object sender)
+    {
+        return sender switch
+        {
+            Button { CommandParameter: string containerId } => containerId,
+            MenuFlyoutItem { CommandParameter: string containerId } => containerId,
             _ => null,
         };
     }

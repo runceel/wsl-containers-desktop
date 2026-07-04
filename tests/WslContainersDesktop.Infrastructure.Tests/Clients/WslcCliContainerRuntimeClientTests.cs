@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using WslContainersDesktop.Application.Exceptions;
+using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Domain;
 using WslContainersDesktop.Infrastructure.Cli;
 using WslContainersDesktop.Infrastructure.Clients;
@@ -189,7 +190,7 @@ public sealed class WslcCliContainerRuntimeClientTests
         // Assert
         var arguments = runner.Calls[0].ToList();
         CollectionAssert.AreEqual(new[] { "image", "remove", "sha256:abc" }, arguments);
-        Assert.IsFalse(arguments.Contains("--force"));
+        CollectionAssert.DoesNotContain(arguments, "--force");
     }
 
     [TestMethod]
@@ -344,6 +345,116 @@ public sealed class WslcCliContainerRuntimeClientTests
     }
 
     [TestMethod]
+    public async Task GetContainerDetailAsync_CliReturnsInspectArray_MapsJsonToDetail()
+    {
+        // Arrange
+        const string json = """
+            [{
+              "Id": "sha256:abc",
+              "Name": "web",
+              "Created": "2026-07-04T00:00:00Z",
+              "Image": "sha256:image",
+              "State": {
+                "Status": "exited",
+                "Running": false,
+                "ExitCode": 137,
+                "StartedAt": "2026-07-04T00:01:00Z",
+                "FinishedAt": "2026-07-04T00:02:00Z"
+              },
+              "Config": {
+                "Env": ["A=1", "B=two=three"],
+                "Cmd": ["sleep", "infinity"],
+                "Entrypoint": ["/entrypoint.sh"]
+              },
+              "Ports": {
+                "80/tcp": [{ "HostIp": "127.0.0.1", "HostPort": "8080" }],
+                "443/tcp": []
+              },
+              "Mounts": [
+                { "Type": "bind", "Source": "C:\\data", "Destination": "/data", "ReadWrite": false }
+              ],
+              "NetworkSettings": {
+                "Networks": {
+                  "bridge": { "IPAddress": "172.17.0.2" }
+                }
+              }
+            }]
+            """;
+        var runner = new FakeWslcCliRunner { Result = new(0, json, string.Empty) };
+        var sut = new WslcCliContainerRuntimeClient(runner);
+
+        // Act
+        var detail = await sut.GetContainerDetailAsync("c1");
+
+        // Assert
+        Assert.AreEqual("sha256:abc", detail.Id);
+        Assert.AreEqual("web", detail.Name);
+        Assert.AreEqual(ContainerState.Stopped, detail.State);
+        Assert.AreEqual(new DateTimeOffset(2026, 7, 4, 0, 0, 0, TimeSpan.Zero), detail.CreatedAt);
+        Assert.AreEqual("sleep infinity", detail.Command);
+        Assert.AreEqual("/entrypoint.sh", detail.Entrypoint);
+        Assert.AreEqual(137, detail.RunState.ExitCode);
+        Assert.AreEqual(new DateTimeOffset(2026, 7, 4, 0, 1, 0, TimeSpan.Zero), detail.RunState.StartedAt);
+        Assert.AreEqual("A", detail.Environment[0].Name);
+        Assert.AreEqual("1", detail.Environment[0].Value);
+        Assert.AreEqual("B", detail.Environment[1].Name);
+        Assert.AreEqual("two=three", detail.Environment[1].Value);
+        Assert.AreEqual("127.0.0.1", detail.Ports[0].HostAddress);
+        Assert.AreEqual((ushort)8080, detail.Ports[0].HostPort);
+        Assert.AreEqual((ushort)80, detail.Ports[0].ContainerPort);
+        Assert.AreEqual("tcp", detail.Ports[0].Protocol);
+        Assert.IsNull(detail.Ports[1].HostAddress);
+        Assert.IsNull(detail.Ports[1].HostPort);
+        Assert.AreEqual((ushort)443, detail.Ports[1].ContainerPort);
+        Assert.AreEqual("/data", detail.Mounts[0].Target);
+        Assert.IsTrue(detail.Mounts[0].IsReadOnly);
+        Assert.AreEqual("bridge", detail.Networks[0].Name);
+        Assert.AreEqual("172.17.0.2", detail.Networks[0].IpAddress);
+    }
+
+    [TestMethod]
+    public async Task GetContainerDetailAsync_CliArguments_AreContainerInspectWithId()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, "[]", string.Empty) };
+        var sut = new WslcCliContainerRuntimeClient(runner);
+
+        // Act
+        await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.GetContainerDetailAsync("c1"));
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "container", "inspect", "c1" }, runner.Calls[0].ToList());
+    }
+
+    [TestMethod]
+    public async Task GetContainerDetailAsync_CliReturnsMalformedJson_ThrowsContainerRuntimeExceptionWithInnerException()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, "not-json", string.Empty) };
+        var sut = new WslcCliContainerRuntimeClient(runner);
+
+        // Act & Assert
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.GetContainerDetailAsync("c1"));
+        Assert.IsNotNull(ex.InnerException);
+    }
+
+    [TestMethod]
+    public async Task OpenExecSessionAsync_CliArguments_AreContainerExecInteractiveNoTtyShell()
+    {
+        // Arrange
+        var expected = new FakeContainerExecSession();
+        var runner = new FakeWslcCliRunner { ExecSession = expected };
+        var sut = new WslcCliContainerRuntimeClient(runner);
+
+        // Act
+        var session = await sut.OpenExecSessionAsync("c1");
+
+        // Assert
+        Assert.AreSame(expected, session);
+        CollectionAssert.AreEqual(new[] { "container", "exec", "-i", "c1", "/bin/sh" }, runner.OpenInteractiveCalls[0].ToList());
+    }
+
+    [TestMethod]
     public async Task StartAsync_CliSucceeds_CompletesWithoutException()
     {
         // Arrange
@@ -430,6 +541,27 @@ public sealed class WslcCliContainerRuntimeClientTests
         foreach (var line in lines)
         {
             yield return line;
+        }
+    }
+
+    private sealed class FakeContainerExecSession : IContainerExecSession
+    {
+        public bool IsClosed => false;
+
+        public async IAsyncEnumerable<string> ReadOutputAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public Task SendCommandAsync(string command, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task CloseAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
         }
     }
 }

@@ -278,11 +278,111 @@ public sealed class ContainerManagementServiceTests
         Assert.IsEmpty(client.FollowContainerLogsCalls);
     }
 
+    [TestMethod]
+    public async Task GetContainerDetailAsync_ContainerExists_ReturnsRuntimeDetailAndCallsRuntimeDetail()
+    {
+        // Arrange
+        var expected = CreateDetail("c1", ContainerState.Running);
+        var client = new FakeContainerRuntimeClient
+        {
+            Containers = [CreateContainer("c1", ContainerState.Running)],
+            ContainerDetail = expected,
+        };
+        var sut = new ContainerManagementService(client);
+
+        // Act
+        var actual = await sut.GetContainerDetailAsync("c1");
+
+        // Assert
+        Assert.AreSame(expected, actual);
+        CollectionAssert.AreEqual(new[] { "c1" }, client.GetContainerDetailCalls);
+    }
+
+    [TestMethod]
+    public async Task GetContainerDetailAsync_ContainerMissing_ThrowsContainerNotFoundExceptionAndDoesNotCallRuntimeDetail()
+    {
+        // Arrange
+        var client = new FakeContainerRuntimeClient { Containers = [] };
+        var sut = new ContainerManagementService(client);
+
+        // Act & Assert
+        await Assert.ThrowsExactlyAsync<ContainerNotFoundException>(() => sut.GetContainerDetailAsync("missing"));
+        Assert.IsEmpty(client.GetContainerDetailCalls);
+    }
+
+    [TestMethod]
+    public async Task OpenExecSessionAsync_RunningContainer_ReturnsRuntimeSessionAndCallsRuntimeExec()
+    {
+        // Arrange
+        var expected = new FakeContainerExecSession();
+        var client = new FakeContainerRuntimeClient
+        {
+            Containers = [CreateContainer("c1", ContainerState.Running)],
+            ExecSession = expected,
+        };
+        var sut = new ContainerManagementService(client);
+
+        // Act
+        var actual = await sut.OpenExecSessionAsync("c1");
+
+        // Assert
+        Assert.AreSame(expected, actual);
+        CollectionAssert.AreEqual(new[] { "c1" }, client.OpenExecSessionCalls);
+    }
+
+    [TestMethod]
+    public async Task OpenExecSessionAsync_StoppedContainer_ThrowsInvalidContainerOperationExceptionAndDoesNotCallRuntimeExec()
+    {
+        // Arrange
+        var client = new FakeContainerRuntimeClient { Containers = [CreateContainer("c1", ContainerState.Stopped)] };
+        var sut = new ContainerManagementService(client);
+
+        // Act & Assert
+        await Assert.ThrowsExactlyAsync<InvalidContainerOperationException>(() => sut.OpenExecSessionAsync("c1"));
+        Assert.IsEmpty(client.OpenExecSessionCalls);
+    }
+
     private static async IAsyncEnumerable<string> CreateLinesAsync(params string[] lines)
     {
         foreach (var line in lines)
         {
             yield return line;
+        }
+    }
+
+    private static ContainerDetail CreateDetail(string id, ContainerState state) => new(
+        Id: id,
+        Name: $"name-{id}",
+        Image: "nginx:latest",
+        State: state,
+        CreatedAt: new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero),
+        Command: "sleep infinity",
+        Entrypoint: null,
+        Ports: [],
+        Environment: [],
+        Mounts: [],
+        Networks: [],
+        RunState: new ContainerRunState(null, null, null, null));
+
+    private sealed class FakeContainerExecSession : IContainerExecSession
+    {
+        public bool IsClosed { get; private set; }
+
+        public async IAsyncEnumerable<string> ReadOutputAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            await Task.CompletedTask;
+            yield break;
+        }
+
+        public Task SendCommandAsync(string command, CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+
+        public Task CloseAsync(CancellationToken cancellationToken = default)
+        {
+            IsClosed = true;
+            return Task.CompletedTask;
         }
     }
 }

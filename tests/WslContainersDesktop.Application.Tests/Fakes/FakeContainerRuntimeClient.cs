@@ -22,6 +22,10 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
 
     public IReadOnlyList<string> ContainerLogs { get; set; } = [];
 
+    public ContainerDetail? ContainerDetail { get; set; }
+
+    public IContainerExecSession? ExecSession { get; set; }
+
     public Exception? GetContainerLogsException { get; set; }
 
     public Exception? FollowContainerLogsException { get; set; }
@@ -41,6 +45,10 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
     public List<string> DeleteImageCalls { get; } = [];
 
     public List<string> GetContainerLogsCalls { get; } = [];
+
+    public List<string> GetContainerDetailCalls { get; } = [];
+
+    public List<string> OpenExecSessionCalls { get; } = [];
 
     public List<string> FollowContainerLogsCalls { get; } = [];
 
@@ -123,6 +131,18 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
         }
 
         return Task.FromResult(ContainerLogs);
+    }
+
+    public Task<ContainerDetail> GetContainerDetailAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        GetContainerDetailCalls.Add(containerId);
+        return Task.FromResult(ContainerDetail!);
+    }
+
+    public Task<IContainerExecSession> OpenExecSessionAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        OpenExecSessionCalls.Add(containerId);
+        return Task.FromResult(ExecSession!);
     }
 
     public async IAsyncEnumerable<string> FollowContainerLogsAsync(string containerId, [EnumeratorCancellation] CancellationToken cancellationToken = default)

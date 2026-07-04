@@ -9,4 +9,9 @@ public sealed class WslcProcessFactory : IWslcProcessFactory
     {
         return new WslcProcess(executablePath, arguments);
     }
+
+    public IWslcInteractiveProcess CreateInteractive(string executablePath, IReadOnlyList<string> arguments)
+    {
+        return new WslcInteractiveProcess(executablePath, arguments);
+    }
 }

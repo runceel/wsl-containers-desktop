@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Infrastructure.Cli;
 
 namespace WslContainersDesktop.Infrastructure.Tests.Fakes;
@@ -17,9 +18,13 @@ internal sealed class FakeWslcCliRunner : IWslcCliRunner
 
     public Exception? StreamLinesException { get; set; }
 
+    public IContainerExecSession? ExecSession { get; set; }
+
     public List<IReadOnlyList<string>> Calls { get; } = [];
 
     public List<IReadOnlyList<string>> StreamCalls { get; } = [];
+
+    public List<IReadOnlyList<string>> OpenInteractiveCalls { get; } = [];
 
     public Task<CliResult> RunAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
     {
@@ -62,5 +67,11 @@ internal sealed class FakeWslcCliRunner : IWslcCliRunner
                 yield return line;
             }
         }
+    }
+
+    public Task<IContainerExecSession> OpenInteractiveAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default)
+    {
+        OpenInteractiveCalls.Add(arguments);
+        return Task.FromResult(ExecSession!);
     }
 }

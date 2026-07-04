@@ -106,13 +106,14 @@
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Grid.Column="0" Text="{x:Bind DisplayName}" />
-                            <TextBlock Grid.Column="1" Text="{x:Bind Id}" />
-                            <TextBlock Grid.Column="2" Text="{x:Bind SizeBytes}" />
-                            <TextBlock Grid.Column="3" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" />
+                            <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
+                            <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Id}" />
+                            <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind SizeBytes}" />
+                            <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" />
                             <Button
                                 x:Uid="BtnDeleteImage"
                                 Grid.Column="4"
+                                VerticalAlignment="Center"
                                 AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDeleteImage}"
                                 CommandParameter="{x:Bind}"
                                 Click="BtnDeleteImage_Click" />

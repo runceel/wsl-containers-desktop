@@ -119,6 +119,38 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
         return lines;
     }
 
+    public async Task<ContainerDetail> GetContainerDetailAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(["container", "inspect", containerId], cancellationToken);
+
+        List<ContainerInspectDto>? items;
+        try
+        {
+            items = JsonSerializer.Deserialize<List<ContainerInspectDto>>(result.StandardOutput);
+        }
+        catch (JsonException ex)
+        {
+            throw new ContainerRuntimeException(
+                command: $"container inspect {containerId}",
+                exitCode: result.ExitCode,
+                message: "コンテナ詳細情報の解析に失敗しました。",
+                innerException: ex);
+        }
+
+        var item = items?.FirstOrDefault();
+        if (item is null)
+        {
+            throw new ContainerRuntimeException($"container inspect {containerId}", result.ExitCode, "コンテナ詳細情報が見つかりませんでした。");
+        }
+
+        return MapInspectDetail(item);
+    }
+
+    public Task<IContainerExecSession> OpenExecSessionAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        return cliRunner.OpenInteractiveAsync(["container", "exec", "-i", containerId, "/bin/sh"], cancellationToken);
+    }
+
     public async IAsyncEnumerable<string> FollowContainerLogsAsync(
         string containerId,
         [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -184,5 +216,119 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
         lines.AddRange(SplitLogLines(result.StandardOutput));
         lines.AddRange(SplitLogLines(result.StandardError));
         return lines;
+    }
+
+    private static ContainerDetail MapInspectDetail(ContainerInspectDto item)
+    {
+        return new ContainerDetail(
+            Id: item.Id,
+            Name: item.Name,
+            Image: item.Image,
+            State: item.State.Running ? ContainerState.Running : ContainerState.Stopped,
+            CreatedAt: ParseDateTimeOffsetOrDefault(item.Created),
+            Command: JoinCommand(item.Config.Cmd),
+            Entrypoint: JoinCommand(item.Config.Entrypoint),
+            Ports: MapPorts(item.Ports),
+            Environment: MapEnvironment(item.Config.Env),
+            Mounts: item.Mounts
+                .Select(mount => new ContainerMount(mount.Type, mount.Source, mount.Destination, IsReadOnly: !mount.ReadWrite))
+                .ToList(),
+            Networks: item.NetworkSettings.Networks
+                .Select(network => new ContainerNetwork(network.Key, EmptyToNull(network.Value.IPAddress)))
+                .ToList(),
+            RunState: new ContainerRunState(
+                ParseNullableDateTimeOffset(item.State.StartedAt),
+                ParseNullableDateTimeOffset(item.State.FinishedAt),
+                item.State.ExitCode,
+                HealthStatus: null));
+    }
+
+    private static IReadOnlyList<ContainerPortMapping> MapPorts(Dictionary<string, List<InspectPortBindingDto>> ports)
+    {
+        var mappings = new List<ContainerPortMapping>();
+        foreach (var (portAndProtocol, bindings) in ports)
+        {
+            var (containerPort, protocol) = ParsePortAndProtocol(portAndProtocol);
+            if (bindings.Count == 0)
+            {
+                mappings.Add(new ContainerPortMapping(null, null, containerPort, protocol));
+                continue;
+            }
+
+            foreach (var binding in bindings)
+            {
+                mappings.Add(new ContainerPortMapping(
+                    EmptyToNull(binding.HostIp),
+                    ParseNullableUInt16(binding.HostPort),
+                    containerPort,
+                    protocol));
+            }
+        }
+
+        return mappings;
+    }
+
+    private static IReadOnlyList<ContainerEnvironmentVariable> MapEnvironment(IReadOnlyList<string>? environment)
+    {
+        if (environment is null)
+        {
+            return [];
+        }
+
+        return environment
+            .Select(value =>
+            {
+                var separatorIndex = value.IndexOf('=');
+                return separatorIndex < 0
+                    ? new ContainerEnvironmentVariable(value, string.Empty)
+                    : new ContainerEnvironmentVariable(value[..separatorIndex], value[(separatorIndex + 1)..]);
+            })
+            .ToList();
+    }
+
+    private static (ushort ContainerPort, string Protocol) ParsePortAndProtocol(string value)
+    {
+        var parts = value.Split('/', 2);
+        var containerPort = ushort.Parse(parts[0], System.Globalization.CultureInfo.InvariantCulture);
+        var protocol = parts.Length == 2 ? parts[1] : string.Empty;
+        return (containerPort, protocol);
+    }
+
+    private static ushort? ParseNullableUInt16(string value)
+    {
+        return ushort.TryParse(value, System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out var result)
+            ? result
+            : null;
+    }
+
+    private static DateTimeOffset ParseDateTimeOffsetOrDefault(string value)
+    {
+        return ParseNullableDateTimeOffset(value) ?? DateTimeOffset.MinValue;
+    }
+
+    private static DateTimeOffset? ParseNullableDateTimeOffset(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value) || value.StartsWith("0001-01-01", StringComparison.Ordinal))
+        {
+            return null;
+        }
+
+        return DateTimeOffset.TryParse(
+            value,
+            System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.AssumeUniversal,
+            out var result)
+            ? result.ToUniversalTime()
+            : null;
+    }
+
+    private static string? JoinCommand(IReadOnlyList<string>? values)
+    {
+        return values is { Count: > 0 } ? string.Join(' ', values) : null;
+    }
+
+    private static string? EmptyToNull(string value)
+    {
+        return string.IsNullOrEmpty(value) ? null : value;
     }
 }

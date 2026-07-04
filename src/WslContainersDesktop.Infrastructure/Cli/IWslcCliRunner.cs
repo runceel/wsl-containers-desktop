@@ -1,3 +1,5 @@
+using WslContainersDesktop.Application.Ports;
+
 namespace WslContainersDesktop.Infrastructure.Cli;
 
 /// <summary>
@@ -19,4 +21,11 @@ public interface IWslcCliRunner
     /// <param name="arguments">コマンドライン引数（シェル解釈を経ないargvとして渡される）。</param>
     /// <param name="cancellationToken">キャンセルトークン。</param>
     IAsyncEnumerable<string> StreamLinesAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 指定した引数で対話的なCLIプロセスを起動し、stdin/stdout/stderrに接続されたセッションを返す。
+    /// </summary>
+    /// <param name="arguments">コマンドライン引数（シェル解釈を経ないargvとして渡される）。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task<IContainerExecSession> OpenInteractiveAsync(IReadOnlyList<string> arguments, CancellationToken cancellationToken = default);
 }

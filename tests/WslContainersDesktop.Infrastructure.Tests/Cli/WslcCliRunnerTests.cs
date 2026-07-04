@@ -117,9 +117,107 @@ public sealed class WslcCliRunnerTests
         Assert.IsTrue(process.DisposeCalled);
     }
 
-    private sealed class FakeWslcProcessFactory(IWslcProcess process) : IWslcProcessFactory
+    [TestMethod]
+    public async Task OpenInteractiveAsync_CreatesStartsAndReturnsSession()
     {
+        // Arrange
+        var process = new FakeWslcInteractiveProcess();
+        var factory = new FakeWslcProcessFactory(new FakeWslcProcess(), process);
+        var sut = new WslcCliRunner(factory, executablePath: "wslc-test");
+
+        // Act
+        var session = await sut.OpenInteractiveAsync(["container", "exec", "-i", "c1", "/bin/sh"]);
+
+        // Assert
+        Assert.IsNotNull(session);
+        Assert.IsTrue(process.StartCalled);
+        Assert.AreEqual("wslc-test", factory.InteractiveExecutablePath);
+        CollectionAssert.AreEqual(new[] { "container", "exec", "-i", "c1", "/bin/sh" }, factory.InteractiveArguments!.ToList());
+    }
+
+    [TestMethod]
+    public async Task ContainerExecSession_SendCommandAsync_WritesLfTerminatedCommandAndFlushes()
+    {
+        // Arrange
+        var process = new FakeWslcInteractiveProcess();
+        var sut = new WslcCliRunner(new FakeWslcProcessFactory(new FakeWslcProcess(), process));
+        var session = await sut.OpenInteractiveAsync(["container", "exec", "-i", "c1", "/bin/sh"]);
+
+        // Act
+        await session.SendCommandAsync("pwd");
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "pwd\n" }, process.InputWrites);
+        Assert.IsTrue(process.FlushCalled);
+    }
+
+    [TestMethod]
+    public async Task ContainerExecSession_ReadOutputAsync_ProcessOutputsChunks_YieldsChunksIncludingUnterminatedText()
+    {
+        // Arrange
+        var process = new FakeWslcInteractiveProcess(outputChunks: ["partial"]);
+        var sut = new WslcCliRunner(new FakeWslcProcessFactory(new FakeWslcProcess(), process));
+        var session = await sut.OpenInteractiveAsync(["container", "exec", "-i", "c1", "/bin/sh"]);
+        var chunks = new List<string>();
+
+        // Act
+        await foreach (var chunk in session.ReadOutputAsync())
+        {
+            chunks.Add(chunk);
+        }
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "partial" }, chunks);
+    }
+
+    [TestMethod]
+    public async Task ContainerExecSession_ProcessExitsWithNonZero_CompletesWithoutThrowingAndMarksClosed()
+    {
+        // Arrange
+        var process = new FakeWslcInteractiveProcess(exitCode: 42);
+        var sut = new WslcCliRunner(new FakeWslcProcessFactory(new FakeWslcProcess(), process));
+        var session = await sut.OpenInteractiveAsync(["container", "exec", "-i", "c1", "/bin/sh"]);
+
+        // Act
+        await foreach (var _ in session.ReadOutputAsync())
+        {
+        }
+
+        // Assert
+        Assert.IsTrue(session.IsClosed);
+    }
+
+    [TestMethod]
+    public async Task ContainerExecSession_CloseAsync_KillsAndDisposesInteractiveProcess()
+    {
+        // Arrange
+        var process = new FakeWslcInteractiveProcess();
+        var sut = new WslcCliRunner(new FakeWslcProcessFactory(new FakeWslcProcess(), process));
+        var session = await sut.OpenInteractiveAsync(["container", "exec", "-i", "c1", "/bin/sh"]);
+
+        // Act
+        await session.CloseAsync();
+
+        // Assert
+        Assert.IsTrue(process.KillCalled);
+        Assert.IsTrue(process.DisposeCalled);
+        Assert.IsTrue(session.IsClosed);
+    }
+
+    private sealed class FakeWslcProcessFactory(IWslcProcess process, IWslcInteractiveProcess? interactiveProcess = null) : IWslcProcessFactory
+    {
+        public string? InteractiveExecutablePath { get; private set; }
+
+        public IReadOnlyList<string>? InteractiveArguments { get; private set; }
+
         public IWslcProcess Create(string executablePath, IReadOnlyList<string> arguments) => process;
+
+        public IWslcInteractiveProcess CreateInteractive(string executablePath, IReadOnlyList<string> arguments)
+        {
+            InteractiveExecutablePath = executablePath;
+            InteractiveArguments = arguments;
+            return interactiveProcess ?? new FakeWslcInteractiveProcess();
+        }
     }
 
     private sealed class FakeWslcProcess(IReadOnlyList<string>? stdOutLines = null, IReadOnlyList<string>? stdErrLines = null) : IWslcProcess
@@ -149,6 +247,60 @@ public sealed class WslcCliRunnerTests
         }
 
         public void Kill() => KillCalled = true;
+
+        public void Dispose() => DisposeCalled = true;
+    }
+
+    private sealed class FakeWslcInteractiveProcess(IReadOnlyList<string>? outputChunks = null, int exitCode = 0) : IWslcInteractiveProcess
+    {
+        public bool StartCalled { get; private set; }
+
+        public bool FlushCalled { get; private set; }
+
+        public bool KillCalled { get; private set; }
+
+        public bool DisposeCalled { get; private set; }
+
+        public bool HasExited { get; private set; }
+
+        public int ExitCode { get; private set; } = exitCode;
+
+        public List<string> InputWrites { get; } = [];
+
+        public Task StartAsync(CancellationToken cancellationToken)
+        {
+            StartCalled = true;
+            return Task.CompletedTask;
+        }
+
+        public async IAsyncEnumerable<string> ReadOutputAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (var chunk in outputChunks ?? [])
+            {
+                yield return chunk;
+            }
+
+            HasExited = true;
+            await Task.CompletedTask;
+        }
+
+        public Task WriteInputAsync(string input, CancellationToken cancellationToken)
+        {
+            InputWrites.Add(input);
+            return Task.CompletedTask;
+        }
+
+        public Task FlushInputAsync(CancellationToken cancellationToken)
+        {
+            FlushCalled = true;
+            return Task.CompletedTask;
+        }
+
+        public void Kill()
+        {
+            KillCalled = true;
+            HasExited = true;
+        }
 
         public void Dispose() => DisposeCalled = true;
     }
