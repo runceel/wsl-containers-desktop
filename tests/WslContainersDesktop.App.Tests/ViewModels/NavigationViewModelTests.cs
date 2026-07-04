@@ -19,6 +19,7 @@ public sealed class NavigationViewModelTests
     [TestMethod]
     [DataRow(NavigationPageKey.Containers)]
     [DataRow(NavigationPageKey.Settings)]
+    [DataRow(NavigationPageKey.Volumes)]
     public void Constructor_InitialPageKeySpecified_CurrentPageKeyMatchesArgument(NavigationPageKey initialPageKey)
     {
         // Arrange & Act

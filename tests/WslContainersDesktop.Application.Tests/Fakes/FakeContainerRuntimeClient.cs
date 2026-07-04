@@ -14,6 +14,10 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
 
     public IReadOnlyList<ContainerImage> Images { get; set; } = [];
 
+    public IReadOnlyList<ContainerVolume> Volumes { get; set; } = [];
+
+    public IReadOnlyDictionary<string, ContainerDetail> ContainerDetailsById { get; set; } = new Dictionary<string, ContainerDetail>();
+
     public Exception? ExceptionToThrow { get; set; }
 
     public Exception? PullException { get; set; }
@@ -29,6 +33,10 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
     public Exception? GetContainerLogsException { get; set; }
 
     public Exception? FollowContainerLogsException { get; set; }
+
+    public Exception? GetContainerDetailException { get; set; }
+
+    public Exception? DeleteVolumeException { get; set; }
 
     public Func<string, CancellationToken, Task<IReadOnlyList<string>>>? GetContainerLogsAsyncFunc { get; set; }
 
@@ -51,6 +59,10 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
     public List<string> OpenExecSessionCalls { get; } = [];
 
     public List<string> FollowContainerLogsCalls { get; } = [];
+
+    public List<string> CreateVolumeCalls { get; } = [];
+
+    public List<string> DeleteVolumeCalls { get; } = [];
 
     public Task<IReadOnlyList<Container>> ListContainersAsync(CancellationToken cancellationToken = default)
     {
@@ -136,6 +148,16 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
     public Task<ContainerDetail> GetContainerDetailAsync(string containerId, CancellationToken cancellationToken = default)
     {
         GetContainerDetailCalls.Add(containerId);
+        if (GetContainerDetailException is not null)
+        {
+            throw GetContainerDetailException;
+        }
+
+        if (ContainerDetailsById.TryGetValue(containerId, out var detail))
+        {
+            return Task.FromResult(detail);
+        }
+
         return Task.FromResult(ContainerDetail!);
     }
 
@@ -172,5 +194,27 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
 
             yield return line;
         }
+    }
+
+    public Task<IReadOnlyList<ContainerVolume>> ListVolumesAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(Volumes);
+    }
+
+    public Task CreateVolumeAsync(string name, CancellationToken cancellationToken = default)
+    {
+        CreateVolumeCalls.Add(name);
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteVolumeAsync(string name, CancellationToken cancellationToken = default)
+    {
+        DeleteVolumeCalls.Add(name);
+        if (DeleteVolumeException is not null)
+        {
+            throw DeleteVolumeException;
+        }
+
+        return Task.CompletedTask;
     }
 }

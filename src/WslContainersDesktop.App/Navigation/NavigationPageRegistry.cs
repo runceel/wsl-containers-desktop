@@ -24,6 +24,7 @@ public static class NavigationPageRegistry
         {
             NavigationPageKey.Containers => typeof(ContainersPage),
             NavigationPageKey.Images => typeof(ImagesPage),
+            NavigationPageKey.Volumes => typeof(VolumesPage),
             NavigationPageKey.Settings => typeof(SettingsPage),
             _ => throw new ArgumentOutOfRangeException(nameof(pageKey), pageKey, "未定義のNavigationPageKeyです。"),
         };
