@@ -23,6 +23,7 @@ public static class NavigationPageRegistry
         return pageKey.EnsureDefined(nameof(pageKey)) switch
         {
             NavigationPageKey.Containers => typeof(ContainersPage),
+            NavigationPageKey.Images => typeof(ImagesPage),
             NavigationPageKey.Settings => typeof(SettingsPage),
             _ => throw new ArgumentOutOfRangeException(nameof(pageKey), pageKey, "未定義のNavigationPageKeyです。"),
         };

@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="WslContainersDesktop_App.Pages.ImagesPage"
+    x:Name="RootPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:conv="using:WslContainersDesktop_App.Converters"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:WslContainersDesktop_App.Pages"
+    xmlns:vm="using:WslContainersDesktop_App.ViewModels"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Page.Resources>
+        <conv:AutomationIdConverter x:Key="AutomationIdConverter" />
+        <conv:DateTimeOffsetToLocalStringConverter x:Key="CreatedAtConverter" />
+    </Page.Resources>
+
+    <Grid Padding="24,16,24,16" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border
+            Grid.Row="0"
+            Padding="16"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+            CornerRadius="{StaticResource OverlayCornerRadius}">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock x:Name="TxtImagesPageTitle" x:Uid="ImagesPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
+                    <TextBlock x:Name="TxtImagesPageDescription" x:Uid="ImagesPageDescription" />
+                </StackPanel>
+                <Button
+                    x:Name="BtnRefreshImages"
+                    x:Uid="BtnRefreshImages"
+                    Grid.Column="1"
+                    VerticalAlignment="Bottom"
+                    AutomationProperties.AutomationId="BtnRefreshImages"
+                    Command="{x:Bind ViewModel.RefreshCommand}" />
+            </Grid>
+        </Border>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+            <TextBox
+                x:Name="TxtPullReference"
+                x:Uid="TxtPullReference"
+                Width="320"
+                AutomationProperties.AutomationId="TxtPullReference"
+                IsEnabled="{x:Bind ViewModel.CanPull, Mode=OneWay}"
+                Text="{x:Bind ViewModel.PullReference, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <Button
+                x:Name="BtnPullImage"
+                x:Uid="BtnPullImage"
+                VerticalAlignment="Bottom"
+                AutomationProperties.AutomationId="BtnPullImage"
+                Command="{x:Bind ViewModel.PullCommand}"
+                IsEnabled="{x:Bind ViewModel.CanPull, Mode=OneWay}" />
+            <ProgressRing
+                x:Name="PrgPullImage"
+                Width="24"
+                Height="24"
+                AutomationProperties.AutomationId="PrgPullImage"
+                IsActive="{x:Bind ViewModel.IsPulling, Mode=OneWay}"
+                Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsPulling), Mode=OneWay}" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Spacing="8">
+            <InfoBar
+                x:Name="InfoBarImageError"
+                Severity="Error"
+                IsClosable="False"
+                IsOpen="{x:Bind ViewModel.IsErrorMessageVisible, Mode=OneWay}"
+                Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
+            <InfoBar
+                x:Name="InfoBarImageStatus"
+                Severity="Success"
+                IsClosable="False"
+                IsOpen="{x:Bind ViewModel.IsStatusMessageVisible, Mode=OneWay}"
+                Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" />
+        </StackPanel>
+
+        <Grid Grid.Row="3">
+            <ListView
+                x:Name="LstImages"
+                AutomationProperties.AutomationId="LstImages"
+                ItemsSource="{x:Bind ViewModel.Images, Mode=OneWay}"
+                SelectionMode="None"
+                Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsEmpty), Mode=OneWay}">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ImageRowViewModel">
+                        <Grid Padding="8" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="2*" />
+                                <ColumnDefinition Width="2*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="{x:Bind DisplayName}" />
+                            <TextBlock Grid.Column="1" Text="{x:Bind Id}" />
+                            <TextBlock Grid.Column="2" Text="{x:Bind SizeBytes}" />
+                            <TextBlock Grid.Column="3" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" />
+                            <Button
+                                x:Uid="BtnDeleteImage"
+                                Grid.Column="4"
+                                AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDeleteImage}"
+                                CommandParameter="{x:Bind}"
+                                Click="BtnDeleteImage_Click" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+
+            <TextBlock
+                x:Name="TxtImagesEmptyState"
+                x:Uid="TxtImagesEmptyState"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsEmpty), Mode=OneWay}" />
+        </Grid>
+    </Grid>
+</Page>
