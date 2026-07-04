@@ -85,4 +85,72 @@ public sealed class ContainerRowViewModelTests
         Assert.IsFalse(runningRow.CanStop);
         Assert.IsFalse(runningRow.CanRestart);
     }
+
+    [TestMethod]
+    public void PendingOperation_DefaultValue_IsNoneAndDisplayStateReflectsState()
+    {
+        // Arrange & Act
+        var sut = new ContainerRowViewModel(CreateContainer(ContainerState.Running));
+
+        // Assert
+        Assert.AreEqual(ContainerRowOperation.None, sut.PendingOperation);
+        Assert.AreEqual(new ContainerRowDisplayState(ContainerState.Running, ContainerRowOperation.None), sut.DisplayState);
+    }
+
+    [TestMethod]
+    public void PendingOperation_SetToStopping_DisplayStateReflectsPendingOperation()
+    {
+        // Arrange
+        var sut = new ContainerRowViewModel(CreateContainer(ContainerState.Running));
+
+        // Act
+        sut.PendingOperation = ContainerRowOperation.Stopping;
+
+        // Assert
+        Assert.AreEqual(new ContainerRowDisplayState(ContainerState.Running, ContainerRowOperation.Stopping), sut.DisplayState);
+    }
+
+    [TestMethod]
+    public void PendingOperation_Changed_RaisesPropertyChangedForDisplayState()
+    {
+        // Arrange
+        var sut = new ContainerRowViewModel(CreateContainer(ContainerState.Running));
+        var raisedProperties = new List<string>();
+        sut.PropertyChanged += (_, e) => raisedProperties.Add(e.PropertyName!);
+
+        // Act
+        sut.PendingOperation = ContainerRowOperation.Stopping;
+
+        // Assert
+        CollectionAssert.Contains(raisedProperties, nameof(ContainerRowViewModel.DisplayState));
+    }
+
+    [TestMethod]
+    public void ApplyFrom_ContainerWithDifferentState_RaisesPropertyChangedForDisplayState()
+    {
+        // Arrange
+        var sut = new ContainerRowViewModel(CreateContainer(ContainerState.Stopped));
+        var raisedProperties = new List<string>();
+        sut.PropertyChanged += (_, e) => raisedProperties.Add(e.PropertyName!);
+
+        // Act
+        sut.ApplyFrom(CreateContainer(ContainerState.Running));
+
+        // Assert
+        CollectionAssert.Contains(raisedProperties, nameof(ContainerRowViewModel.DisplayState));
+    }
+
+    [TestMethod]
+    public void ApplyFrom_WhilePendingOperationIsSet_DisplayStateCombinesNewStateWithExistingPendingOperation()
+    {
+        // Arrange
+        var sut = new ContainerRowViewModel(CreateContainer(ContainerState.Running));
+        sut.PendingOperation = ContainerRowOperation.Stopping;
+
+        // Act
+        sut.ApplyFrom(CreateContainer(ContainerState.Stopped));
+
+        // Assert
+        Assert.AreEqual(new ContainerRowDisplayState(ContainerState.Stopped, ContainerRowOperation.Stopping), sut.DisplayState);
+    }
 }

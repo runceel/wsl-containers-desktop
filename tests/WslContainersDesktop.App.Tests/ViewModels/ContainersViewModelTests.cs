@@ -206,6 +206,7 @@ public sealed class ContainersViewModelTests
 
         // Assert
         Assert.IsFalse(liveRow.IsBusy);
+        Assert.AreEqual(ContainerRowOperation.None, liveRow.PendingOperation);
     }
 
     [TestMethod]
@@ -248,6 +249,195 @@ public sealed class ContainersViewModelTests
         // Assert
         var refreshedRow = sut.Containers.Single(c => c.Id == "c1");
         Assert.IsFalse(refreshedRow.IsBusy);
+    }
+
+    [TestMethod]
+    public async Task StartAsync_OperationIsStillRunning_RowPendingOperationIsStartingThenNone()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService { DefaultContainers = [CreateContainer("c1", ContainerState.Stopped)] };
+        var gate = new TaskCompletionSource<Container>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.StartAsyncGate = gate;
+        service.StartResult = CreateContainer("c1", ContainerState.Running);
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var row = sut.Containers[0];
+
+        // Act
+        var operationTask = sut.StartCommand.ExecuteAsync(row);
+
+        // Assert
+        Assert.AreEqual(ContainerRowOperation.Starting, row.PendingOperation);
+        gate.SetResult(service.StartResult!);
+        await operationTask;
+        Assert.AreEqual(ContainerRowOperation.None, row.PendingOperation);
+    }
+
+    [TestMethod]
+    public async Task StopAsync_OperationIsStillRunning_RowPendingOperationIsStoppingThenNone()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService { DefaultContainers = [CreateContainer("c1", ContainerState.Running)] };
+        var gate = new TaskCompletionSource<Container>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.StopAsyncGate = gate;
+        service.StopResult = CreateContainer("c1", ContainerState.Stopped);
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var row = sut.Containers[0];
+
+        // Act
+        var operationTask = sut.StopCommand.ExecuteAsync(row);
+
+        // Assert
+        Assert.AreEqual(ContainerRowOperation.Stopping, row.PendingOperation);
+        gate.SetResult(service.StopResult!);
+        await operationTask;
+        Assert.AreEqual(ContainerRowOperation.None, row.PendingOperation);
+    }
+
+    [TestMethod]
+    public async Task RestartAsync_OperationIsStillRunning_RowPendingOperationIsRestartingThenNone()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService { DefaultContainers = [CreateContainer("c1", ContainerState.Running)] };
+        var gate = new TaskCompletionSource<Container>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.RestartAsyncGate = gate;
+        service.RestartResult = CreateContainer("c1", ContainerState.Running);
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var row = sut.Containers[0];
+
+        // Act
+        var operationTask = sut.RestartCommand.ExecuteAsync(row);
+
+        // Assert
+        Assert.AreEqual(ContainerRowOperation.Restarting, row.PendingOperation);
+        gate.SetResult(service.RestartResult!);
+        await operationTask;
+        Assert.AreEqual(ContainerRowOperation.None, row.PendingOperation);
+    }
+
+    [TestMethod]
+    public async Task DeleteAsync_OperationIsStillRunning_RowPendingOperationIsDeleting()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService { DefaultContainers = [CreateContainer("c1", ContainerState.Stopped)] };
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DeleteAsyncGate = gate;
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var row = sut.Containers[0];
+
+        // Act
+        var operationTask = sut.DeleteCommand.ExecuteAsync(row);
+
+        // Assert
+        Assert.AreEqual(ContainerRowOperation.Deleting, row.PendingOperation);
+        gate.SetResult(true);
+        await operationTask;
+    }
+
+    [TestMethod]
+    public async Task StopAsync_OperationIsStillRunningAcrossBackgroundRefresh_PendingOperationIsRestoredThenClearedOnLiveRow()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService { DefaultContainers = [CreateContainer("c1", ContainerState.Running)] };
+        var gate = new TaskCompletionSource<Container>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.StopAsyncGate = gate;
+        service.StopResult = CreateContainer("c1", ContainerState.Stopped);
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var row = sut.Containers[0];
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([CreateContainer("c1", ContainerState.Running)]));
+
+        // Act
+        var operationTask = sut.StopCommand.ExecuteAsync(row);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var rebuiltRow = sut.Containers.Single(c => c.Id == "c1");
+
+        // Assert: in-flight中は再構築後の行にも保留中操作が復元される。
+        Assert.AreNotSame(row, rebuiltRow);
+        Assert.AreEqual(ContainerRowOperation.Stopping, rebuiltRow.PendingOperation);
+
+        // 操作完了後のベストエフォート再同期で最新状態（Stopped）を返すようにする。
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([CreateContainer("c1", ContainerState.Stopped)]));
+        gate.SetResult(service.StopResult!);
+        await operationTask;
+
+        // Assert: 完了後は最新のライブ行の保留中操作がNoneに戻り、実際の状態が反映される。
+        var finalRow = sut.Containers.Single(c => c.Id == "c1");
+        Assert.AreEqual(ContainerRowOperation.None, finalRow.PendingOperation);
+        Assert.AreEqual(ContainerState.Stopped, finalRow.State);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_TwoDifferentOperationsInFlight_EachLiveRowPreservesItsOwnPendingOperation()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running), CreateContainer("c2", ContainerState.Stopped)],
+        };
+        var stopGate = new TaskCompletionSource<Container>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.StopAsyncGate = stopGate;
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var c1Row = sut.Containers[0];
+        var c2Row = sut.Containers[1];
+
+        // Act
+        var stopTask = sut.StopCommand.ExecuteAsync(c1Row);
+        var startGate = new TaskCompletionSource<Container>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.StartAsyncGate = startGate;
+        var startTask = sut.StartCommand.ExecuteAsync(c2Row);
+
+        try
+        {
+            await sut.RefreshCommand.ExecuteAsync(null);
+            var liveC1 = sut.Containers.Single(c => c.Id == "c1");
+            var liveC2 = sut.Containers.Single(c => c.Id == "c2");
+
+            // Assert
+            Assert.AreEqual(ContainerRowOperation.Stopping, liveC1.PendingOperation);
+            Assert.AreEqual(ContainerRowOperation.Starting, liveC2.PendingOperation);
+        }
+        finally
+        {
+            stopGate.SetResult(CreateContainer("c1", ContainerState.Stopped));
+            startGate.SetResult(CreateContainer("c2", ContainerState.Running));
+            await stopTask;
+            await startTask;
+        }
+    }
+
+    [TestMethod]
+    public async Task DeleteAsync_OperationFailsAfterBackgroundRefreshAndRecoveryRefreshFails_RestoredRowPendingOperationIsNone()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Stopped), CreateContainer("c2", ContainerState.Stopped)],
+        };
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.DeleteAsyncGate = gate;
+        var exception = new InvalidContainerOperationException("c1", "DeleteAsync");
+        service.DeleteException = exception;
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([CreateContainer("c1", ContainerState.Stopped), CreateContainer("c2", ContainerState.Stopped)]));
+        service.GetContainersResults.Enqueue(() => Task.FromException<IReadOnlyList<Container>>(new ContainerRuntimeException("list", 1, "一覧の取得に失敗しました。")));
+        var row1 = sut.Containers.Single(c => c.Id == "c1");
+
+        // Act
+        var operationTask = sut.DeleteCommand.ExecuteAsync(row1);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        gate.SetException(exception);
+        await operationTask;
+
+        // Assert
+        var restoredRow = sut.Containers.SingleOrDefault(c => c.Id == "c1");
+        Assert.IsNotNull(restoredRow);
+        Assert.AreEqual(ContainerRowOperation.None, restoredRow!.PendingOperation);
     }
 
     [TestMethod]

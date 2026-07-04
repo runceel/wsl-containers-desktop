@@ -71,7 +71,7 @@
             <controls:DataGrid.Columns>
                 <controls:DataGridTextColumn Binding="{Binding Name}" Header="Name" MinWidth="160" Width="260" />
                 <controls:DataGridTextColumn Binding="{Binding Image}" Header="Image" MinWidth="80" Width="100" />
-                <controls:DataGridTextColumn Binding="{Binding State, Converter={StaticResource StateToDisplayTextConverter}}" Header="State" MinWidth="80" Width="90" />
+                <controls:DataGridTextColumn Binding="{Binding DisplayState, Converter={StaticResource StateToDisplayTextConverter}}" Header="State" MinWidth="80" Width="90" />
                 <controls:DataGridTextColumn Binding="{Binding CreatedAt, Converter={StaticResource CreatedAtConverter}}" Header="Created" MinWidth="120" Width="140" />
                 <controls:DataGridTemplateColumn Header="" MinWidth="140" Width="150">
                     <controls:DataGridTemplateColumn.CellTemplate>
@@ -204,7 +204,23 @@
                         AutomationProperties.AutomationId="LstLogs"
                         ItemsSource="{x:Bind ViewModel.LogLines, Mode=OneWay}"
                         SelectionMode="None"
-                        Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsLogEmpty), Mode=OneWay}" />
+                        Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsLogEmpty), Mode=OneWay}">
+                        <!--
+                            末尾への自動スクロール(受け入れ基準: 「末尾を表示している間は新しい行が
+                            追加されると自動的に末尾までスクロールする」「途中までスクロールして読んで
+                            いる間は自動スクロールしない」)は、WinUI公式の「Inverted lists」パターン
+                            (https://learn.microsoft.com/en-us/windows/apps/design/controls/inverted-lists)
+                            に従い、ItemsStackPanel.ItemsUpdatingScrollMode="KeepLastItemInView"に委譲する。
+                            このモードはアイテム変更時に「ユーザーが末尾を見ている場合のみ末尾に追従し、
+                            スクロールして読んでいる場合は追従しない」挙動をWinUI自身が保証するため、
+                            ScrollViewerを自前で探索・監視するコードは不要になる。
+                        -->
+                        <ListView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsStackPanel ItemsUpdatingScrollMode="KeepLastItemInView" />
+                            </ItemsPanelTemplate>
+                        </ListView.ItemsPanel>
+                    </ListView>
                     <TextBlock
                         x:Name="TxtLogEmptyState"
                         x:Uid="TxtLogEmptyState"
