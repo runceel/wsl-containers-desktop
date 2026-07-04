@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+            <SolidColorBrush x:Key="WslContainersAccentFillColorDefaultBrush" Color="#107C10" />
+            <SolidColorBrush x:Key="WslContainersAccentFillColorSubtleBrush" Color="#0F6B0F" />
+            <SolidColorBrush x:Key="WslContainersAccentStrokeColorBrush" Color="#13A10E" />
+            <SolidColorBrush x:Key="WslContainersAccentTextFillColorBrush" Color="#13A10E" />
+            <Thickness x:Key="WslContainersSurfaceBorderThickness">1</Thickness>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Light">
+            <SolidColorBrush x:Key="WslContainersAccentFillColorDefaultBrush" Color="#107C10" />
+            <SolidColorBrush x:Key="WslContainersAccentFillColorSubtleBrush" Color="#13A10E" />
+            <SolidColorBrush x:Key="WslContainersAccentStrokeColorBrush" Color="#0F6B0F" />
+            <SolidColorBrush x:Key="WslContainersAccentTextFillColorBrush" Color="#0F6B0F" />
+            <Thickness x:Key="WslContainersSurfaceBorderThickness">1</Thickness>
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="HighContrast">
+            <StaticResource x:Key="WslContainersAccentFillColorDefaultBrush" ResourceKey="SystemColorHighlightColorBrush" />
+            <StaticResource x:Key="WslContainersAccentFillColorSubtleBrush" ResourceKey="SystemColorWindowColorBrush" />
+            <StaticResource x:Key="WslContainersAccentStrokeColorBrush" ResourceKey="SystemColorWindowTextColorBrush" />
+            <StaticResource x:Key="WslContainersAccentTextFillColorBrush" ResourceKey="SystemColorHighlightTextColorBrush" />
+            <Thickness x:Key="WslContainersSurfaceBorderThickness">2</Thickness>
+        </ResourceDictionary>
+    </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

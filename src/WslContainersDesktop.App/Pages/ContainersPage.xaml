@@ -28,23 +28,36 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" ColumnSpacing="8">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-            </Grid.ColumnDefinitions>
-            <StackPanel Grid.Column="0">
-                <TextBlock x:Name="TxtPageTitle" x:Uid="ContainersPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
-                <TextBlock x:Name="TxtPageDescription" x:Uid="ContainersPageDescription" />
-            </StackPanel>
-            <Button
-                x:Name="BtnRefresh"
-                Grid.Column="1"
-                x:Uid="BtnRefresh"
-                VerticalAlignment="Bottom"
-                AutomationProperties.AutomationId="BtnRefresh"
-                Command="{x:Bind ViewModel.RefreshCommand}" />
-        </Grid>
+        <Border
+            Grid.Row="0"
+            Padding="16"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+            CornerRadius="{StaticResource OverlayCornerRadius}">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border
+                    Grid.Column="0"
+                    Background="{ThemeResource WslContainersAccentFillColorDefaultBrush}"
+                    CornerRadius="{StaticResource ControlCornerRadius}" />
+                <StackPanel Grid.Column="1">
+                    <TextBlock x:Name="TxtPageTitle" x:Uid="ContainersPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
+                    <TextBlock x:Name="TxtPageDescription" x:Uid="ContainersPageDescription" />
+                </StackPanel>
+                <Button
+                    x:Name="BtnRefresh"
+                    Grid.Column="2"
+                    x:Uid="BtnRefresh"
+                    VerticalAlignment="Bottom"
+                    AutomationProperties.AutomationId="BtnRefresh"
+                    Command="{x:Bind ViewModel.RefreshCommand}" />
+            </Grid>
+        </Border>
 
         <InfoBar
             x:Name="InfoBarError"
@@ -54,91 +67,105 @@
             IsOpen="{x:Bind IsNotNullOrEmpty(ViewModel.ErrorMessage), Mode=OneWay}"
             Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
 
-        <controls:DataGrid
-            x:Name="LstContainers"
+        <Border
             Grid.Row="2"
             Grid.RowSpan="2"
-            AutomationProperties.AutomationId="LstContainers"
-            AutoGenerateColumns="False"
-            CanUserReorderColumns="False"
-            CanUserResizeColumns="True"
-            CanUserSortColumns="False"
-            GridLinesVisibility="None"
-            HeadersVisibility="Column"
-            IsReadOnly="True"
-            ItemsSource="{x:Bind ViewModel.Containers, Mode=OneWay}"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+            CornerRadius="{StaticResource OverlayCornerRadius}"
             Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsEmpty), Mode=OneWay}">
-            <controls:DataGrid.Columns>
-                <controls:DataGridTextColumn Binding="{Binding Name}" Header="Name" MinWidth="160" Width="260" />
-                <controls:DataGridTextColumn Binding="{Binding Image}" Header="Image" MinWidth="80" Width="100" />
-                <controls:DataGridTextColumn Binding="{Binding DisplayState, Converter={StaticResource StateToDisplayTextConverter}}" Header="State" MinWidth="80" Width="90" />
-                <controls:DataGridTextColumn Binding="{Binding CreatedAt, Converter={StaticResource CreatedAtConverter}}" Header="Created" MinWidth="120" Width="140" />
-                <controls:DataGridTemplateColumn Header="" MinWidth="140" Width="150">
-                    <controls:DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate x:DataType="vm:ContainerRowViewModel">
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button
-                                    x:Uid="BtnLogs"
-                                    AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnLogs}"
-                                    CommandParameter="{x:Bind Id}"
-                                    Click="BtnLogs_Click" />
-                                <Button
-                                    x:Uid="BtnMoreActions"
-                                    AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnMoreActions}">
-                                    <Button.Flyout>
-                                        <MenuFlyout>
-                                            <MenuFlyoutItem
-                                                x:Uid="MenuStart"
-                                                AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuStart}"
-                                                CommandParameter="{x:Bind}"
-                                                Click="MenuStart_Click"
-                                                Visibility="{x:Bind CanStart, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                            <MenuFlyoutItem
-                                                x:Uid="MenuStop"
-                                                AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuStop}"
-                                                CommandParameter="{x:Bind}"
-                                                Click="MenuStop_Click"
-                                                Visibility="{x:Bind CanStop, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                            <MenuFlyoutItem
-                                                x:Uid="MenuRestart"
-                                                AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuRestart}"
-                                                CommandParameter="{x:Bind}"
-                                                Click="MenuRestart_Click"
-                                                Visibility="{x:Bind CanRestart, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                            <MenuFlyoutItem
-                                                x:Uid="MenuDelete"
-                                                AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuDelete}"
-                                                CommandParameter="{x:Bind}"
-                                                Click="BtnDelete_Click"
-                                                Visibility="{x:Bind CanDelete, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                        </MenuFlyout>
-                                    </Button.Flyout>
-                                </Button>
-                            </StackPanel>
-                        </DataTemplate>
-                    </controls:DataGridTemplateColumn.CellTemplate>
-                </controls:DataGridTemplateColumn>
-            </controls:DataGrid.Columns>
-        </controls:DataGrid>
+            <controls:DataGrid
+                x:Name="LstContainers"
+                AutomationProperties.AutomationId="LstContainers"
+                AutoGenerateColumns="False"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                CanUserReorderColumns="False"
+                CanUserResizeColumns="True"
+                CanUserSortColumns="False"
+                GridLinesVisibility="None"
+                HeadersVisibility="Column"
+                IsReadOnly="True"
+                ItemsSource="{x:Bind ViewModel.Containers, Mode=OneWay}">
+                <controls:DataGrid.Columns>
+                    <controls:DataGridTextColumn Binding="{Binding Name}" Header="Name" MinWidth="160" Width="260" />
+                    <controls:DataGridTextColumn Binding="{Binding Image}" Header="Image" MinWidth="80" Width="100" />
+                    <controls:DataGridTextColumn Binding="{Binding DisplayState, Converter={StaticResource StateToDisplayTextConverter}}" Header="State" MinWidth="80" Width="90" />
+                    <controls:DataGridTextColumn Binding="{Binding CreatedAt, Converter={StaticResource CreatedAtConverter}}" Header="Created" MinWidth="120" Width="140" />
+                    <controls:DataGridTemplateColumn Header="" MinWidth="140" Width="150">
+                        <controls:DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate x:DataType="vm:ContainerRowViewModel">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <Button
+                                        x:Uid="BtnLogs"
+                                        AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnLogs}"
+                                        CommandParameter="{x:Bind Id}"
+                                        Click="BtnLogs_Click" />
+                                    <Button
+                                        x:Uid="BtnMoreActions"
+                                        AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnMoreActions}">
+                                        <Button.Flyout>
+                                            <MenuFlyout>
+                                                <MenuFlyoutItem
+                                                    x:Uid="MenuStart"
+                                                    AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuStart}"
+                                                    CommandParameter="{x:Bind}"
+                                                    Click="MenuStart_Click"
+                                                    Visibility="{x:Bind CanStart, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                <MenuFlyoutItem
+                                                    x:Uid="MenuStop"
+                                                    AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuStop}"
+                                                    CommandParameter="{x:Bind}"
+                                                    Click="MenuStop_Click"
+                                                    Visibility="{x:Bind CanStop, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                <MenuFlyoutItem
+                                                    x:Uid="MenuRestart"
+                                                    AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuRestart}"
+                                                    CommandParameter="{x:Bind}"
+                                                    Click="MenuRestart_Click"
+                                                    Visibility="{x:Bind CanRestart, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                                <MenuFlyoutItem
+                                                    x:Uid="MenuDelete"
+                                                    AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuDelete}"
+                                                    CommandParameter="{x:Bind}"
+                                                    Click="BtnDelete_Click"
+                                                    Visibility="{x:Bind CanDelete, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                            </MenuFlyout>
+                                        </Button.Flyout>
+                                    </Button>
+                                </StackPanel>
+                            </DataTemplate>
+                        </controls:DataGridTemplateColumn.CellTemplate>
+                    </controls:DataGridTemplateColumn>
+                </controls:DataGrid.Columns>
+            </controls:DataGrid>
+        </Border>
 
-        <StackPanel
+        <Border
             Grid.Row="2"
             Grid.RowSpan="2"
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
-            Spacing="8"
+            Padding="24"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+            CornerRadius="{StaticResource OverlayCornerRadius}"
             Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsEmpty), Mode=OneWay}">
-            <TextBlock x:Name="TxtEmptyStateTitle" x:Uid="TxtEmptyStateTitle" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
-            <TextBlock x:Name="TxtEmptyStateDescription" x:Uid="TxtEmptyStateDescription" HorizontalAlignment="Center" />
-        </StackPanel>
+            <StackPanel Spacing="8">
+                <TextBlock x:Name="TxtEmptyStateTitle" x:Uid="TxtEmptyStateTitle" HorizontalAlignment="Center" Style="{StaticResource SubtitleTextBlockStyle}" />
+                <TextBlock x:Name="TxtEmptyStateDescription" x:Uid="TxtEmptyStateDescription" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Border>
 
         <Border
             x:Name="BrdLogPanel"
             Grid.Row="4"
             Padding="16"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="1"
-            CornerRadius="8"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource WslContainersAccentStrokeColorBrush}"
+            BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+            CornerRadius="{StaticResource OverlayCornerRadius}"
             Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsLogPanelVisible), Mode=OneWay}">
             <Grid RowSpacing="12">
                 <Grid.RowDefinitions>

@@ -13,7 +13,26 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <TextBlock x:Name="TxtPageTitle" x:Uid="SettingsPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
-        <TextBlock x:Name="TxtPageDescription" x:Uid="SettingsPageDescription" Grid.Row="1" />
+        <Border
+            Padding="16"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+            CornerRadius="{StaticResource OverlayCornerRadius}">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Border
+                    Grid.Column="0"
+                    Background="{ThemeResource WslContainersAccentFillColorDefaultBrush}"
+                    CornerRadius="{StaticResource ControlCornerRadius}" />
+                <StackPanel Grid.Column="1">
+                    <TextBlock x:Name="TxtPageTitle" x:Uid="SettingsPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
+                    <TextBlock x:Name="TxtPageDescription" x:Uid="SettingsPageDescription" />
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Page>
