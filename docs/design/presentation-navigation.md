@@ -15,7 +15,7 @@ UI文字列はすべて `.resw` リソースに外出しされ、コードやXAM
 
 | 型 | 場所 | 役割 |
 |---|---|---|
-| `NavigationPageKey` | `Navigation/NavigationPageKey.cs` | ページを表す `enum`（`Containers`, `Settings`）。string/Tagベースの遷移は使わない。 |
+| `NavigationPageKey` | `Navigation/NavigationPageKey.cs` | ページを表す `enum`（`Containers`, `Images`, `Settings`）。string/Tagベースの遷移は使わない。 |
 | `NavigationPageKeyExtensions.EnsureDefined` | `Navigation/NavigationPageKeyExtensions.cs` | `NavigationPageKey` が定義済みの値であることを検証する拡張メソッド。未定義値なら `ArgumentOutOfRangeException` を送出する。`NavigationPageRegistry`・`NavigationViewModel` の双方から共通利用する。 |
 | `NavigationPageRegistry` | `Navigation/NavigationPageRegistry.cs` | `NavigationPageKey → Page派生型` のマッピングを一元管理する、XAML非依存の素のC#クラス。 |
 | `NavigationViewModel` | `ViewModels/NavigationViewModel.cs` | 現在表示中のページキー（`CurrentPageKey`、setterはprivate）を保持するObservableObject。`NavigateToCommand`でのみ変更できる。 |
@@ -42,12 +42,13 @@ UI文字列はすべて `.resw` リソースに外出しされ、コードやXAM
 
 Composition Rootは`App.xaml.cs`に置く。`Microsoft.Extensions.DependencyInjection`で
 `IContainerRuntimeClient`→`WslcCliContainerRuntimeClient`、
-`IContainerManagementService`→`ContainerManagementService`、`IWslcCliRunner`→`WslcCliRunner`、
+`IContainerManagementService`→`ContainerManagementService`、
+`IImageManagementService`→`ImageManagementService`、`IWslcCliRunner`→`WslcCliRunner`、
 `IUiDispatcher`→`DispatcherQueueUiDispatcher`を登録する。
 
-`ContainersPage`は`Frame.Navigate(Type)`から生成されるためパラメーターレスコンストラクタを持つ。
-ページは`((App)Application.Current).Services`から`ContainersViewModel`を解決し、ViewModel自体は
-Application層の`IContainerManagementService`とUIディスパッチ抽象`IUiDispatcher`だけに依存する。
+トップレベルページは`Frame.Navigate(Type)`から生成されるためパラメーターレスコンストラクタを持つ。
+ページは`((App)Application.Current).Services`から対応するViewModelを解決し、ViewModel自体は
+Application層のInboundポートと必要なUI抽象だけに依存する。
 詳細は [ADR-0010](../adr/0010-adopt-di-container-for-presentation.md) を参照。
 
 ## ローカライズ

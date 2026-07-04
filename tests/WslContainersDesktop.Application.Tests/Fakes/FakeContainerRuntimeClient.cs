@@ -12,7 +12,13 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
 {
     public IReadOnlyList<Container> Containers { get; set; } = [];
 
+    public IReadOnlyList<ContainerImage> Images { get; set; } = [];
+
     public Exception? ExceptionToThrow { get; set; }
+
+    public Exception? PullException { get; set; }
+
+    public Exception? DeleteImageException { get; set; }
 
     public IReadOnlyList<string> ContainerLogs { get; set; } = [];
 
@@ -30,6 +36,10 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
 
     public List<string> DeleteCalls { get; } = [];
 
+    public List<string> PullCalls { get; } = [];
+
+    public List<string> DeleteImageCalls { get; } = [];
+
     public List<string> GetContainerLogsCalls { get; } = [];
 
     public List<string> FollowContainerLogsCalls { get; } = [];
@@ -37,6 +47,33 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
     public Task<IReadOnlyList<Container>> ListContainersAsync(CancellationToken cancellationToken = default)
     {
         return Task.FromResult(Containers);
+    }
+
+    public Task<IReadOnlyList<ContainerImage>> ListImagesAsync(CancellationToken cancellationToken = default)
+    {
+        return Task.FromResult(Images);
+    }
+
+    public Task PullImageAsync(string reference, CancellationToken cancellationToken = default)
+    {
+        PullCalls.Add(reference);
+        if (PullException is not null)
+        {
+            throw PullException;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task DeleteImageAsync(string imageId, CancellationToken cancellationToken = default)
+    {
+        DeleteImageCalls.Add(imageId);
+        if (DeleteImageException is not null)
+        {
+            throw DeleteImageException;
+        }
+
+        return Task.CompletedTask;
     }
 
     public Task StartAsync(string containerId, CancellationToken cancellationToken = default)

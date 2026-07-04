@@ -49,11 +49,13 @@ public partial class App : Application
         services.AddSingleton<IWslcCliRunner, WslcCliRunner>();
         services.AddSingleton<IContainerRuntimeClient, WslcCliContainerRuntimeClient>();
         services.AddSingleton<IContainerManagementService, ContainerManagementService>();
+        services.AddSingleton<IImageManagementService, ImageManagementService>();
         services.AddSingleton<IUiDispatcher>(_ => new DispatcherQueueUiDispatcher(DispatcherQueue.GetForCurrentThread()));
 
         // トップレベルページのViewModelはNavigationViewModelと同様、アプリケーション
         // ライフタイムで1インスタンスとする。
         services.AddSingleton<ContainersViewModel>();
+        services.AddSingleton<ImagesViewModel>();
 
         return services.BuildServiceProvider();
     }

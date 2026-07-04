@@ -10,17 +10,17 @@
 
 | プロジェクト | 種別 | 内容 |
 |---|---|---|
-| `src/WslContainersDesktop.Domain` | classlib | コンテナエンティティ・状態・状態別操作可否 |
-| `src/WslContainersDesktop.Application` | classlib | コンテナ管理ユースケースとInbound/Outboundポート |
+| `src/WslContainersDesktop.Domain` | classlib | コンテナ/イメージエンティティ・状態・状態別操作可否 |
+| `src/WslContainersDesktop.Application` | classlib | コンテナ/イメージ管理ユースケースとInbound/Outboundポート |
 | `src/WslContainersDesktop.Infrastructure` | classlib | `wslc` CLIラッパーによるWSL Containers連携 |
-| `src/WslContainersDesktop.App` | WinUI3 MSIXパッケージアプリ（net10.0-windows） | Presentation層。ナビゲーション、ローカライズ、DI構成、コンテナ一覧/ログ表示を実装済み |
+| `src/WslContainersDesktop.App` | WinUI3 MSIXパッケージアプリ（net10.0-windows） | Presentation層。ナビゲーション、ローカライズ、DI構成、コンテナ一覧/ログ表示、イメージ一覧/pull/削除を実装済み |
 | `tests/WslContainersDesktop.Domain.Tests` | MSTest | Domain層の単体テスト |
 | `tests/WslContainersDesktop.Application.Tests` | MSTest | Application層の単体テスト |
 | `tests/WslContainersDesktop.Infrastructure.Tests` | MSTest | Infrastructure層のCLIクライアント/ランナー単体テスト |
-| `tests/WslContainersDesktop.App.Tests` | MSTest | Presentation層（ナビゲーション制御・コンテナ一覧ViewModel）の単体テスト |
+| `tests/WslContainersDesktop.App.Tests` | MSTest | Presentation層（ナビゲーション制御・コンテナ/イメージ一覧ViewModel）の単体テスト |
 
 現在の主要な振る舞いは、コンテナ一覧取得、起動・停止・再起動・削除、ログのスナップショット表示と
-ライブ追跡である。
+ライブ追跡、イメージ一覧取得、イメージpull、イメージ削除である。
 
 ## 層構成
 
@@ -47,6 +47,8 @@ flowchart TB
 - 外部フレームワーク（WinUI, WSL API等）への依存を一切持たない。
 - 現在は`Container`と`ContainerState`を定義し、停止中/実行中に応じた起動・停止・再起動・削除の
   操作可否を`Container`に保持する。
+- `ContainerImage`はローカルイメージのID、リポジトリ、タグ、サイズ、作成日時を保持し、untaggedを含む
+  表示名を`DisplayName`として提供する。
 
 ### Application
 
@@ -60,7 +62,11 @@ flowchart TB
   存在と状態を検証する。再起動は`wslc`のサブコマンドではなく停止→起動として扱うが、停止中コンテナを
   起動にすり替えない。
 - `IContainerRuntimeClient`はInfrastructure層向けのOutboundポートであり、CLI/SDKなど具体的な
-  ランタイム連携方式をApplication層から隠蔽する。
+  ランタイム連携方式をApplication層から隠蔽する。コンテナ操作に加えて、イメージ一覧取得、pull、
+  削除のランタイム呼び出しもこのポートに集約する。
+- `IImageManagementService`はPresentation層向けのInboundポートであり、イメージ一覧取得、pull、
+  削除を提供する。pull後の一覧更新や削除確認はPresentation層で扱い、Application層はランタイム操作の
+  オーケストレーションと入力検証に留める。
 
 ### Infrastructure
 
@@ -72,6 +78,9 @@ flowchart TB
 - Applicationで定義された抽象を実装する。
 - 現在は [ADR-0009](../adr/0009-wrap-wslc-cli-for-infrastructure-layer.md) に基づき、
   `WslcCliContainerRuntimeClient`が`wslc` CLIを呼び出して`IContainerRuntimeClient`を実装する。
+- イメージ一覧は`wslc image list --format json --no-trunc`のJSONを`ContainerImage`へ変換する。
+  pullは`wslc pull <image>`、削除は`wslc image remove <image>`を呼び出す。削除時は強制削除フラグを
+  付けず、参照中イメージの拒否は`wslc`のエラーとしてApplication/Presentation層へ伝播する。
 - `IWslcCliRunner.RunAsync`は短時間で終了するCLI呼び出しの標準出力/標準エラーをまとめて取得する。
   `IWslcCliRunner.StreamLinesAsync`は`wslc container logs --since <unix-epoch> --follow`のような長時間実行コマンドの
   stdout/stderrを行単位でストリーミングする。実プロセス起動は`IWslcProcessFactory`/`IWslcProcess`で
@@ -88,6 +97,7 @@ flowchart TB
   [`docs/design/presentation-navigation.md`](presentation-navigation.md) を参照。
 - コンテナ一覧ViewModelの状態管理とログ表示の詳細は
   [`docs/design/containers-view.md`](containers-view.md) を参照。
+- イメージ一覧ViewModelの状態管理の詳細は [`docs/design/images-view.md`](images-view.md) を参照。
 
 ## テスト戦略との対応
 

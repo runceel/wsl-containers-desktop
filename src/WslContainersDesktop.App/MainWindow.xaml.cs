@@ -32,6 +32,7 @@ public sealed partial class MainWindow : Window
         _navigationItemToPageKey = new()
         {
             [NavItemContainers] = NavigationPageKey.Containers,
+            [NavItemImages] = NavigationPageKey.Images,
             [NavItemSettings] = NavigationPageKey.Settings,
         };
 

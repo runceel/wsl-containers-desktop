@@ -126,6 +126,9 @@
   <data name="NavItemContainers.Content" xml:space="preserve">
     <value>Containers</value>
   </data>
+  <data name="NavItemImages.Content" xml:space="preserve">
+    <value>Images</value>
+  </data>
   <data name="NavItemSettings.Content" xml:space="preserve">
     <value>Settings</value>
   </data>
@@ -204,6 +207,27 @@
   <data name="TxtLogEmptyState.Text" xml:space="preserve">
     <value>No logs to display.</value>
   </data>
+  <data name="ImagesPageTitle.Text" xml:space="preserve">
+    <value>Images</value>
+  </data>
+  <data name="ImagesPageDescription.Text" xml:space="preserve">
+    <value>Pull and remove container images.</value>
+  </data>
+  <data name="BtnRefreshImages.Content" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="TxtPullReference.Header" xml:space="preserve">
+    <value>Image reference</value>
+  </data>
+  <data name="BtnPullImage.Content" xml:space="preserve">
+    <value>Pull</value>
+  </data>
+  <data name="BtnDeleteImage.Content" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="TxtImagesEmptyState.Text" xml:space="preserve">
+    <value>No images.</value>
+  </data>
   <data name="ContainerState_Running" xml:space="preserve">
     <value>Running</value>
   </data>
@@ -232,6 +256,18 @@
     <value>Delete</value>
   </data>
   <data name="DeleteConfirmationDialog_CloseButtonText" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="DeleteImageConfirmationDialog_Title" xml:space="preserve">
+    <value>Delete image</value>
+  </data>
+  <data name="DeleteImageConfirmationDialog_Message" xml:space="preserve">
+    <value>Are you sure you want to delete '{0}'? This action cannot be undone.</value>
+  </data>
+  <data name="DeleteImageConfirmationDialog_PrimaryButtonText" xml:space="preserve">
+    <value>Delete</value>
+  </data>
+  <data name="DeleteImageConfirmationDialog_CloseButtonText" xml:space="preserve">
     <value>Cancel</value>
   </data>
   <data name="SettingsPageTitle.Text" xml:space="preserve">

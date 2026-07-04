@@ -45,6 +45,14 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem
+                    x:Name="NavItemImages"
+                    x:Uid="NavItemImages"
+                    AutomationProperties.AutomationId="NavItemImages">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE8B1;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem
                     x:Name="NavItemSettings"
                     x:Uid="NavItemSettings"
                     AutomationProperties.AutomationId="NavItemSettings">

@@ -1,0 +1,46 @@
+# Presentation層: イメージ一覧ViewModelの状態管理
+
+> このドキュメントは現時点のスナップショットです。経緯・検討過程は書きません。
+
+## 概要
+
+`ImagesViewModel`（`ViewModels/ImagesViewModel.cs`）は、ローカルイメージ一覧の取得、レジストリからの
+pull、不要イメージの削除を担うViewModel。Application層の`IImageManagementService`にのみ依存し、
+`wslc` CLIの具体的な呼び出し方法には依存しない。
+
+## 一覧UI
+
+- `ImagesPage`はローカルイメージ一覧を表示する。各行は`ImageRowViewModel`で、表示名、イメージID、
+  サイズ（バイト）、作成日時、削除操作を表示する。
+- 表示名はDomain層の`ContainerImage.DisplayName`を使う。untaggedイメージは`<none>:<none>`として表示し、
+  一覧・削除の対象に含める。
+- 作成日時は`DateTimeOffsetToLocalStringConverter`でローカル日時へ変換して表示する。
+- `Images`が空の場合は空状態テキストを表示する。
+
+## 更新とエラー表示
+
+- `RefreshAsync`は`IImageManagementService.GetImagesAsync`で最新状態を取得し、成功時に`Images`を
+  全件置き換える。
+- 更新失敗時は既存の一覧を保持し、`ErrorMessage`に例外メッセージを設定する。
+- 新しい操作を開始する際は古い成功メッセージをクリアし、エラーと成功メッセージが矛盾して同時表示されない
+  ようにする。
+
+## Pull操作
+
+- `PullReference`はユーザーが入力したイメージ参照を保持する。`ImagesPage`のTextBoxは
+  `Mode=TwoWay, UpdateSourceTrigger=PropertyChanged`でバインドする。
+- `PullReference`が空または空白だけの場合、`PullAsync`はApplication層を呼び出さず、入力必須エラーを
+  `ErrorMessage`として表示する。
+- `PullAsync`は開始時に`IsPulling`を`true`にし、入力欄とPullボタンを無効化し、`ProgressRing`を表示する。
+- pull成功後は`PullReference`を空にし、成功メッセージを表示してからベストエフォートで一覧を再取得する。
+  pull自体が成功した後の一覧再取得失敗は`ErrorMessage`として表示し、pullの成功状態は維持する。
+- pull失敗時は入力値と既存一覧を保持し、`ErrorMessage`に失敗理由を表示する。
+
+## 削除操作
+
+- `ImagesPage`の削除ボタンは、`ContentDialog`で確認を取ってから`ImagesViewModel.DeleteCommand`を実行する。
+- `DeleteAsync`は対象行の`IsBusy`を`true`にして二重操作を防ぎ、成功時はライブの`Images`から対象行を
+  取り除く。
+- 削除は`wslc image remove <image>`に委譲され、強制削除フラグは付けない。参照中イメージやランタイム不調は
+  `IImageManagementService`からの例外としてPresentation層へ伝播し、`ErrorMessage`に表示する。
+- 削除失敗時は対象行を一覧に残し、`IsBusy`を解除する。

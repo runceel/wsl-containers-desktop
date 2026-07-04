@@ -51,6 +51,49 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
             .ToList();
     }
 
+    public async Task<IReadOnlyList<ContainerImage>> ListImagesAsync(CancellationToken cancellationToken = default)
+    {
+        var result = await RunAsync(["image", "list", "--format", "json", "--no-trunc"], cancellationToken);
+
+        List<ImageListItemDto>? items;
+        try
+        {
+            items = JsonSerializer.Deserialize<List<ImageListItemDto>>(result.StandardOutput);
+        }
+        catch (JsonException ex)
+        {
+            throw new ContainerRuntimeException(
+                command: "image list --format json --no-trunc",
+                exitCode: result.ExitCode,
+                message: "コンテナーイメージ一覧の解析に失敗しました。",
+                innerException: ex);
+        }
+
+        if (items is null)
+        {
+            return [];
+        }
+
+        return items
+            .Select(item => new ContainerImage(
+                Id: item.Id,
+                Repository: item.Repository,
+                Tag: item.Tag,
+                SizeBytes: item.Size,
+                CreatedAt: DateTimeOffset.FromUnixTimeSeconds(item.Created)))
+            .ToList();
+    }
+
+    public Task PullImageAsync(string imageReference, CancellationToken cancellationToken = default)
+    {
+        return RunAsync(["pull", imageReference], cancellationToken);
+    }
+
+    public Task DeleteImageAsync(string imageId, CancellationToken cancellationToken = default)
+    {
+        return RunAsync(["image", "remove", imageId], cancellationToken);
+    }
+
     public Task StartAsync(string containerId, CancellationToken cancellationToken = default)
     {
         return RunAsync(["container", "start", containerId], cancellationToken);
