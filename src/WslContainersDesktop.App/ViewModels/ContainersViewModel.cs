@@ -17,6 +17,9 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
 {
     private const string StoppedLogStatusMessage = "This container is stopped. Existing logs are displayed, but no live log follow is active.";
     private const string MissingLogStatusMessage = "The selected container does not exist.";
+    private const string StoppedShellStatusMessage = "This container is stopped. Start it before opening a shell.";
+    private const string ShellConnectedStatusMessage = "Shell connected.";
+    private const string ShellDisconnectedStatusMessage = "Shell disconnected.";
 
     private readonly IUiDispatcher _uiDispatcher = new ImmediateUiDispatcher();
 
@@ -45,9 +48,13 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
 
     private readonly List<string> _pausedLogBuffer = [];
 
+    private readonly Dictionary<string, ExecSessionState> _execSessions = [];
+
     private CancellationTokenSource? _logFollowCancellation;
 
     private Task? _logFollowTask;
+
+    private ExecSessionState? _currentExecSession;
 
     public ContainersViewModel(IContainerManagementService containerManagementService, IUiDispatcher uiDispatcher)
         : this(containerManagementService)
@@ -66,10 +73,45 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     public ObservableCollection<string> LogLines { get; } = [];
 
     /// <summary>
+    /// 現在表示中のシェル出力。
+    /// </summary>
+    public ObservableCollection<string> ShellOutput { get; } = [];
+
+    /// <summary>
+    /// 現在表示中のコンテナ詳細行。
+    /// </summary>
+    public ObservableCollection<string> DetailLines { get; } = [];
+
+    /// <summary>
     /// 直近の操作で発生したエラーメッセージ。エラーがない場合は <see langword="null"/>。
     /// </summary>
     [ObservableProperty]
     public partial string? ErrorMessage { get; private set; }
+
+    /// <summary>
+    /// 現在表示中のコンテナ詳細。
+    /// </summary>
+    [ObservableProperty]
+    public partial ContainerDetail? SelectedContainerDetail { get; private set; }
+
+    /// <summary>
+    /// 詳細取得で発生したエラーメッセージ。
+    /// </summary>
+    [ObservableProperty]
+    public partial string? DetailErrorMessage { get; private set; }
+
+    /// <summary>
+    /// シェル状態メッセージ。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsShellStatusVisible))]
+    public partial string? ShellStatusMessage { get; private set; }
+
+    /// <summary>
+    /// シェル入力欄のテキスト。
+    /// </summary>
+    [ObservableProperty]
+    public partial string ShellCommandText { get; set; } = string.Empty;
 
     /// <summary>
     /// <see cref="Containers"/> が空かどうか。
@@ -78,10 +120,38 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     public partial bool IsEmpty { get; private set; } = true;
 
     /// <summary>
+    /// コンテナ詳細パネルが表示されているかどうか。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSidePanelVisible))]
+    public partial bool IsDetailPanelVisible { get; private set; }
+
+    /// <summary>
     /// ログパネルが表示されているかどうか。
     /// </summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSidePanelVisible))]
     public partial bool IsLogPanelVisible { get; private set; }
+
+    /// <summary>
+    /// シェルパネルが表示されているかどうか。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSidePanelVisible))]
+    public partial bool IsShellPanelVisible { get; private set; }
+
+    /// <summary>
+    /// 現在のシェルが接続中かどうか。
+    /// </summary>
+    [ObservableProperty]
+    public partial bool IsShellConnected { get; private set; }
+
+    /// <summary>
+    /// シェル接続または入出力がエラー状態かどうか。
+    /// </summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsShellStatusVisible))]
+    public partial bool IsShellError { get; private set; }
 
     /// <summary>
     /// 表示可能なログが空かどうか。
@@ -113,6 +183,16 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     /// エラーではないログ状態メッセージを表示するかどうか。
     /// </summary>
     public bool IsLogStatusVisible => !IsLogError && !string.IsNullOrEmpty(LogStatusMessage);
+
+    /// <summary>
+    /// シェル状態メッセージを表示するかどうか。
+    /// </summary>
+    public bool IsShellStatusVisible => !IsShellError && !string.IsNullOrEmpty(ShellStatusMessage);
+
+    /// <summary>
+    /// 右側の補助パネル領域を表示するかどうか。
+    /// </summary>
+    public bool IsSidePanelVisible => IsDetailPanelVisible || IsShellPanelVisible || IsLogPanelVisible;
 
     /// <summary>
     /// コンテナ一覧を手動で再取得する。
@@ -180,6 +260,138 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
         {
             LogStatusMessage = StoppedLogStatusMessage;
         }
+    }
+
+    /// <summary>
+    /// 指定したコンテナの詳細情報を開く。
+    /// </summary>
+    /// <param name="containerId">対象コンテナID。</param>
+    [RelayCommand]
+    public async Task OpenDetailsAsync(string containerId)
+    {
+        IsDetailPanelVisible = true;
+        DetailErrorMessage = null;
+        DetailLines.Clear();
+        try
+        {
+            SelectedContainerDetail = await containerManagementService.GetContainerDetailAsync(containerId);
+            PopulateDetailLines(SelectedContainerDetail);
+        }
+        catch (Exception ex)
+        {
+            DetailErrorMessage = ex.Message;
+        }
+    }
+
+    /// <summary>
+    /// 詳細パネルを閉じる。
+    /// </summary>
+    [RelayCommand]
+    public Task CloseDetailsAsync()
+    {
+        IsDetailPanelVisible = false;
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// 指定したコンテナ内にシェルを開く。
+    /// </summary>
+    /// <param name="containerId">対象コンテナID。</param>
+    [RelayCommand]
+    public async Task OpenShellAsync(string containerId)
+    {
+        IsShellPanelVisible = true;
+
+        if (_currentExecSession is not null && _currentExecSession.ContainerId != containerId)
+        {
+            await CloseShellSessionAsync(_currentExecSession, showDisconnectedStatus: false);
+        }
+
+        if (SelectedContainerDetail?.Id == containerId && SelectedContainerDetail.State != ContainerState.Running)
+        {
+            ShowShellStatus(StoppedShellStatusMessage, isError: true);
+            return;
+        }
+
+        if (_execSessions.TryGetValue(containerId, out var existing) && !existing.Session.IsClosed)
+        {
+            UseShellSession(existing);
+            return;
+        }
+
+        if (existing is not null)
+        {
+            _execSessions.Remove(containerId);
+            await existing.Session.CloseAsync();
+            existing.Dispose();
+        }
+
+        try
+        {
+            var session = await containerManagementService.OpenExecSessionAsync(containerId);
+            var state = new ExecSessionState(containerId, session);
+            _execSessions[containerId] = state;
+            UseShellSession(state);
+            state.OutputTask = ReadShellOutputAsync(state);
+        }
+        catch (InvalidContainerOperationException)
+        {
+            ShowShellStatus(StoppedShellStatusMessage, isError: true);
+            IsShellConnected = false;
+        }
+        catch (Exception ex)
+        {
+            ShowShellStatus(ex.Message, isError: true);
+            IsShellConnected = false;
+        }
+    }
+
+    /// <summary>
+    /// 現在のシェルへ入力欄のコマンドを送信する。
+    /// </summary>
+    [RelayCommand]
+    public async Task SendShellCommandAsync()
+    {
+        if (_currentExecSession is null || _currentExecSession.Session.IsClosed)
+        {
+            ShowShellStatus(ShellDisconnectedStatusMessage, isError: true);
+            IsShellConnected = false;
+            return;
+        }
+
+        var command = ShellCommandText.TrimEnd('\r', '\n');
+        if (string.IsNullOrWhiteSpace(command))
+        {
+            return;
+        }
+
+        try
+        {
+            await _currentExecSession.Session.SendCommandAsync(command);
+            ShellCommandText = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            IsShellConnected = false;
+            ShowShellStatus(ex.Message, isError: true);
+        }
+    }
+
+    /// <summary>
+    /// 現在のシェルセッションを閉じる。
+    /// </summary>
+    [RelayCommand]
+    public async Task CloseShellAsync()
+    {
+        if (_currentExecSession is null)
+        {
+            IsShellPanelVisible = false;
+            IsShellConnected = false;
+            return;
+        }
+
+        await CloseShellSessionAsync(_currentExecSession, showDisconnectedStatus: true);
+        IsShellPanelVisible = false;
     }
 
     /// <summary>
@@ -442,6 +654,135 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
         _logFollowTask = FollowLogStreamAsync(containerId, _logFollowCancellation.Token);
     }
 
+    private void UseShellSession(ExecSessionState state)
+    {
+        _currentExecSession = state;
+        ShellOutput.Clear();
+        IsShellConnected = true;
+        ShowShellStatus(ShellConnectedStatusMessage, isError: false);
+    }
+
+    private async Task CloseShellSessionAsync(ExecSessionState state, bool showDisconnectedStatus)
+    {
+        await state.Cancellation.CancelAsync();
+        await state.Session.CloseAsync();
+        if (state.OutputTask is not null)
+        {
+            try
+            {
+                await state.OutputTask;
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        state.Dispose();
+        _execSessions.Remove(state.ContainerId);
+        if (_currentExecSession == state)
+        {
+            _currentExecSession = null;
+        }
+
+        IsShellConnected = false;
+        if (showDisconnectedStatus)
+        {
+            ShowShellStatus(ShellDisconnectedStatusMessage, isError: false);
+        }
+    }
+
+    private async Task ReadShellOutputAsync(ExecSessionState state)
+    {
+        try
+        {
+            await foreach (var chunk in state.Session.ReadOutputAsync(state.Cancellation.Token))
+            {
+                _uiDispatcher.Invoke(() =>
+                {
+                    if (_currentExecSession == state)
+                    {
+                        ShellOutput.Add(chunk);
+                    }
+                });
+            }
+
+            _uiDispatcher.Invoke(() =>
+            {
+                if (_currentExecSession == state)
+                {
+                    IsShellConnected = false;
+                    ShowShellStatus(ShellDisconnectedStatusMessage, isError: false);
+                }
+            });
+        }
+        catch (OperationCanceledException) when (state.Cancellation.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _uiDispatcher.Invoke(() =>
+            {
+                if (_currentExecSession == state)
+                {
+                    IsShellConnected = false;
+                    ShowShellStatus(ex.Message, isError: true);
+                }
+            });
+        }
+    }
+
+    private void ShowShellStatus(string message, bool isError)
+    {
+        IsShellError = isError;
+        ShellStatusMessage = message;
+    }
+
+    private void PopulateDetailLines(ContainerDetail detail)
+    {
+        DetailLines.Add($"ID: {detail.Id}");
+        DetailLines.Add($"Name: {detail.Name}");
+        DetailLines.Add($"Image: {detail.Image}");
+        DetailLines.Add($"State: {detail.State}");
+        DetailLines.Add($"Created: {detail.CreatedAt:u}");
+        DetailLines.Add($"Command: {detail.Command ?? "(none)"}");
+        DetailLines.Add($"Entrypoint: {detail.Entrypoint ?? "(none)"}");
+        DetailLines.Add($"Exit code: {detail.RunState.ExitCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "(none)"}");
+        DetailLines.Add($"Started: {FormatOptionalDateTime(detail.RunState.StartedAt)}");
+        DetailLines.Add($"Finished: {FormatOptionalDateTime(detail.RunState.FinishedAt)}");
+        DetailLines.Add("Ports:");
+        AddIndentedLines(detail.Ports.Select(port =>
+        {
+            var host = port.HostPort is null ? "(not published)" : $"{port.HostAddress ?? "0.0.0.0"}:{port.HostPort}";
+            return $"{host} -> {port.ContainerPort}/{port.Protocol}";
+        }));
+        DetailLines.Add("Environment:");
+        AddIndentedLines(detail.Environment.Select(variable => $"{variable.Name}={variable.Value}"));
+        DetailLines.Add("Mounts:");
+        AddIndentedLines(detail.Mounts.Select(mount => $"{mount.Type}: {mount.Source} -> {mount.Target} ({(mount.IsReadOnly ? "ro" : "rw")})"));
+        DetailLines.Add("Networks:");
+        AddIndentedLines(detail.Networks.Select(network => $"{network.Name}: {network.IpAddress ?? "(no IP)"}"));
+    }
+
+    private void AddIndentedLines(IEnumerable<string> lines)
+    {
+        var added = false;
+        foreach (var line in lines)
+        {
+            DetailLines.Add($"  {line}");
+            added = true;
+        }
+
+        if (!added)
+        {
+            DetailLines.Add("  (none)");
+        }
+    }
+
+    private static string FormatOptionalDateTime(DateTimeOffset? value)
+    {
+        return value?.ToString("u", System.Globalization.CultureInfo.InvariantCulture) ?? "(none)";
+    }
+
     private async Task StopLogFollowAsync()
     {
         if (_logFollowCancellation is null)
@@ -617,5 +958,21 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
         }
 
         IsEmpty = Containers.Count == 0;
+    }
+
+    private sealed class ExecSessionState(string containerId, IContainerExecSession session) : IDisposable
+    {
+        public string ContainerId { get; } = containerId;
+
+        public IContainerExecSession Session { get; } = session;
+
+        public CancellationTokenSource Cancellation { get; } = new();
+
+        public Task? OutputTask { get; set; }
+
+        public void Dispose()
+        {
+            Cancellation.Dispose();
+        }
     }
 }

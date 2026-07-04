@@ -174,8 +174,23 @@
   <data name="BtnLogs.Content" xml:space="preserve">
     <value>Logs</value>
   </data>
+  <data name="BtnDetails.Content" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="BtnShell.Content" xml:space="preserve">
+    <value>Shell</value>
+  </data>
   <data name="BtnMoreActions.Content" xml:space="preserve">
-    <value>More</value>
+    <value>…</value>
+  </data>
+  <data name="MenuDetails.Text" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="MenuShell.Text" xml:space="preserve">
+    <value>Shell</value>
+  </data>
+  <data name="MenuLogs.Text" xml:space="preserve">
+    <value>Logs</value>
   </data>
   <data name="MenuStart.Text" xml:space="preserve">
     <value>Start</value>
@@ -206,6 +221,24 @@
   </data>
   <data name="TxtLogEmptyState.Text" xml:space="preserve">
     <value>No logs to display.</value>
+  </data>
+  <data name="TxtDetailPanelTitle.Text" xml:space="preserve">
+    <value>Container details</value>
+  </data>
+  <data name="BtnCloseDetails.Content" xml:space="preserve">
+    <value>Close</value>
+  </data>
+  <data name="TxtShellPanelTitle.Text" xml:space="preserve">
+    <value>Container shell</value>
+  </data>
+  <data name="BtnCloseShell.Content" xml:space="preserve">
+    <value>Close shell</value>
+  </data>
+  <data name="TxtShellCommand.Header" xml:space="preserve">
+    <value>Command</value>
+  </data>
+  <data name="BtnSendShellCommand.Content" xml:space="preserve">
+    <value>Send</value>
   </data>
   <data name="ImagesPageTitle.Text" xml:space="preserve">
     <value>Images</value>

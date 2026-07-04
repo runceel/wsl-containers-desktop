@@ -63,6 +63,20 @@ public interface IContainerRuntimeClient
     Task<IReadOnlyList<string>> GetContainerLogsAsync(string containerId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 指定したコンテナの詳細情報を取得する。
+    /// </summary>
+    /// <param name="containerId">対象コンテナのID。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task<ContainerDetail> GetContainerDetailAsync(string containerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// 指定した稼働中コンテナ内に対話的なexecセッションを開く。
+    /// </summary>
+    /// <param name="containerId">対象コンテナのID。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task<IContainerExecSession> OpenExecSessionAsync(string containerId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 指定したコンテナの新規ログを追跡する。
     /// </summary>
     /// <param name="containerId">対象コンテナのID。</param>

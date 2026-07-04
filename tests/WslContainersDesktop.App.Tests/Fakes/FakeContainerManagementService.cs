@@ -45,6 +45,18 @@ internal sealed class FakeContainerManagementService : IContainerManagementServi
 
     public IReadOnlyList<string> DefaultLogs { get; set; } = [];
 
+    public ContainerDetail? ContainerDetail { get; set; }
+
+    public IContainerExecSession? ExecSession { get; set; }
+
+    public Queue<IContainerExecSession> OpenExecSessionResults { get; } = new();
+
+    public Exception? GetContainerDetailException { get; set; }
+
+    public Exception? OpenExecSessionException { get; set; }
+
+    public bool RecordFailedOpenExecSessionCalls { get; set; }
+
     public Exception? GetContainerLogsException { get; set; }
 
     public Exception? FollowContainerLogsException { get; set; }
@@ -56,6 +68,10 @@ internal sealed class FakeContainerManagementService : IContainerManagementServi
     public int FollowCancellationCount { get; private set; }
 
     public List<string> GetContainerLogsCalls { get; } = [];
+
+    public List<string> GetContainerDetailCalls { get; } = [];
+
+    public List<string> OpenExecSessionCalls { get; } = [];
 
     public List<string> FollowContainerLogsCalls { get; } = [];
 
@@ -138,6 +154,38 @@ internal sealed class FakeContainerManagementService : IContainerManagementServi
         }
 
         return Task.FromResult(DefaultLogs);
+    }
+
+    public Task<ContainerDetail> GetContainerDetailAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        GetContainerDetailCalls.Add(containerId);
+        if (GetContainerDetailException is not null)
+        {
+            throw GetContainerDetailException;
+        }
+
+        return Task.FromResult(ContainerDetail!);
+    }
+
+    public Task<IContainerExecSession> OpenExecSessionAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        if (OpenExecSessionException is not null)
+        {
+            if (RecordFailedOpenExecSessionCalls)
+            {
+                OpenExecSessionCalls.Add(containerId);
+            }
+
+            throw OpenExecSessionException;
+        }
+
+        OpenExecSessionCalls.Add(containerId);
+        if (OpenExecSessionResults.Count > 0)
+        {
+            return Task.FromResult(OpenExecSessionResults.Dequeue());
+        }
+
+        return Task.FromResult(ExecSession!);
     }
 
     public async IAsyncEnumerable<string> FollowContainerLogsAsync(string containerId, [EnumeratorCancellation] CancellationToken cancellationToken = default)

@@ -1,5 +1,6 @@
 using System.Threading.Channels;
 using WslContainersDesktop.Application.Exceptions;
+using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Domain;
 using WslContainersDesktop_App.ViewModels;
 using WslContainersDesktop_App_Tests.Fakes;
@@ -1025,6 +1026,288 @@ public sealed class ContainersViewModelTests
         Assert.IsGreaterThan(0, service.FollowCancellationCount);
     }
 
+    [TestMethod]
+    public async Task OpenDetailsAsync_ServiceReturnsDetail_ShowsDetailPanelAndPopulatesDetail()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            ContainerDetail = CreateDetail("c1", ContainerState.Running),
+        };
+        var sut = new ContainersViewModel(service);
+
+        // Act
+        await sut.OpenDetailsAsync("c1");
+
+        // Assert
+        Assert.IsTrue(sut.IsDetailPanelVisible);
+        Assert.IsTrue(sut.IsSidePanelVisible);
+        Assert.IsNull(sut.DetailErrorMessage);
+        Assert.AreSame(service.ContainerDetail, sut.SelectedContainerDetail);
+        Assert.AreEqual("c1", service.GetContainerDetailCalls.Single());
+    }
+
+    [TestMethod]
+    public async Task CloseDetailsAsync_DetailPanelIsOpen_HidesDetailPanelButKeepsOtherPanelsVisible()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            ContainerDetail = CreateDetail("c1", ContainerState.Running),
+            ExecSession = new FakeContainerExecSession(),
+        };
+        var sut = new ContainersViewModel(service);
+        await sut.OpenDetailsAsync("c1");
+        await sut.OpenShellAsync("c1");
+
+        // Act
+        await sut.CloseDetailsAsync();
+
+        // Assert
+        Assert.IsFalse(sut.IsDetailPanelVisible);
+        Assert.IsTrue(sut.IsShellPanelVisible);
+        Assert.IsTrue(sut.IsSidePanelVisible);
+    }
+
+    [TestMethod]
+    public async Task OpenDetailsAsync_ServiceThrowsRuntimeException_SetsDetailErrorAndKeepsPanelVisible()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            GetContainerDetailException = new ContainerRuntimeException("container inspect c1", 1, "inspect failed"),
+        };
+        var sut = new ContainersViewModel(service);
+
+        // Act
+        await sut.OpenDetailsAsync("c1");
+
+        // Assert
+        Assert.IsTrue(sut.IsDetailPanelVisible);
+        Assert.AreEqual("inspect failed", sut.DetailErrorMessage);
+    }
+
+    [TestMethod]
+    public async Task OpenShellAsync_StoppedContainer_ShowsShellErrorAndDoesNotCallServiceOpenExec()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            ContainerDetail = CreateDetail("c1", ContainerState.Stopped),
+        };
+        var sut = new ContainersViewModel(service);
+        await sut.OpenDetailsAsync("c1");
+
+        // Act
+        await sut.OpenShellAsync("c1");
+
+        // Assert
+        Assert.IsTrue(sut.IsShellError);
+        Assert.IsFalse(sut.IsShellStatusVisible);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(sut.ShellStatusMessage));
+        Assert.IsEmpty(service.OpenExecSessionCalls);
+    }
+
+    [TestMethod]
+    public async Task CloseShellAsync_StoppedContainerShellErrorIsOpen_HidesShellPanel()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            ContainerDetail = CreateDetail("c1", ContainerState.Stopped),
+        };
+        var sut = new ContainersViewModel(service);
+        await sut.OpenDetailsAsync("c1");
+        await sut.OpenShellAsync("c1");
+
+        // Act
+        await sut.CloseShellAsync();
+
+        // Assert
+        Assert.IsFalse(sut.IsShellPanelVisible);
+        Assert.IsFalse(sut.IsShellConnected);
+        Assert.IsTrue(sut.IsDetailPanelVisible);
+        Assert.IsTrue(sut.IsSidePanelVisible);
+    }
+
+    [TestMethod]
+    public async Task OpenShellAsync_RunningContainer_StartsSessionAndAppendsOutputThroughDispatcher()
+    {
+        // Arrange
+        var session = new FakeContainerExecSession(outputChunks: ["connected"]);
+        var service = new FakeContainerManagementService { ExecSession = session };
+        var dispatcher = new RecordingDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher);
+
+        // Act
+        await sut.OpenShellAsync("c1");
+        await WaitForConditionAsync(() => sut.ShellOutput.Count == 1, TimeSpan.FromSeconds(1));
+
+        // Assert
+        Assert.IsTrue(sut.IsShellPanelVisible);
+        Assert.IsTrue(sut.IsSidePanelVisible);
+        Assert.IsTrue(sut.IsShellConnected);
+        Assert.IsTrue(sut.IsShellStatusVisible);
+        CollectionAssert.AreEqual(new[] { "connected" }, sut.ShellOutput.ToList());
+        Assert.IsGreaterThan(0, dispatcher.InvokeCount);
+    }
+
+    [TestMethod]
+    public async Task OpenShellAsync_ExistingLiveSession_ReusesSessionAndDoesNotCallServiceTwice()
+    {
+        // Arrange
+        var session = new FakeContainerExecSession();
+        var service = new FakeContainerManagementService { ExecSession = session };
+        var sut = new ContainersViewModel(service);
+
+        // Act
+        await sut.OpenShellAsync("c1");
+        await sut.OpenShellAsync("c1");
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "c1" }, service.OpenExecSessionCalls);
+    }
+
+    [TestMethod]
+    public async Task OpenShellAsync_CachedSessionIsClosed_StartsNewSession()
+    {
+        // Arrange
+        var first = new FakeContainerExecSession { IsClosed = true };
+        var second = new FakeContainerExecSession();
+        var service = new FakeContainerManagementService();
+        service.OpenExecSessionResults.Enqueue(first);
+        service.OpenExecSessionResults.Enqueue(second);
+        var sut = new ContainersViewModel(service);
+
+        // Act
+        await sut.OpenShellAsync("c1");
+        await sut.OpenShellAsync("c1");
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "c1", "c1" }, service.OpenExecSessionCalls);
+    }
+
+    [TestMethod]
+    public async Task OpenShellAsync_DifferentContainerShellIsAlreadyOpen_ClosesPreviousSession()
+    {
+        // Arrange
+        var first = new FakeContainerExecSession();
+        var second = new FakeContainerExecSession();
+        var service = new FakeContainerManagementService();
+        service.OpenExecSessionResults.Enqueue(first);
+        service.OpenExecSessionResults.Enqueue(second);
+        var sut = new ContainersViewModel(service);
+        await sut.OpenShellAsync("c1");
+
+        // Act
+        await sut.OpenShellAsync("c2");
+
+        // Assert
+        Assert.IsTrue(first.CloseCalled);
+        Assert.IsTrue(first.IsClosed);
+        Assert.IsFalse(second.CloseCalled);
+        CollectionAssert.AreEqual(new[] { "c1", "c2" }, service.OpenExecSessionCalls);
+    }
+
+    [TestMethod]
+    public async Task OpenShellAsync_ServiceThrowsRuntimeException_SetsShellErrorWithoutStartingSession()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            OpenExecSessionException = new ContainerRuntimeException("container exec -i c1 /bin/sh", 1, "exec failed"),
+            RecordFailedOpenExecSessionCalls = true,
+        };
+        var sut = new ContainersViewModel(service);
+
+        // Act
+        await sut.OpenShellAsync("c1");
+
+        // Assert
+        Assert.IsTrue(sut.IsShellError);
+        Assert.IsFalse(sut.IsShellStatusVisible);
+        Assert.AreEqual("exec failed", sut.ShellStatusMessage);
+        Assert.IsFalse(sut.IsShellConnected);
+    }
+
+    [TestMethod]
+    public async Task SendShellCommandAsync_ConnectedSession_SendsTextAndClearsShellCommandText()
+    {
+        // Arrange
+        var session = new FakeContainerExecSession();
+        var service = new FakeContainerManagementService { ExecSession = session };
+        var sut = new ContainersViewModel(service);
+        await sut.OpenShellAsync("c1");
+        sut.ShellCommandText = "pwd";
+
+        // Act
+        await sut.SendShellCommandAsync();
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "pwd" }, session.Commands);
+        Assert.AreEqual(string.Empty, sut.ShellCommandText);
+    }
+
+    [TestMethod]
+    public async Task SendShellCommandAsync_CommandTextEndsWithCarriageReturn_SendsCommandWithoutCarriageReturn()
+    {
+        // Arrange
+        var session = new FakeContainerExecSession();
+        var service = new FakeContainerManagementService { ExecSession = session };
+        var sut = new ContainersViewModel(service);
+        await sut.OpenShellAsync("c1");
+        sut.ShellCommandText = "ls\r";
+
+        // Act
+        await sut.SendShellCommandAsync();
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "ls" }, session.Commands);
+        Assert.AreEqual(string.Empty, sut.ShellCommandText);
+    }
+
+    [TestMethod]
+    public async Task SendShellCommandAsync_SendFails_ShowsShellErrorAndKeepsCommandText()
+    {
+        // Arrange
+        var session = new FakeContainerExecSession
+        {
+            SendException = new InvalidOperationException("stdin closed"),
+        };
+        var service = new FakeContainerManagementService { ExecSession = session };
+        var sut = new ContainersViewModel(service);
+        await sut.OpenShellAsync("c1");
+        sut.ShellCommandText = "pwd";
+
+        // Act
+        await sut.SendShellCommandAsync();
+
+        // Assert
+        Assert.IsTrue(sut.IsShellError);
+        Assert.IsFalse(sut.IsShellConnected);
+        Assert.AreEqual("stdin closed", sut.ShellStatusMessage);
+        Assert.AreEqual("pwd", sut.ShellCommandText);
+    }
+
+    [TestMethod]
+    public async Task CloseShellAsync_ConnectedSession_ClosesSessionAndShowsDisconnectedStatus()
+    {
+        // Arrange
+        var session = new FakeContainerExecSession();
+        var service = new FakeContainerManagementService { ExecSession = session };
+        var sut = new ContainersViewModel(service);
+        await sut.OpenShellAsync("c1");
+
+        // Act
+        await sut.CloseShellAsync();
+
+        // Assert
+        Assert.IsTrue(session.CloseCalled);
+        Assert.IsFalse(sut.IsShellPanelVisible);
+        Assert.IsFalse(sut.IsShellConnected);
+        Assert.IsFalse(sut.IsSidePanelVisible);
+    }
+
     private static async Task WaitForConditionAsync(Func<bool> condition, TimeSpan timeout)
     {
         var started = DateTime.UtcNow;
@@ -1036,6 +1319,66 @@ public sealed class ContainersViewModelTests
             }
 
             await Task.Delay(10);
+        }
+    }
+
+    private static ContainerDetail CreateDetail(string id, ContainerState state) => new(
+        Id: id,
+        Name: $"name-{id}",
+        Image: "nginx:latest",
+        State: state,
+        CreatedAt: new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero),
+        Command: "sleep infinity",
+        Entrypoint: "/entrypoint.sh",
+        Ports: [new ContainerPortMapping("127.0.0.1", 8080, 80, "tcp")],
+        Environment: [new ContainerEnvironmentVariable("A", "1")],
+        Mounts: [new ContainerMount("bind", "C:\\data", "/data", true)],
+        Networks: [new ContainerNetwork("bridge", "172.17.0.2")],
+        RunState: new ContainerRunState(null, null, 0, null));
+
+    private sealed class FakeContainerExecSession(IReadOnlyList<string>? outputChunks = null) : IContainerExecSession
+    {
+        public bool IsClosed { get; set; }
+
+        public bool CloseCalled { get; private set; }
+
+        public Exception? SendException { get; set; }
+
+        public List<string> Commands { get; } = [];
+
+        public async IAsyncEnumerable<string> ReadOutputAsync([System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (var chunk in outputChunks ?? [])
+            {
+                yield return chunk;
+            }
+
+            try
+            {
+                await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+        }
+
+        public Task SendCommandAsync(string command, CancellationToken cancellationToken = default)
+        {
+            if (SendException is not null)
+            {
+                throw SendException;
+            }
+
+            Commands.Add(command);
+            return Task.CompletedTask;
+        }
+
+        public Task CloseAsync(CancellationToken cancellationToken = default)
+        {
+            CloseCalled = true;
+            IsClosed = true;
+            return Task.CompletedTask;
         }
     }
 

@@ -74,6 +74,23 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
         return await runtimeClient.GetContainerLogsAsync(containerId, cancellationToken);
     }
 
+    public async Task<ContainerDetail> GetContainerDetailAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        await EnsureContainerExistsAsync(containerId, cancellationToken);
+        return await runtimeClient.GetContainerDetailAsync(containerId, cancellationToken);
+    }
+
+    public async Task<IContainerExecSession> OpenExecSessionAsync(string containerId, CancellationToken cancellationToken = default)
+    {
+        var container = await FindContainerAsync(containerId, cancellationToken);
+        if (container.State != ContainerState.Running)
+        {
+            throw new InvalidContainerOperationException(containerId, nameof(OpenExecSessionAsync));
+        }
+
+        return await runtimeClient.OpenExecSessionAsync(containerId, cancellationToken);
+    }
+
     public async IAsyncEnumerable<string> FollowContainerLogsAsync(
         string containerId,
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
