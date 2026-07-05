@@ -2,11 +2,13 @@
 // Licensed under the MIT License.
 
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Domain;
+using WslContainersDesktop_App.Collections;
 
 namespace WslContainersDesktop_App.ViewModels;
 
@@ -883,11 +885,13 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
 
     /// <summary>
     /// 指定したコンテナIDをbusy状態にし、進行中の操作種別を記録する。
-    /// <see cref="_pendingOperations"/> にID→操作種別を記録することで、
-    /// 操作の完了前に <see cref="ReplaceContainers"/> が呼ばれて行インスタンスが再生成されても
-    /// busy状態と操作種別を復元できるようにする。あわせて、その時点でのライブの
-    /// <see cref="Containers"/> に該当行が存在すれば、その行の <see cref="ContainerRowViewModel.IsBusy"/>
-    /// と <see cref="ContainerRowViewModel.PendingOperation"/> も直接設定する。
+    /// <see cref="_pendingOperations"/> にID→操作種別を記録することで、操作の完了前に
+    /// <see cref="ReplaceContainers"/> が呼ばれても busy状態と操作種別を復元できるようにする
+    /// （差分更新では行インスタンスは基本的に維持されるが、表示フィールドの変化でキーが変われば
+    /// 該当行が作り直されたり、一覧から一時的に消えて再出現したりする場合があるため）。
+    /// あわせて、その時点でのライブの <see cref="Containers"/> に該当行が存在すれば、その行の
+    /// <see cref="ContainerRowViewModel.IsBusy"/> と <see cref="ContainerRowViewModel.PendingOperation"/>
+    /// も直接設定する。
     /// </summary>
     /// <param name="containerId">busy状態にするコンテナID。</param>
     /// <param name="operation">進行中の操作種別。</param>
@@ -907,11 +911,12 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     /// </summary>
     /// <remarks>
     /// 呼び出し側は、成功・失敗どちらの分岐であっても、この呼び出しを <c>finally</c> 節ではなく
-    /// 各分岐の中で <see cref="TryRefreshSilentlyAsync"/>（内部で行インスタンスを再生成する
-    /// <see cref="ReplaceContainers"/> を呼ぶ）より前に行う必要がある。もし <c>finally</c> で
-    /// （＝再同期の後で）解除すると、再同期によって作られた新しい行インスタンスは
-    /// <see cref="_pendingOperations"/> に残ったままの古い記録を見てbusy状態・操作種別を
-    /// 復元してしまい、実際には完了した操作の途中状態表示が解除されなくなる。
+    /// 各分岐の中で <see cref="TryRefreshSilentlyAsync"/>（内部で <see cref="ReplaceContainers"/> を
+    /// 呼び、維持・新規どちらの行にも <see cref="ApplyPendingOperation"/> で
+    /// <see cref="_pendingOperations"/> の内容を反映する）より前に行う必要がある。もし <c>finally</c> で
+    /// （＝再同期の後で）解除すると、再同期時に <see cref="_pendingOperations"/> に残ったままの古い記録を
+    /// 見てbusy状態・操作種別が再適用されてしまい、実際には完了した操作の途中状態表示が
+    /// 解除されなくなる。
     /// </remarks>
     /// <param name="containerId">busy状態を解除するコンテナID。</param>
     private void EndBusy(string containerId)
@@ -927,8 +932,9 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
 
     /// <summary>
     /// その時点でのライブの <see cref="Containers"/> から、コンテナIDに一致する行インスタンスを探す。
-    /// <see cref="ReplaceContainers"/> によって行インスタンスが再生成された後は、操作開始時に
-    /// 捕まえていた行インスタンスがすでにライブのコレクションに存在しない場合があるため、
+    /// 差分更新（<see cref="ReplaceContainers"/>）では行インスタンスはキー一致で基本的に維持されるが、
+    /// 操作開始時に捕まえていた行が await をまたいだ後には（キー変化による作り直しや、
+    /// 一覧からの一時的な消失などで）ライブのコレクションに存在しない場合があるため、
     /// await をまたいだ後の行操作は必ずこのメソッドで再検索した行に対して行う。
     /// </summary>
     /// <param name="containerId">検索するコンテナID。</param>
@@ -937,27 +943,61 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
 
     private void ReplaceContainers(IReadOnlyList<Container> containers)
     {
-        Containers.Clear();
-        foreach (var container in containers)
-        {
-            if (_pendingDeleteContainerIds.Contains(container.Id))
-            {
-                // 削除操作が進行中のコンテナは、サーバーからまだ削除完了前の状態が
-                // 返ってきていても一覧に含めない（削除の楽観的更新）。
-                continue;
-            }
+        var source = containers
+            .Where(container => !_pendingDeleteContainerIds.Contains(container.Id))
+            .ToList();
 
-            var row = new ContainerRowViewModel(container);
-            if (_pendingOperations.TryGetValue(container.Id, out var operation))
-            {
-                row.IsBusy = true;
-                row.PendingOperation = operation;
-            }
-
-            Containers.Add(row);
-        }
+        ObservableCollectionReconciler.Reconcile(
+            Containers,
+            source,
+            targetKeySelector: static row => BuildContainerKey(row.Id, row.Name, row.Image, row.CreatedAt),
+            sourceKeySelector: static container => BuildContainerKey(container.Id, container.Name, container.Image, container.CreatedAt),
+            create: CreateContainerRow,
+            update: UpdateContainerRow);
 
         IsEmpty = Containers.Count == 0;
+    }
+
+    /// <summary>
+    /// 差分更新用の行キーを組み立てる。<see cref="ContainerRowViewModel"/> がインプレース更新する
+    /// <see cref="ContainerState"/> は含めず、行が保持する読み取り専用の表示フィールド
+    /// （Id / Name / Image / CreatedAt）をすべて含める。State 以外の表示フィールドが変われば
+    /// キーが変わり該当行だけが作り直されるため、外部での改名などによる表示の陳腐化を防ぐ。
+    /// </summary>
+    private static string BuildContainerKey(string id, string name, string image, DateTimeOffset createdAt)
+        => string.Join('\u001f', id, name, image, createdAt.UtcTicks.ToString(CultureInfo.InvariantCulture));
+
+    private ContainerRowViewModel CreateContainerRow(Container container)
+    {
+        var row = new ContainerRowViewModel(container);
+        ApplyPendingOperation(row);
+        return row;
+    }
+
+    private void UpdateContainerRow(ContainerRowViewModel row, Container container)
+    {
+        row.ApplyFrom(container);
+        ApplyPendingOperation(row);
+    }
+
+    /// <summary>
+    /// <see cref="_pendingOperations"/> を単一の情報源として、行の busy 状態・進行中の操作種別を反映する。
+    /// 差分更新（<see cref="ReplaceContainers"/>）で行インスタンスが維持されても新規生成されても、
+    /// 進行中の操作があれば復元し、なければ解除することで一貫した表示を保つ。
+    /// </summary>
+    /// <param name="row">反映先の行。</param>
+    private void ApplyPendingOperation(ContainerRowViewModel row)
+    {
+        if (_pendingOperations.TryGetValue(row.Id, out var operation))
+        {
+            row.IsBusy = true;
+            row.PendingOperation = operation;
+        }
+        else
+        {
+            row.IsBusy = false;
+            row.PendingOperation = ContainerRowOperation.None;
+        }
     }
 
     private sealed class ExecSessionState(string containerId, IContainerExecSession session) : IDisposable

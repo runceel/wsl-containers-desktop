@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Domain;
 using WslContainersDesktop_App.ViewModels;
@@ -8,12 +9,14 @@ namespace WslContainersDesktop_App_Tests.ViewModels;
 [TestClass]
 public sealed class ImagesViewModelTests
 {
+    private static DateTimeOffset CreatedAt => new(2026, 7, 2, 9, 0, 0, TimeSpan.Zero);
+
     private static ContainerImage CreateImage(string id) => new(
         Id: id,
         Repository: "ubuntu",
         Tag: "latest",
         SizeBytes: 120L,
-        CreatedAt: new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero));
+        CreatedAt: CreatedAt);
 
     [TestMethod]
     public async Task RefreshAsync_ServiceReturnsImages_PopulatesRowsAndClearsErrorAndIsEmptyIsFalse()
@@ -248,5 +251,117 @@ public sealed class ImagesViewModelTests
         Assert.AreEqual("delete failed", sut.ErrorMessage);
         Assert.HasCount(1, sut.Images);
         Assert.AreSame(row, sut.Images[0]);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_RefetchesIdenticalImages_PreservesRowInstances()
+    {
+        // Arrange
+        var service = new FakeImageManagementService { DefaultImages = [CreateImage("img-1"), CreateImage("img-2")] };
+        var sut = new ImagesViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Images[0];
+        var row2 = sut.Images[1];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(2, sut.Images);
+        Assert.AreSame(row1, sut.Images[0]);
+        Assert.AreSame(row2, sut.Images[1]);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_RefetchesIdenticalImages_RaisesNoCollectionChanged()
+    {
+        // Arrange
+        var service = new FakeImageManagementService { DefaultImages = [CreateImage("img-1"), CreateImage("img-2")] };
+        var sut = new ImagesViewModel(service);
+        await sut.RefreshAsync();
+        var actions = new List<NotifyCollectionChangedAction>();
+        sut.Images.CollectionChanged += (_, e) => actions.Add(e.Action);
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.IsEmpty(actions);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_ImageRemovedOnServer_RowRemovedAndOthersPreserved()
+    {
+        // Arrange
+        var service = new FakeImageManagementService { DefaultImages = [CreateImage("img-1"), CreateImage("img-2")] };
+        var sut = new ImagesViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Images[0];
+        service.DefaultImages = [CreateImage("img-1")];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(1, sut.Images);
+        Assert.AreSame(row1, sut.Images[0]);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_NewImageOnServer_RowAddedAndExistingPreserved()
+    {
+        // Arrange
+        var service = new FakeImageManagementService { DefaultImages = [CreateImage("img-1")] };
+        var sut = new ImagesViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Images[0];
+        service.DefaultImages = [CreateImage("img-1"), CreateImage("img-2")];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(2, sut.Images);
+        Assert.AreSame(row1, sut.Images[0]);
+        Assert.AreEqual("img-2", sut.Images[1].Id);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_ImageTagChangedForSameId_RowReplacedWithNewDisplayName()
+    {
+        // Arrange
+        var service = new FakeImageManagementService
+        {
+            DefaultImages = [new ContainerImage("img-1", "ubuntu", "20.04", 120L, CreatedAt)],
+        };
+        var sut = new ImagesViewModel(service);
+        await sut.RefreshAsync();
+        var originalRow = sut.Images[0];
+        service.DefaultImages = [new ContainerImage("img-1", "ubuntu", "22.04", 120L, CreatedAt)];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(1, sut.Images);
+        Assert.AreNotSame(originalRow, sut.Images[0]);
+        Assert.AreEqual("ubuntu:22.04", sut.Images[0].DisplayName);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_RefetchesEquivalentImagesFromFreshRecordInstances_PreservesRowInstances()
+    {
+        // Arrange
+        var service = new FakeImageManagementService { DefaultImages = [CreateImage("img-1")] };
+        var sut = new ImagesViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Images[0];
+        service.DefaultImages = [CreateImage("img-1")];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.AreSame(row1, sut.Images[0]);
     }
 }

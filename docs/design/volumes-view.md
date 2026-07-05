@@ -20,7 +20,12 @@
 ## 更新とエラー表示
 
 - `RefreshAsync`は`IVolumeManagementService.GetVolumesAsync`で最新状態を取得し、成功時に`Volumes`を
-  全件置き換える。
+  差分更新する（`ObservableCollectionReconciler.Reconcile`。`Clear()` を使わず既存の行インスタンスを
+  維持し、追加・削除・並び替えのみを適用するため `ListView` の Reset を避けられる。詳細は
+  [ADR-0013](../adr/0013-adopt-differential-updates-for-list-views.md)）。行キーは表示・使用する
+  フィールドを連結した構造的な文字列キー（`Name ∣ Driver ∣ CreatedAt ∣ 参照コンテナ名の連結`）で、
+  内容が変われば別キーとして当該行のみ作り直す。`record` の自動等価は `IReadOnlyList<string>` を
+  参照比較するため、ドメインレコードを直接キーにはしない。
 - 更新失敗時は既存の一覧を保持し、`ErrorMessage`に例外メッセージを設定する。
 - 新しい操作を開始する際は古い成功メッセージをクリアし、エラーと成功メッセージが矛盾して同時表示されない
   ようにする。
