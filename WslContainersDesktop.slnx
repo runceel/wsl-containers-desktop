@@ -1,14 +1,47 @@
 <Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="ARM64" />
+    <Platform Name="x64" />
+  </Configurations>
   <Folder Name="/src/">
-    <Project Path="src/WslContainersDesktop.App/WslContainersDesktop.App.csproj" />
-    <Project Path="src/WslContainersDesktop.Application/WslContainersDesktop.Application.csproj" />
-    <Project Path="src/WslContainersDesktop.Domain/WslContainersDesktop.Domain.csproj" />
-    <Project Path="src/WslContainersDesktop.Infrastructure/WslContainersDesktop.Infrastructure.csproj" />
+    <Project Path="src/WslContainersDesktop.App/WslContainersDesktop.App.csproj">
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Deploy Solution="*|ARM64" />
+      <Deploy Solution="*|x64" />
+    </Project>
+    <Project Path="src/WslContainersDesktop.Application/WslContainersDesktop.Application.csproj">
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/WslContainersDesktop.Domain/WslContainersDesktop.Domain.csproj">
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="src/WslContainersDesktop.Infrastructure/WslContainersDesktop.Infrastructure.csproj">
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/WslContainersDesktop.App.Tests/WslContainersDesktop.App.Tests.csproj" />
-    <Project Path="tests/WslContainersDesktop.Application.Tests/WslContainersDesktop.Application.Tests.csproj" />
-    <Project Path="tests/WslContainersDesktop.Domain.Tests/WslContainersDesktop.Domain.Tests.csproj" />
-    <Project Path="tests/WslContainersDesktop.Infrastructure.Tests/WslContainersDesktop.Infrastructure.Tests.csproj" />
+    <Project Path="tests/WslContainersDesktop.App.Tests/WslContainersDesktop.App.Tests.csproj">
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+      <Deploy Solution="*|ARM64" />
+      <Deploy Solution="*|x64" />
+    </Project>
+    <Project Path="tests/WslContainersDesktop.Application.Tests/WslContainersDesktop.Application.Tests.csproj">
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="tests/WslContainersDesktop.Domain.Tests/WslContainersDesktop.Domain.Tests.csproj">
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
+    <Project Path="tests/WslContainersDesktop.Infrastructure.Tests/WslContainersDesktop.Infrastructure.Tests.csproj">
+      <Platform Solution="*|ARM64" Project="ARM64" />
+      <Platform Solution="*|x64" Project="x64" />
+    </Project>
   </Folder>
 </Solution>

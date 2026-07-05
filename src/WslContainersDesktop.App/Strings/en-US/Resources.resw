@@ -427,7 +427,58 @@
     <value>Settings</value>
   </data>
   <data name="SettingsPageDescription.Text" xml:space="preserve">
-    <value>This is the Settings page</value>
+    <value>Review WSL integration status and configure WSL resource limits.</value>
+  </data>
+  <data name="TxtWslIntegrationHeader.Text" xml:space="preserve">
+    <value>WSL integration status</value>
+  </data>
+  <data name="TxtWslVersionLabel.Text" xml:space="preserve">
+    <value>WSL version:</value>
+  </data>
+  <data name="ChkWslContainersAvailable.Content" xml:space="preserve">
+    <value>WSL Containers CLI (wslc) detected</value>
+  </data>
+  <data name="InfoBarRequirementsWarning.Title" xml:space="preserve">
+    <value>Requirements not met</value>
+  </data>
+  <data name="InfoBarRequirementsWarning.Message" xml:space="preserve">
+    <value>WSL 2.9.3 or later with the WSL Containers CLI (wslc) is required to change resource limits.</value>
+  </data>
+  <data name="TxtResourceLimitsHeader.Text" xml:space="preserve">
+    <value>Resource limits</value>
+  </data>
+  <data name="TxtResourceLimitsHint.Text" xml:space="preserve">
+    <value>Leave a field blank to use the WSL default. Changes take effect after you restart WSL by running 'wsl --shutdown'.</value>
+  </data>
+  <data name="TxtMemoryMegabytes.Header" xml:space="preserve">
+    <value>Memory (MB)</value>
+  </data>
+  <data name="TxtMemoryMegabytes.PlaceholderText" xml:space="preserve">
+    <value>WSL default</value>
+  </data>
+  <data name="TxtProcessorCount.Header" xml:space="preserve">
+    <value>Processors</value>
+  </data>
+  <data name="TxtProcessorCount.PlaceholderText" xml:space="preserve">
+    <value>WSL default</value>
+  </data>
+  <data name="BtnSaveResourceLimits.Content" xml:space="preserve">
+    <value>Save</value>
+  </data>
+  <data name="BtnResetResourceLimits.Content" xml:space="preserve">
+    <value>Reset to default</value>
+  </data>
+  <data name="ResetResourceLimitsConfirmationDialog_Title" xml:space="preserve">
+    <value>Reset resource limits</value>
+  </data>
+  <data name="ResetResourceLimitsConfirmationDialog_Message" xml:space="preserve">
+    <value>Reset the memory and processor limits to the WSL defaults? Restart WSL (run 'wsl --shutdown') to apply the change.</value>
+  </data>
+  <data name="ResetResourceLimitsConfirmationDialog_PrimaryButtonText" xml:space="preserve">
+    <value>Reset</value>
+  </data>
+  <data name="ResetResourceLimitsConfirmationDialog_CloseButtonText" xml:space="preserve">
+    <value>Cancel</value>
   </data>
   <data name="AppDisplayName" xml:space="preserve">
     <value>WSL Containers Desktop</value>

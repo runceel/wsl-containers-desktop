@@ -13,7 +13,7 @@
 | `src/WslContainersDesktop.Domain` | classlib | コンテナ/イメージ/ボリューム/ネットワークエンティティ・状態・詳細情報値オブジェクト・状態別操作可否 |
 | `src/WslContainersDesktop.Application` | classlib | コンテナ/イメージ/ボリューム/ネットワーク管理ユースケース、execセッション抽象、Inbound/Outboundポート |
 | `src/WslContainersDesktop.Infrastructure` | classlib | `wslc` CLIラッパーによるWSL Containers連携 |
-| `src/WslContainersDesktop.App` | WinUI3 MSIXパッケージアプリ（net10.0-windows） | Presentation層。ナビゲーション、ローカライズ、DI構成、コンテナ一覧/詳細/ログ/シェル表示、イメージ一覧/pull/削除、ボリューム一覧/作成/削除、ネットワーク一覧/作成/削除を実装済み |
+| `src/WslContainersDesktop.App` | WinUI3 MSIXパッケージアプリ（net10.0-windows） | Presentation層。ナビゲーション、ローカライズ、DI構成、コンテナ一覧/詳細/ログ/シェル表示、イメージ一覧/pull/削除、ボリューム一覧/作成/削除、ネットワーク一覧/作成/削除、設定（WSL連携状態確認・リソース制限編集）を実装済み |
 | `tests/WslContainersDesktop.Domain.Tests` | MSTest | Domain層の単体テスト |
 | `tests/WslContainersDesktop.Application.Tests` | MSTest | Application層の単体テスト |
 | `tests/WslContainersDesktop.Infrastructure.Tests` | MSTest | Infrastructure層のCLIクライアント/ランナー単体テスト |
@@ -22,7 +22,8 @@
 現在の主要な振る舞いは、コンテナ一覧取得、起動・停止・再起動・削除、詳細情報表示、ログの
 スナップショット表示とライブ追跡、稼働中コンテナへの対話的execシェル、イメージ一覧取得、
 イメージpull、イメージ削除、ボリューム一覧取得、ボリューム作成、ボリューム削除、
-ネットワーク一覧取得、ネットワーク作成、ネットワーク削除である。
+ネットワーク一覧取得、ネットワーク作成、ネットワーク削除、WSL連携状態の確認、WSLリソース制限
+（メモリ量・論理プロセッサ数）の確認・保存・リセットである。
 
 ## 層構成
 
@@ -58,6 +59,9 @@ flowchart TB
 - `ContainerNetworkResource`はコンテナーネットワークの名前、ドライバー、作成日時、
   接続中コンテナ名、システムネットワークかどうかを保持し、接続有無とシステム種別に応じた
   削除可否を提供する。
+- 設定関連の値オブジェクトとして、`WslEnvironmentInfo`（WSLバージョン・wslc利用可否という環境の生の事実）、
+  `WslIntegrationStatus`（生の事実＋要件充足フラグ・リソース設定可否）、`WslResourceLimits`
+  （メモリMB・論理プロセッサ数。`null`はWSL既定、正値のみ有効、`Defaults`は両方`null`）を保持する。
 
 ### Application
 
@@ -85,6 +89,14 @@ flowchart TB
   削除を提供する。`NetworkManagementService`は一覧取得時にコンテナ詳細のネットワーク情報から接続中
   コンテナ名を推定し、予約済みネットワーク名（`bridge`, `host`, `none`）をシステムネットワークとして
   扱う。削除前にも再評価して、システムネットワークと接続中ネットワークの削除を拒否する。
+- `ISettingsService`はPresentation層向けのInboundポートであり、WSL連携状態の取得、リソース制限の取得・
+  保存・リセットを提供する。`SettingsService`は要件判定ポリシー（WSL 2.9.3以上 かつ wslc利用可能）を
+  所有し、`IWslEnvironmentProbe`が返す生の事実に対して`Version`型で閾値判定する。保存・リセット時は
+  要件を再チェックして未達なら`WslRequirementsNotMetException`を送出し、保存時は不正な制限値
+  （0以下等）を`InvalidResourceLimitsException`として拒否してからstoreへ委譲する。
+- `IWslEnvironmentProbe`（環境の生の事実の観測）と`IWslResourceLimitsStore`（リソース制限の永続化）は
+  Infrastructure層向けのOutboundポート。設定関連の失敗は`WslSettingsAccessException`として層をまたいで
+  伝播する。詳細は [`docs/design/settings-view.md`](settings-view.md) を参照。
 
 ### Infrastructure
 
@@ -119,6 +131,13 @@ flowchart TB
   stdout/stderrを行単位でストリーミングする。実プロセス起動は`IWslcProcessFactory`/`IWslcProcess`で
   抽象化し、単体テストは実際の`wslc.exe`に依存しない。対話プロセスは`IWslcInteractiveProcess`で
   抽象化する。
+- 設定関連では、[ADR-0012](../adr/0012-wsl-environment-detection-and-wslconfig-editing.md) に基づき、
+  `WslEnvironmentProbe`が`wsl --version`の出力とwslc.exeの有無からWSL環境の生の事実を観測し
+  （失敗・解析不能はバージョン`null`として扱い例外にしない）、`WslConfigResourceLimitsStore`が
+  `%USERPROFILE%\.wslconfig`の`[wsl2]`セクションの`memory`/`processors`を読み書きする。書き込みは他
+  セクション・他キー・コメント・改行を保全し、メモリをMBへ正規化して重複キーを除去する。実プロセス起動と
+  ファイルI/Oは`IWslCommandRunner`/`IWslcExecutableProbe`/`IWslConfigFileAccessor`に隔離し、
+  `.wslconfig`は一時ファイル＋Moveで原子的に書き込む。
 
 ### Presentation
 
@@ -134,6 +153,8 @@ flowchart TB
 - イメージ一覧ViewModelの状態管理の詳細は [`docs/design/images-view.md`](images-view.md) を参照。
 - ボリューム一覧ViewModelの状態管理の詳細は [`docs/design/volumes-view.md`](volumes-view.md) を参照。
 - ネットワーク一覧ViewModelの状態管理の詳細は [`docs/design/networks-view.md`](networks-view.md) を参照。
+- 設定ViewModel（`SettingsViewModel`）とWSL設定の永続化の詳細は
+  [`docs/design/settings-view.md`](settings-view.md) を参照。
 
 ## テスト戦略との対応
 
