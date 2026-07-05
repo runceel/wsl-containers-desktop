@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace WslContainersDesktop_App_Tests.Pages;
 
 [TestClass]
@@ -42,7 +44,23 @@ public sealed class ImagesPageSourceTests
         StringAssert.Contains(sourceText, "x:Name=\"TxtImageColumnSize\"");
         StringAssert.Contains(sourceText, "x:Name=\"TxtImageColumnCreatedAt\"");
         StringAssert.Contains(sourceText, "Grid.Row=\"1\"");
-        StringAssert.Contains(sourceText, "Background=\"{ThemeResource CardBackgroundFillColorDefaultBrush}\"");
+        StringAssert.Contains(sourceText, "Background=\"{ThemeResource LayerFillColorDefaultBrush}\"");
+    }
+
+    [TestMethod]
+    public void ImagesPage_PullProgressRing_IsBottomAligned()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\ImagesPage.xaml");
+        var ringPattern = new Regex(
+            """
+            <ProgressRing\b(?=[^>]*?x:Name="PrgPullImage")(?=[^>]*?VerticalAlignment="Bottom")[^>]*?/>
+            """);
+
+        // Assert
+        Assert.IsTrue(
+            ringPattern.IsMatch(sourceText),
+            "Expected the PrgPullImage progress ring to be bottom-aligned so it lines up with the pull button.");
     }
 
     [TestMethod]

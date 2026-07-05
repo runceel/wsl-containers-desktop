@@ -22,7 +22,7 @@
             <Border
                 Grid.Row="0"
                 Padding="16"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
                 CornerRadius="{StaticResource OverlayCornerRadius}">
@@ -56,7 +56,7 @@
             <Border
                 Grid.Row="1"
                 Padding="16"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
                 CornerRadius="{StaticResource OverlayCornerRadius}">
@@ -96,7 +96,7 @@
             <Border
                 Grid.Row="2"
                 Padding="16"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
                 CornerRadius="{StaticResource OverlayCornerRadius}">
