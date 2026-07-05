@@ -44,20 +44,36 @@ public sealed class NetworksPageSourceTests
     }
 
     [TestMethod]
-    public void NetworksPage_EmptyStateUsesOpaqueCardBorderWhenNoNetworks()
+    public void NetworksPage_CreateProgressRing_IsBottomAligned()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\NetworksPage.xaml");
+        var ringPattern = new Regex(
+            """
+            <ProgressRing\b(?=[^>]*?x:Name="PrgCreateNetwork")(?=[^>]*?VerticalAlignment="Bottom")[^>]*?/>
+            """);
+
+        // Assert
+        Assert.IsTrue(
+            ringPattern.IsMatch(sourceText),
+            "Expected the PrgCreateNetwork progress ring to be bottom-aligned so it lines up with the create button.");
+    }
+
+    [TestMethod]
+    public void NetworksPage_NoNetworks_EmptyStateUsesDistinguishableSurfaceBorder()
     {
         // Arrange
         var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\NetworksPage.xaml");
         var emptyStateBorderPattern = new Regex(
             """
-            <Border\b[^>]*x:Name="BorderNetworksEmptyState"[^>]*Background="\{ThemeResource CardBackgroundFillColorDefaultBrush\}"[^>]*BorderBrush="\{ThemeResource CardStrokeColorDefaultBrush\}"[^>]*BorderThickness="\{ThemeResource WslContainersSurfaceBorderThickness\}"[^>]*CornerRadius="\{StaticResource OverlayCornerRadius\}"[^>]*\sVisibility="\{x:Bind ToVisibleWhenFalse\(ViewModel\.HasNetworks\), Mode=OneWay\}"[^>]*>(?s:.*?)<TextBlock\b[^>]*x:Name="TxtNetworksEmptyState"
+            <Border\b[^>]*x:Name="BorderNetworksEmptyState"[^>]*Background="\{ThemeResource LayerFillColorDefaultBrush\}"[^>]*BorderBrush="\{ThemeResource CardStrokeColorDefaultBrush\}"[^>]*BorderThickness="\{ThemeResource WslContainersSurfaceBorderThickness\}"[^>]*CornerRadius="\{StaticResource OverlayCornerRadius\}"[^>]*\sVisibility="\{x:Bind ToVisibleWhenFalse\(ViewModel\.HasNetworks\), Mode=OneWay\}"[^>]*>(?s:.*?)<TextBlock\b[^>]*x:Name="TxtNetworksEmptyState"
             """,
             RegexOptions.Singleline);
 
         // Assert
         Assert.IsTrue(
             emptyStateBorderPattern.IsMatch(sourceText),
-            "Expected the empty-state section to be wrapped in a named Border with card styling and the visible-when-false binding.");
+            "Expected the empty-state section to be a named Border with a distinguishable layer surface, a card stroke, and the visible-when-false binding.");
     }
 
     [TestMethod]

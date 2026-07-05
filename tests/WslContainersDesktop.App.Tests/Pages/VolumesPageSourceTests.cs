@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace WslContainersDesktop_App_Tests.Pages;
 
 [TestClass]
@@ -48,6 +50,22 @@ public sealed class VolumesPageSourceTests
         Assert.IsTrue(
             handlerIndex < dialogIndex && dialogIndex < deleteCommandIndex,
             "Expected the delete confirmation dialog to be created before executing the delete command.");
+    }
+
+    [TestMethod]
+    public void VolumesPage_CreateProgressRing_IsBottomAligned()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\VolumesPage.xaml");
+        var ringPattern = new Regex(
+            """
+            <ProgressRing\b(?=[^>]*?x:Name="PrgCreateVolume")(?=[^>]*?VerticalAlignment="Bottom")[^>]*?/>
+            """);
+
+        // Assert
+        Assert.IsTrue(
+            ringPattern.IsMatch(sourceText),
+            "Expected the PrgCreateVolume progress ring to be bottom-aligned so it lines up with the create button.");
     }
 
     [TestMethod]

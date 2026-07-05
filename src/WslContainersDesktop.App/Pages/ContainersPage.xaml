@@ -28,7 +28,7 @@
         <Border
             Grid.Row="0"
             Padding="16"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
             CornerRadius="{StaticResource OverlayCornerRadius}">
@@ -74,7 +74,7 @@
 
             <Border
                 Grid.Column="0"
-                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                Background="{ThemeResource LayerFillColorDefaultBrush}"
                 BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                 BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
                 CornerRadius="{StaticResource OverlayCornerRadius}"
@@ -181,7 +181,7 @@
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Padding="24"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
             BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
             CornerRadius="{StaticResource OverlayCornerRadius}"
@@ -203,7 +203,7 @@
         <Border
             x:Name="BrdDetailPanel"
             Padding="16"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
             BorderBrush="{ThemeResource WslContainersAccentStrokeColorBrush}"
             BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
             CornerRadius="{StaticResource OverlayCornerRadius}"
@@ -248,7 +248,7 @@
         <Border
             x:Name="BrdShellPanel"
             Padding="16"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
             BorderBrush="{ThemeResource WslContainersAccentStrokeColorBrush}"
             BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
             CornerRadius="{StaticResource OverlayCornerRadius}"
@@ -319,7 +319,7 @@
         <Border
             x:Name="BrdLogPanel"
             Padding="16"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
             BorderBrush="{ThemeResource WslContainersAccentStrokeColorBrush}"
             BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
             CornerRadius="{StaticResource OverlayCornerRadius}"
