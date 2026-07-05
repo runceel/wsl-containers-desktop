@@ -121,6 +121,24 @@ public sealed class SettingsViewModelTests
         Assert.IsFalse(sut.IsLoading);
     }
 
+    [TestMethod]
+    public async Task RefreshAsync_GetResourceLimitsThrows_DisablesResourceEditing()
+    {
+        // Even though requirements are met, a failed load must not leave the resource inputs
+        // editable with stale/blank values (which could overwrite .wslconfig on a later Save).
+        // Arrange
+        var service = MetService();
+        service.GetLimitsException = new WslSettingsAccessException("cannot read .wslconfig");
+        var sut = new SettingsViewModel(service);
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.IsTrue(sut.MeetsRequirements);
+        Assert.IsFalse(sut.CanEditResourceLimits);
+    }
+
     // ---- Save ----
 
     [TestMethod]

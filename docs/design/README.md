@@ -22,6 +22,7 @@
 | [`images-view.md`](images-view.md) | イメージ一覧ViewModel（`ImagesViewModel`）のpull・削除・状態管理の現在のスナップショット |
 | [`volumes-view.md`](volumes-view.md) | ボリューム一覧ViewModel（`VolumesViewModel`）の作成・削除・使用状況表示の現在のスナップショット |
 | [`networks-view.md`](networks-view.md) | ネットワーク一覧ViewModel（`NetworksViewModel`）の作成・削除・使用状況表示の現在のスナップショット |
+| [`settings-view.md`](settings-view.md) | 設定ViewModel（`SettingsViewModel`）とWSL連携状態確認・`.wslconfig`リソース制限永続化の現在のスナップショット |
 | (機能追加に応じて追加) | 個別機能の設計ドキュメントは `docs/design/<feature-name>.md` として追加していく |
 
 ## 更新のタイミング

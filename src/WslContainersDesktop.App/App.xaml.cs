@@ -10,6 +10,8 @@ using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Application.Services;
 using WslContainersDesktop.Infrastructure.Cli;
 using WslContainersDesktop.Infrastructure.Clients;
+using WslContainersDesktop.Infrastructure.Settings;
+using WslContainersDesktop.Infrastructure.Wsl;
 using WslContainersDesktop_App.ViewModels;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -54,12 +56,22 @@ public partial class App : Application
         services.AddSingleton<INetworkManagementService, NetworkManagementService>();
         services.AddSingleton<IUiDispatcher>(_ => new DispatcherQueueUiDispatcher(DispatcherQueue.GetForCurrentThread()));
 
+        // 設定画面（Issue #7）。WSL環境検出と .wslconfig 編集の低レベルseamと、
+        // 要件ポリシーを所有するSettingsServiceを登録する。
+        services.AddSingleton<IWslCommandRunner, WslCommandRunner>();
+        services.AddSingleton<IWslcExecutableProbe, WslcExecutableProbe>();
+        services.AddSingleton<IWslConfigFileAccessor, WslConfigFileAccessor>();
+        services.AddSingleton<IWslEnvironmentProbe, WslEnvironmentProbe>();
+        services.AddSingleton<IWslResourceLimitsStore, WslConfigResourceLimitsStore>();
+        services.AddSingleton<ISettingsService, SettingsService>();
+
         // トップレベルページのViewModelはNavigationViewModelと同様、アプリケーション
         // ライフタイムで1インスタンスとする。
         services.AddSingleton<ContainersViewModel>();
         services.AddSingleton<ImagesViewModel>();
         services.AddSingleton<VolumesViewModel>();
         services.AddSingleton<NetworksViewModel>();
+        services.AddSingleton<SettingsViewModel>();
 
         return services.BuildServiceProvider();
     }

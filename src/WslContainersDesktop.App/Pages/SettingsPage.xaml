@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <Page
     x:Class="WslContainersDesktop_App.Pages.SettingsPage"
+    x:Name="RootPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -8,31 +9,156 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Padding="24,16,24,16" RowSpacing="24">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <Border
-            Padding="16"
-            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-            BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
-            CornerRadius="{StaticResource OverlayCornerRadius}">
-            <Grid ColumnSpacing="16">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="4" />
-                    <ColumnDefinition Width="*" />
-                </Grid.ColumnDefinitions>
-                <Border
-                    Grid.Column="0"
-                    Background="{ThemeResource WslContainersAccentFillColorDefaultBrush}"
-                    CornerRadius="{StaticResource ControlCornerRadius}" />
-                <StackPanel Grid.Column="1">
-                    <TextBlock x:Name="TxtPageTitle" x:Uid="SettingsPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
-                    <TextBlock x:Name="TxtPageDescription" x:Uid="SettingsPageDescription" />
+    <ScrollViewer>
+        <Grid Padding="24,16,24,16" RowSpacing="16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- ヘッダー -->
+            <Border
+                Grid.Row="0"
+                Padding="16"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+                CornerRadius="{StaticResource OverlayCornerRadius}">
+                <Grid ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <Border
+                        Grid.Column="0"
+                        Background="{ThemeResource WslContainersAccentFillColorDefaultBrush}"
+                        CornerRadius="{StaticResource ControlCornerRadius}" />
+                    <StackPanel Grid.Column="1">
+                        <TextBlock x:Name="TxtPageTitle" x:Uid="SettingsPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
+                        <TextBlock x:Name="TxtPageDescription" x:Uid="SettingsPageDescription" TextWrapping="Wrap" />
+                    </StackPanel>
+                    <ProgressRing
+                        x:Name="PrgSettingsLoading"
+                        Grid.Column="2"
+                        Width="24"
+                        Height="24"
+                        VerticalAlignment="Center"
+                        AutomationProperties.AutomationId="PrgSettingsLoading"
+                        IsActive="{x:Bind ViewModel.IsLoading, Mode=OneWay}"
+                        Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsLoading), Mode=OneWay}" />
+                </Grid>
+            </Border>
+
+            <!-- WSL連携状態 -->
+            <Border
+                Grid.Row="1"
+                Padding="16"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+                CornerRadius="{StaticResource OverlayCornerRadius}">
+                <StackPanel Spacing="8">
+                    <TextBlock
+                        x:Name="TxtWslIntegrationHeader"
+                        x:Uid="TxtWslIntegrationHeader"
+                        Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock
+                            x:Name="TxtWslVersionLabel"
+                            x:Uid="TxtWslVersionLabel"
+                            VerticalAlignment="Center"
+                            FontWeight="SemiBold" />
+                        <TextBlock
+                            x:Name="TxtWslVersionValue"
+                            VerticalAlignment="Center"
+                            Text="{x:Bind ViewModel.WslVersionText, Mode=OneWay}" />
+                    </StackPanel>
+                    <CheckBox
+                        x:Name="ChkWslContainersAvailable"
+                        x:Uid="ChkWslContainersAvailable"
+                        AutomationProperties.AutomationId="ChkWslContainersAvailable"
+                        IsHitTestVisible="False"
+                        IsTabStop="False"
+                        IsChecked="{x:Bind ViewModel.IsWslContainersAvailable, Mode=OneWay}" />
+                    <InfoBar
+                        x:Name="InfoBarRequirementsWarning"
+                        x:Uid="InfoBarRequirementsWarning"
+                        Severity="Warning"
+                        IsClosable="False"
+                        IsOpen="{x:Bind ViewModel.IsRequirementsWarningVisible, Mode=OneWay}" />
                 </StackPanel>
-            </Grid>
-        </Border>
-    </Grid>
+            </Border>
+
+            <!-- リソース制限 -->
+            <Border
+                Grid.Row="2"
+                Padding="16"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+                CornerRadius="{StaticResource OverlayCornerRadius}">
+                <StackPanel Spacing="12">
+                    <TextBlock
+                        x:Name="TxtResourceLimitsHeader"
+                        x:Uid="TxtResourceLimitsHeader"
+                        Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock
+                        x:Name="TxtResourceLimitsHint"
+                        x:Uid="TxtResourceLimitsHint"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        TextWrapping="Wrap" />
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <TextBox
+                            x:Name="TxtMemoryMegabytes"
+                            x:Uid="TxtMemoryMegabytes"
+                            Width="200"
+                            AutomationProperties.AutomationId="TxtMemoryMegabytes"
+                            IsEnabled="{x:Bind ViewModel.CanEditResourceLimits, Mode=OneWay}"
+                            Text="{x:Bind ViewModel.MemoryMegabytesInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBox
+                            x:Name="TxtProcessorCount"
+                            x:Uid="TxtProcessorCount"
+                            Width="200"
+                            AutomationProperties.AutomationId="TxtProcessorCount"
+                            IsEnabled="{x:Bind ViewModel.CanEditResourceLimits, Mode=OneWay}"
+                            Text="{x:Bind ViewModel.ProcessorCountInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button
+                            x:Name="BtnSaveResourceLimits"
+                            x:Uid="BtnSaveResourceLimits"
+                            AutomationProperties.AutomationId="BtnSaveResourceLimits"
+                            Command="{x:Bind ViewModel.SaveCommand}"
+                            IsEnabled="{x:Bind ViewModel.CanEditResourceLimits, Mode=OneWay}"
+                            Style="{StaticResource AccentButtonStyle}" />
+                        <Button
+                            x:Name="BtnResetResourceLimits"
+                            x:Uid="BtnResetResourceLimits"
+                            AutomationProperties.AutomationId="BtnResetResourceLimits"
+                            Click="BtnResetResourceLimits_Click"
+                            IsEnabled="{x:Bind ViewModel.CanEditResourceLimits, Mode=OneWay}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- エラー / ステータスメッセージ -->
+            <StackPanel Grid.Row="3" Spacing="8">
+                <InfoBar
+                    x:Name="InfoBarSettingsError"
+                    Severity="Error"
+                    IsClosable="False"
+                    IsOpen="{x:Bind ViewModel.IsErrorMessageVisible, Mode=OneWay}"
+                    Message="{x:Bind ViewModel.ErrorMessage, Mode=OneWay}" />
+                <InfoBar
+                    x:Name="InfoBarSettingsStatus"
+                    Severity="Success"
+                    IsClosable="False"
+                    IsOpen="{x:Bind ViewModel.IsStatusMessageVisible, Mode=OneWay}"
+                    Message="{x:Bind ViewModel.StatusMessage, Mode=OneWay}" />
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
 </Page>

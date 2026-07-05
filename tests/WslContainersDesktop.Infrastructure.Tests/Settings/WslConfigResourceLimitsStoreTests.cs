@@ -237,6 +237,18 @@ public sealed class WslConfigResourceLimitsStoreTests
     }
 
     [TestMethod]
+    public async Task GetAsync_MemoryValueOverflowsInt_ThrowsWslSettingsAccessException()
+    {
+        // 4096TB in megabytes exceeds int.MaxValue; it must be rejected, not silently wrapped to 0.
+        // Arrange
+        var sut = CreateSut(new FakeWslConfigFileAccessor { Content = "[wsl2]\r\nmemory=4096TB\r\n" });
+
+        // Act & Assert
+        var ex = await Assert.ThrowsExactlyAsync<WslSettingsAccessException>(() => sut.GetAsync());
+        StringAssert.Contains(ex.Message, "4096TB");
+    }
+
+    [TestMethod]
     public async Task GetAsync_InvalidProcessorsValue_ThrowsWslSettingsAccessException()
     {
         // Arrange
