@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Domain;
+using WslContainersDesktop_App.Collections;
 
 namespace WslContainersDesktop_App.ViewModels;
 
@@ -174,12 +175,16 @@ public sealed partial class ImagesViewModel(IImageManagementService imageManagem
 
     private void ReplaceImages(IReadOnlyList<ContainerImage> images)
     {
-        Images.Clear();
-        foreach (var image in images)
-        {
-            Images.Add(new ImageRowViewModel(image));
-        }
+        ObservableCollectionReconciler.Reconcile(
+            Images,
+            images,
+            row => BuildImageKey(row.Id, row.Repository, row.Tag),
+            image => BuildImageKey(image.Id, image.Repository, image.Tag),
+            image => new ImageRowViewModel(image));
 
         IsEmpty = Images.Count == 0;
     }
+
+    private static string BuildImageKey(string id, string repository, string tag)
+        => string.Join('\u001f', id, repository, tag);
 }

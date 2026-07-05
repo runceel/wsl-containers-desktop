@@ -63,5 +63,6 @@ docs/adr/NNNN-kebab-case-title.md
 | [0010](0010-adopt-di-container-for-presentation.md) | PresentationにDIコンテナ(Microsoft.Extensions.DependencyInjection)を導入する | Accepted |
 | [0011](0011-do-not-auto-restart-wsl-on-settings-change.md) | 設定変更時にWSLを自動再起動せず案内のみ行う | Accepted |
 | [0012](0012-wsl-environment-detection-and-wslconfig-editing.md) | WSL環境検出と`.wslconfig`編集の方式を採用する | Accepted |
+| [0013](0013-adopt-differential-updates-for-list-views.md) | 一覧ViewModelの更新に差分更新(ObservableCollectionReconciler)を採用する | Accepted |
 
 新しいADRを追加したら、この表にも1行追加すること。

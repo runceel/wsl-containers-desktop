@@ -1,9 +1,11 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Domain;
+using WslContainersDesktop_App.Collections;
 
 namespace WslContainersDesktop_App.ViewModels;
 
@@ -185,14 +187,23 @@ public sealed partial class VolumesViewModel(IVolumeManagementService volumeMana
 
     private void ReplaceVolumes(IReadOnlyList<ContainerVolume> volumes)
     {
-        Volumes.Clear();
-        foreach (var volume in volumes)
-        {
-            Volumes.Add(new VolumeRowViewModel(volume));
-        }
+        ObservableCollectionReconciler.Reconcile(
+            Volumes,
+            volumes,
+            row => BuildVolumeKey(row.Name, row.Driver, row.CreatedAt, row.ReferencingContainerNames),
+            volume => BuildVolumeKey(volume.Name, volume.Driver, volume.CreatedAt, volume.ReferencingContainerNames),
+            volume => new VolumeRowViewModel(volume));
 
         IsEmpty = Volumes.Count == 0;
     }
+
+    private static string BuildVolumeKey(string name, string driver, DateTimeOffset createdAt, IReadOnlyList<string> referencingContainerNames)
+        => string.Join(
+            '\u001f',
+            name,
+            driver,
+            createdAt.UtcTicks.ToString(CultureInfo.InvariantCulture),
+            string.Join('\u001e', referencingContainerNames));
 
     private static string FormatInUseMessage(string volumeName, IReadOnlyList<string> referencingContainerNames)
     {

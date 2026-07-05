@@ -6,7 +6,7 @@
 
 `ContainersViewModel`（`ViewModels/ContainersViewModel.cs`）は、コンテナ一覧の取得・起動・停止・
 再起動・削除・詳細表示・ログ表示・対話的シェル表示を担うViewModel。各操作は非同期に実行され、
-`await` 中に一覧全体が再構築されるケース（ユーザーによる手動更新、他操作完了に伴う
+`await` 中に一覧が差分更新されるケース（ユーザーによる手動更新、他操作完了に伴う
 バックグラウンド再同期）を考慮した設計になっている。
 
 ## 一覧UI
@@ -22,14 +22,22 @@
 - 詳細・ログ・シェルは一覧の下ではなく右側の補助ペインに表示する。複数パネルが開いても一覧領域の高さを
   維持し、補助ペイン側だけを縦スクロールさせる。
 
-## 行インスタンスの非永続性と再検索
+## 一覧の差分更新と行インスタンスの維持
 
 - `Containers`（`ObservableCollection<ContainerRowViewModel>`）は `ReplaceContainers` によって
-  丸ごと作り直される。個々の `ContainerRowViewModel` インスタンスは再構築のたびに新しくなり、
-  以前のインスタンスは破棄される。
-- そのため、非同期操作の開始時にコマンド引数として受け取った行インスタンス（`row`）は、
-  `await` の後には既にライブの `Containers` に存在しない可能性がある。この行インスタンスは
-  操作対象の `Id` を得る以外の目的で使い続けない。
+  **差分更新**される。汎用ヘルパー `ObservableCollectionReconciler.Reconcile`（`Collections/`）が、
+  キー一致で既存の `ContainerRowViewModel` インスタンスを維持したまま、追加・削除・並び替え・
+  インプレース更新のみを適用する（`ObservableCollection.Clear()` を使わないため `ListView` の
+  Reset が発生せず、選択やスクロール位置が保たれる）。差分更新を採用した理由と、他の一覧
+  （Images/Networks/Volumes）を含む一覧全体での方針は [ADR-0013](../adr/0013-adopt-differential-updates-for-list-views.md) を参照。
+- 行キーは `BuildContainerKey`（`Id ∣ Name ∣ Image ∣ CreatedAt`）。`State` はキーに含めず、
+  キー一致時に `ApplyFrom` でインプレース更新する。これにより状態遷移（例: Stopped→Running）は
+  同一インスタンスのまま反映され、Name/Image/CreatedAt など他の表示フィールドが変わった場合のみ
+  該当行が作り直される（外部改名などによる表示の陳腐化を防ぐ）。
+- 行インスタンスは基本的に維持されるが、上記のキー変化や、サーバー応答からの消失・再出現に
+  よって作り直される場合がある。そのため、非同期操作の開始時にコマンド引数として受け取った
+  行インスタンス（`row`）は、`await` の後には既にライブの `Containers` に存在しない可能性がある。
+  この行インスタンスは操作対象の `Id` を得る以外の目的で使い続けない。
 - `FindLiveRow(string containerId)` が、その時点でのライブな `Containers` からIDで行を
   再検索する唯一の手段。`await` をまたいだ後の状態反映（busy解除、`ApplyFrom` によるプロパティ
   反映、削除時の `Containers.Remove`）は必ずこのメソッドで取得した行に対して行う。
@@ -38,17 +46,21 @@
 
 - 行の `IsBusy`・`PendingOperation`（進行中の操作種別。`ContainerRowOperation`の`None`/`Starting`/
   `Stopping`/`Restarting`/`Deleting`のいずれか）は `ContainerRowViewModel` インスタンスに紐づく
-  プロパティだが、上記の通りインスタンスは再構築で失われる。
+  プロパティだが、差分更新で行が作り直されたり、一覧から一時的に消えて再出現したりする場合がある。
 - `ContainersViewModel` はコンテナID単位で `_pendingOperations`（`Dictionary<string, ContainerRowOperation>`）
   に進行中操作を保持する。キーが存在すること自体がbusy中を表し、値がその操作種別を表す
   （busy状態と操作種別は必ず一致するため単一の辞書で一元管理する）。`BeginBusy(id, operation)`/
-  `EndBusy(id)` で追加・削除する。`ReplaceContainers` は新しい行を作る際にこの辞書を参照し、
-  該当IDがあれば新しい行にも `IsBusy = true` と `PendingOperation` を復元する。
+  `EndBusy(id)` で追加・削除する。`ReplaceContainers` は差分更新の際、行を新規生成するときも
+  既存行を更新するときも `ApplyPendingOperation` を通じてこの辞書を参照し、該当IDがあれば
+  `IsBusy = true` と `PendingOperation` を復元し、なければ解除する。
 - `EndBusy` は、対応する `TryRefreshSilentlyAsync`（内部で `ReplaceContainers` を呼ぶ）より
-  必ず前に呼び出す。順序を守らないと、再同期後の新しい行が古い記録を見て、実際には完了した
-  操作の途中状態表示を解除できなくなる。
+  必ず前に呼び出す。順序を守らないと、再同期時に `_pendingOperations` に残ったままの古い記録を
+  見て、実際には完了した操作の途中状態表示を解除できなくなる。
 - 行の表示用状態 `DisplayState`（`ContainerRowDisplayState`。`State`と`PendingOperation`の組み合わせ）
-  は、`State`・`PendingOperation`いずれの変更でも再計算される。State列のコンバーターは
+  は、`State`・`PendingOperation`いずれの変更でも再計算される。差分更新で行インスタンスが維持される
+  ため、`ContainersPage.xaml` の State列は `Text="{x:Bind DisplayState, Mode=OneWay}"` とし
+  （`x:Bind` の既定 `OneTime` では途中状態が反映されない）、`BeginBusy` による `Stopping` などの
+  途中状態がその場で一覧に反映される。State列のコンバーターは
   `ContainerDisplayStateResourceKeySelector.GetResourceKey(DisplayState)` でリソースキーを選択し
   （`PendingOperation`が`None`以外ならその操作種別を優先、`None`なら`State`から選択）、
   `ResourceLoader` でローカライズ済みテキストへ変換する。

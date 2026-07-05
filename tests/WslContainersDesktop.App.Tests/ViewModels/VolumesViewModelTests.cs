@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Domain;
 using WslContainersDesktop_App.ViewModels;
@@ -260,5 +261,116 @@ public sealed class VolumesViewModelTests
         // Assert
         Assert.AreEqual("Volume 'vol-1' is in use by: web, db", sut.ErrorMessage);
         Assert.HasCount(1, sut.Volumes);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_RefetchesIdenticalVolumes_PreservesRowInstances()
+    {
+        // Arrange
+        var service = new FakeVolumeManagementService { DefaultVolumes = [CreateVolume("vol-1"), CreateVolume("vol-2")] };
+        var sut = new VolumesViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Volumes[0];
+        var row2 = sut.Volumes[1];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(2, sut.Volumes);
+        Assert.AreSame(row1, sut.Volumes[0]);
+        Assert.AreSame(row2, sut.Volumes[1]);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_RefetchesIdenticalVolumes_RaisesNoCollectionChanged()
+    {
+        // Arrange
+        var service = new FakeVolumeManagementService { DefaultVolumes = [CreateVolume("vol-1"), CreateVolume("vol-2")] };
+        var sut = new VolumesViewModel(service);
+        await sut.RefreshAsync();
+        var actions = new List<NotifyCollectionChangedAction>();
+        sut.Volumes.CollectionChanged += (_, e) => actions.Add(e.Action);
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.IsEmpty(actions);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_VolumeRemovedOnServer_RowRemovedAndOthersPreserved()
+    {
+        // Arrange
+        var service = new FakeVolumeManagementService { DefaultVolumes = [CreateVolume("vol-1"), CreateVolume("vol-2")] };
+        var sut = new VolumesViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Volumes[0];
+        service.DefaultVolumes = [CreateVolume("vol-1")];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(1, sut.Volumes);
+        Assert.AreSame(row1, sut.Volumes[0]);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_NewVolumeOnServer_RowAddedAndExistingPreserved()
+    {
+        // Arrange
+        var service = new FakeVolumeManagementService { DefaultVolumes = [CreateVolume("vol-1")] };
+        var sut = new VolumesViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Volumes[0];
+        service.DefaultVolumes = [CreateVolume("vol-1"), CreateVolume("vol-2")];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(2, sut.Volumes);
+        Assert.AreSame(row1, sut.Volumes[0]);
+        Assert.AreEqual("vol-2", sut.Volumes[1].Name);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_VolumeReferencesChanged_ChangedRowReplacedWithNewUsageTextAndOthersPreserved()
+    {
+        // Arrange
+        var service = new FakeVolumeManagementService { DefaultVolumes = [CreateVolume("vol-1"), CreateVolume("vol-2", "web")] };
+        var sut = new VolumesViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Volumes[0];
+        var row2 = sut.Volumes[1];
+        service.DefaultVolumes = [CreateVolume("vol-1"), CreateVolume("vol-2", "web", "db")];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(2, sut.Volumes);
+        Assert.AreSame(row1, sut.Volumes[0]);
+        Assert.AreNotSame(row2, sut.Volumes[1]);
+        Assert.AreEqual("web, db", sut.Volumes[1].UsageText);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_RefetchesEquivalentVolumesFromFreshRecordInstances_PreservesRowInstances()
+    {
+        // Arrange
+        var service = new FakeVolumeManagementService { DefaultVolumes = [CreateVolume("vol-1", "web")] };
+        var sut = new VolumesViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Volumes[0];
+        service.DefaultVolumes = [CreateVolume("vol-1", "web")];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.AreSame(row1, sut.Volumes[0]);
     }
 }

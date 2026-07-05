@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Domain;
 using WslContainersDesktop_App.ViewModels;
@@ -274,5 +275,116 @@ public sealed class NetworksViewModelTests
         // Assert
         Assert.AreEqual("Network 'bridge' is a system network and cannot be deleted.", sut.ErrorMessage);
         Assert.HasCount(1, sut.Networks);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_RefetchesIdenticalNetworks_PreservesRowInstances()
+    {
+        // Arrange
+        var service = new FakeNetworkManagementService { DefaultNetworks = [CreateNetwork("app-net"), CreateNetwork("db-net")] };
+        var sut = new NetworksViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Networks[0];
+        var row2 = sut.Networks[1];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(2, sut.Networks);
+        Assert.AreSame(row1, sut.Networks[0]);
+        Assert.AreSame(row2, sut.Networks[1]);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_RefetchesIdenticalNetworks_RaisesNoCollectionChanged()
+    {
+        // Arrange
+        var service = new FakeNetworkManagementService { DefaultNetworks = [CreateNetwork("app-net"), CreateNetwork("db-net")] };
+        var sut = new NetworksViewModel(service);
+        await sut.RefreshAsync();
+        var actions = new List<NotifyCollectionChangedAction>();
+        sut.Networks.CollectionChanged += (_, e) => actions.Add(e.Action);
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.IsEmpty(actions);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_NetworkRemovedOnServer_RowRemovedAndOthersPreserved()
+    {
+        // Arrange
+        var service = new FakeNetworkManagementService { DefaultNetworks = [CreateNetwork("app-net"), CreateNetwork("db-net")] };
+        var sut = new NetworksViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Networks[0];
+        service.DefaultNetworks = [CreateNetwork("app-net")];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(1, sut.Networks);
+        Assert.AreSame(row1, sut.Networks[0]);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_NewNetworkOnServer_RowAddedAndExistingPreserved()
+    {
+        // Arrange
+        var service = new FakeNetworkManagementService { DefaultNetworks = [CreateNetwork("app-net")] };
+        var sut = new NetworksViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Networks[0];
+        service.DefaultNetworks = [CreateNetwork("app-net"), CreateNetwork("db-net")];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(2, sut.Networks);
+        Assert.AreSame(row1, sut.Networks[0]);
+        Assert.AreEqual("db-net", sut.Networks[1].Name);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_NetworkConnectionsChanged_ChangedRowReplacedWithNewUsageTextAndOthersPreserved()
+    {
+        // Arrange
+        var service = new FakeNetworkManagementService { DefaultNetworks = [CreateNetwork("app-net"), CreateNetwork("db-net", false, "web")] };
+        var sut = new NetworksViewModel(service);
+        await sut.RefreshAsync();
+        var appRow = sut.Networks[0];
+        var dbRow = sut.Networks[1];
+        service.DefaultNetworks = [CreateNetwork("app-net"), CreateNetwork("db-net", false, "web", "api")];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.HasCount(2, sut.Networks);
+        Assert.AreSame(appRow, sut.Networks[0]);
+        Assert.AreNotSame(dbRow, sut.Networks[1]);
+        Assert.AreEqual("web, api", sut.Networks[1].UsageText);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_RefetchesEquivalentNetworksFromFreshRecordInstances_PreservesRowInstances()
+    {
+        // Arrange
+        var service = new FakeNetworkManagementService { DefaultNetworks = [CreateNetwork("app-net", false, "web")] };
+        var sut = new NetworksViewModel(service);
+        await sut.RefreshAsync();
+        var row1 = sut.Networks[0];
+        service.DefaultNetworks = [CreateNetwork("app-net", false, "web")];
+
+        // Act
+        await sut.RefreshAsync();
+
+        // Assert
+        Assert.AreSame(row1, sut.Networks[0]);
     }
 }

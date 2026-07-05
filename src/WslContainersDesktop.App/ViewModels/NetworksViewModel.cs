@@ -2,11 +2,13 @@
 // Licensed under the MIT License.
 
 using System.Collections.ObjectModel;
+using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Domain;
+using WslContainersDesktop_App.Collections;
 
 namespace WslContainersDesktop_App.ViewModels;
 
@@ -212,14 +214,24 @@ public sealed partial class NetworksViewModel(INetworkManagementService networkM
 
     private void ReplaceNetworks(IReadOnlyList<ContainerNetworkResource> networks)
     {
-        Networks.Clear();
-        foreach (var network in networks)
-        {
-            Networks.Add(new NetworkRowViewModel(network));
-        }
+        ObservableCollectionReconciler.Reconcile(
+            Networks,
+            networks,
+            row => BuildNetworkKey(row.Name, row.Driver, row.CreatedAt, row.IsSystem, row.ConnectedContainerNames),
+            network => BuildNetworkKey(network.Name, network.Driver, network.CreatedAt, network.IsSystem, network.ConnectedContainerNames),
+            network => new NetworkRowViewModel(network));
 
         UpdateNetworkFlags();
     }
+
+    private static string BuildNetworkKey(string name, string driver, DateTimeOffset createdAt, bool isSystem, IReadOnlyList<string> connectedContainerNames)
+        => string.Join(
+            '\u001f',
+            name,
+            driver,
+            createdAt.UtcTicks.ToString(CultureInfo.InvariantCulture),
+            isSystem,
+            string.Join('\u001e', connectedContainerNames));
 
     private void UpdateNetworkFlags()
     {

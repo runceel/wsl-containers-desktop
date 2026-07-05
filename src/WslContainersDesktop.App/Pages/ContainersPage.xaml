@@ -117,7 +117,7 @@
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind Name}" />
                                     <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Image}" />
-                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind DisplayState, Converter={StaticResource StateToDisplayTextConverter}}" />
+                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind DisplayState, Mode=OneWay, Converter={StaticResource StateToDisplayTextConverter}}" />
                                     <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" />
                                     <StackPanel Grid.Column="4" Orientation="Horizontal">
                                         <Button

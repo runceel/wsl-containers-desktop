@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using System.Threading.Channels;
 using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Application.Ports;
@@ -82,6 +83,8 @@ public sealed class ContainersViewModelTests
         await sut.RefreshCommand.ExecuteAsync(null);
         var row = sut.Containers[0];
         service.StartResult = CreateContainer("c1", ContainerState.Running);
+        // 操作成功後のベストエフォート再同期では、サーバーが更新後の状態（Running）を返す。
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([CreateContainer("c1", ContainerState.Running)]));
 
         // Act
         await sut.StartCommand.ExecuteAsync(row);
@@ -170,7 +173,7 @@ public sealed class ContainersViewModelTests
         var operationTask = sut.StartCommand.ExecuteAsync(row1);
         await sut.RefreshCommand.ExecuteAsync(null);
         var liveRow = sut.Containers.Single(c => c.Id == "c1");
-        Assert.AreNotSame(row1, liveRow);
+        Assert.AreSame(row1, liveRow);
         gate.SetResult(service.StartResult!);
         await operationTask;
 
@@ -201,7 +204,7 @@ public sealed class ContainersViewModelTests
         var operationTask = sut.StartCommand.ExecuteAsync(row1);
         await sut.RefreshCommand.ExecuteAsync(null);
         var liveRow = sut.Containers.Single(c => c.Id == "c1");
-        Assert.AreNotSame(row1, liveRow);
+        Assert.AreSame(row1, liveRow);
         gate.SetException(exception);
         await operationTask;
 
@@ -356,9 +359,10 @@ public sealed class ContainersViewModelTests
         await sut.RefreshCommand.ExecuteAsync(null);
         var rebuiltRow = sut.Containers.Single(c => c.Id == "c1");
 
-        // Assert: in-flight中は再構築後の行にも保留中操作が復元される。
-        Assert.AreNotSame(row, rebuiltRow);
+        // Assert: in-flight中は差分更新で行インスタンスが維持され、保留中操作も保持される。
+        Assert.AreSame(row, rebuiltRow);
         Assert.AreEqual(ContainerRowOperation.Stopping, rebuiltRow.PendingOperation);
+        Assert.AreEqual(ContainerRowOperation.Stopping, rebuiltRow.DisplayState.PendingOperation);
 
         // 操作完了後のベストエフォート再同期で最新状態（Stopped）を返すようにする。
         service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([CreateContainer("c1", ContainerState.Stopped)]));
@@ -536,6 +540,8 @@ public sealed class ContainersViewModelTests
         await sut.RefreshCommand.ExecuteAsync(null);
         var row = sut.Containers[0];
         service.StopResult = CreateContainer("c1", ContainerState.Stopped);
+        // 操作成功後のベストエフォート再同期では、サーバーが更新後の状態（Stopped）を返す。
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([CreateContainer("c1", ContainerState.Stopped)]));
 
         // Act
         await sut.StopCommand.ExecuteAsync(row);
@@ -594,18 +600,19 @@ public sealed class ContainersViewModelTests
         var sut = new ContainersViewModel(service);
         await sut.RefreshCommand.ExecuteAsync(null);
         var row1 = sut.Containers.Single(c => c.Id == "c1");
+        var row2 = sut.Containers.Single(c => c.Id == "c2");
 
         // Act
         var operationTask = sut.DeleteCommand.ExecuteAsync(row1);
         await sut.RefreshCommand.ExecuteAsync(null);
         var liveRow = sut.Containers.SingleOrDefault(c => c.Id == "c1");
-        Assert.AreNotSame(row1, liveRow);
         gate.SetResult(true);
         await operationTask;
 
         // Assert
         Assert.IsNull(liveRow);
         Assert.IsFalse(sut.Containers.Any(c => c.Id == "c1"));
+        Assert.AreSame(row2, sut.Containers.Single(c => c.Id == "c2"));
     }
 
     [TestMethod]
@@ -1306,6 +1313,167 @@ public sealed class ContainersViewModelTests
         Assert.IsFalse(sut.IsShellPanelVisible);
         Assert.IsFalse(sut.IsShellConnected);
         Assert.IsFalse(sut.IsSidePanelVisible);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_RefetchesSameContainers_PreservesRowInstances()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running), CreateContainer("c2", ContainerState.Stopped)],
+        };
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var row1 = sut.Containers.Single(c => c.Id == "c1");
+        var row2 = sut.Containers.Single(c => c.Id == "c2");
+
+        // Act
+        await sut.RefreshCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.AreSame(row1, sut.Containers.Single(c => c.Id == "c1"));
+        Assert.AreSame(row2, sut.Containers.Single(c => c.Id == "c2"));
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_RefetchesIdenticalContainers_RaisesNoCollectionChanged()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running), CreateContainer("c2", ContainerState.Stopped)],
+        };
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var actions = new List<NotifyCollectionChangedAction>();
+        sut.Containers.CollectionChanged += (_, e) => actions.Add(e.Action);
+
+        // Act
+        await sut.RefreshCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.IsEmpty(actions);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_ContainerStateChangedOnServer_SameInstanceReflectsNewState()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+        };
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var row1 = sut.Containers.Single(c => c.Id == "c1");
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([CreateContainer("c1", ContainerState.Stopped)]));
+
+        // Act
+        await sut.RefreshCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.AreSame(row1, sut.Containers.Single(c => c.Id == "c1"));
+        Assert.AreEqual(ContainerState.Stopped, row1.State);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_ContainerRenamedOnServerSameId_RowReflectsNewNameAndInstanceIsRecreated()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [new Container("c1", "old-name", "nginx:latest", ContainerState.Running, new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero))],
+        };
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var originalRow = sut.Containers.Single(c => c.Id == "c1");
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>(
+            [new Container("c1", "new-name", "nginx:latest", ContainerState.Running, new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero))]));
+
+        // Act
+        await sut.RefreshCommand.ExecuteAsync(null);
+
+        // Assert
+        var currentRow = sut.Containers.Single(c => c.Id == "c1");
+        Assert.AreEqual("new-name", currentRow.Name);
+        Assert.AreNotSame(originalRow, currentRow);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_ContainerRemovedOnServer_RowRemovedAndOthersPreserved()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running), CreateContainer("c2", ContainerState.Stopped)],
+        };
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var row2 = sut.Containers.Single(c => c.Id == "c2");
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([CreateContainer("c2", ContainerState.Stopped)]));
+
+        // Act
+        await sut.RefreshCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.IsFalse(sut.Containers.Any(c => c.Id == "c1"));
+        Assert.AreSame(row2, sut.Containers.Single(c => c.Id == "c2"));
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_NewContainerOnServer_RowAddedAndExistingPreserved()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+        };
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var row1 = sut.Containers.Single(c => c.Id == "c1");
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([CreateContainer("c1", ContainerState.Running), CreateContainer("c2", ContainerState.Stopped)]));
+
+        // Act
+        await sut.RefreshCommand.ExecuteAsync(null);
+
+        // Assert
+        Assert.AreSame(row1, sut.Containers.Single(c => c.Id == "c1"));
+        Assert.IsTrue(sut.Containers.Any(c => c.Id == "c2"));
+    }
+
+    [TestMethod]
+    public async Task StopAsync_ContainerDisappearsThenReappearsWhileInFlight_RecreatedRowShowsStopping()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService { DefaultContainers = [CreateContainer("c1", ContainerState.Running)] };
+        var gate = new TaskCompletionSource<Container>(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.StopAsyncGate = gate;
+        service.StopResult = CreateContainer("c1", ContainerState.Stopped);
+        var sut = new ContainersViewModel(service);
+        await sut.RefreshCommand.ExecuteAsync(null);
+        var row = sut.Containers[0];
+
+        // 停止操作の実行中に、サーバー一覧から c1 が一旦消え、その後まだ完了前に再出現するシナリオ。
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([]));
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([CreateContainer("c1", ContainerState.Running)]));
+
+        // Act
+        var operationTask = sut.StopCommand.ExecuteAsync(row);
+        await sut.RefreshCommand.ExecuteAsync(null); // c1 が消える → 行が削除される
+        Assert.IsFalse(sut.Containers.Any(c => c.Id == "c1"));
+        await sut.RefreshCommand.ExecuteAsync(null); // c1 が再出現 → 新しい行が作られる
+
+        // Assert: 再生成された行にも進行中の Stopping が復元される。
+        var recreatedRow = sut.Containers.Single(c => c.Id == "c1");
+        Assert.IsTrue(recreatedRow.IsBusy);
+        Assert.AreEqual(ContainerRowOperation.Stopping, recreatedRow.PendingOperation);
+        Assert.AreEqual(ContainerRowOperation.Stopping, recreatedRow.DisplayState.PendingOperation);
+
+        // クリーンアップ: 操作を完了させる。
+        service.GetContainersResults.Enqueue(() => Task.FromResult<IReadOnlyList<Container>>([CreateContainer("c1", ContainerState.Stopped)]));
+        gate.SetResult(service.StopResult!);
+        await operationTask;
     }
 
     private static async Task WaitForConditionAsync(Func<bool> condition, TimeSpan timeout)
