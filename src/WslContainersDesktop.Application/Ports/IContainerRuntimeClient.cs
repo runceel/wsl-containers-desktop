@@ -110,6 +110,12 @@ public interface IContainerRuntimeClient
     Task<ContainerDetail> GetContainerDetailAsync(string containerId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 現在稼働中のコンテナのリソース使用量を取得する。
+    /// </summary>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task<IReadOnlyList<ContainerResourceUsage>> GetContainerStatsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 指定した稼働中コンテナ内に対話的なexecセッションを開く。
     /// </summary>
     /// <param name="containerId">対象コンテナのID。</param>

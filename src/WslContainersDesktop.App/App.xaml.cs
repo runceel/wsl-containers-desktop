@@ -67,6 +67,8 @@ public partial class App : Application
 
         // トップレベルページのViewModelはNavigationViewModelと同様、アプリケーション
         // ライフタイムで1インスタンスとする。
+        services.AddSingleton<NavigationViewModel>();
+        services.AddSingleton<DashboardViewModel>();
         services.AddSingleton<ContainersViewModel>();
         services.AddSingleton<ImagesViewModel>();
         services.AddSingleton<VolumesViewModel>();

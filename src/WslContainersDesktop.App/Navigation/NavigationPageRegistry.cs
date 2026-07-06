@@ -22,6 +22,7 @@ public static class NavigationPageRegistry
     {
         return pageKey.EnsureDefined(nameof(pageKey)) switch
         {
+            NavigationPageKey.Dashboard => typeof(DashboardPage),
             NavigationPageKey.Containers => typeof(ContainersPage),
             NavigationPageKey.Images => typeof(ImagesPage),
             NavigationPageKey.Volumes => typeof(VolumesPage),

@@ -22,7 +22,7 @@ public sealed partial class NavigationViewModel : ObservableObject
     /// <exception cref="ArgumentOutOfRangeException">
     /// <paramref name="initialPageKey"/> が定義されていない値の場合にスローされる。
     /// </exception>
-    public NavigationViewModel(NavigationPageKey initialPageKey = NavigationPageKey.Containers)
+    public NavigationViewModel(NavigationPageKey initialPageKey = NavigationPageKey.Dashboard)
     {
         CurrentPageKey = initialPageKey.EnsureDefined(nameof(initialPageKey));
     }

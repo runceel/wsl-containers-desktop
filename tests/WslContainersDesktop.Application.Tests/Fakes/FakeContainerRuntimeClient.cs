@@ -28,11 +28,15 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
 
     public IReadOnlyList<string> ContainerLogs { get; set; } = [];
 
+    public IReadOnlyList<ContainerResourceUsage> Stats { get; set; } = [];
+
     public ContainerDetail? ContainerDetail { get; set; }
 
     public IContainerExecSession? ExecSession { get; set; }
 
     public Exception? GetContainerLogsException { get; set; }
+
+    public Exception? GetContainerStatsException { get; set; }
 
     public Exception? FollowContainerLogsException { get; set; }
 
@@ -59,6 +63,8 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
     public List<string> DeleteImageCalls { get; } = [];
 
     public List<string> GetContainerLogsCalls { get; } = [];
+
+    public List<CancellationToken> GetContainerStatsCalls { get; } = [];
 
     public List<string> GetContainerDetailCalls { get; } = [];
 
@@ -169,6 +175,17 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
         }
 
         return Task.FromResult(ContainerDetail!);
+    }
+
+    public Task<IReadOnlyList<ContainerResourceUsage>> GetContainerStatsAsync(CancellationToken cancellationToken = default)
+    {
+        GetContainerStatsCalls.Add(cancellationToken);
+        if (GetContainerStatsException is not null)
+        {
+            throw GetContainerStatsException;
+        }
+
+        return Task.FromResult(Stats);
     }
 
     public Task<IContainerExecSession> OpenExecSessionAsync(string containerId, CancellationToken cancellationToken = default)

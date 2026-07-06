@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="WslContainersDesktop_App.Pages.DashboardPage"
+    x:Name="RootPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:WslContainersDesktop_App.Pages"
+    xmlns:vm="using:WslContainersDesktop_App.ViewModels"
+    xmlns:conv="using:WslContainersDesktop_App.Converters"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Page.Resources>
+        <conv:AutomationIdConverter x:Key="AutomationIdConverter" />
+    </Page.Resources>
+
+    <Grid Padding="24,16,24,16" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border
+            Grid.Row="0"
+            Padding="16"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+            CornerRadius="{StaticResource OverlayCornerRadius}">
+            <Grid ColumnSpacing="16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="4" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Border
+                    Grid.Column="0"
+                    Background="{ThemeResource WslContainersAccentFillColorDefaultBrush}"
+                    CornerRadius="{StaticResource ControlCornerRadius}" />
+                <StackPanel Grid.Column="1">
+                    <TextBlock x:Name="TxtDashboardPageTitle" x:Uid="DashboardPageTitle" Style="{StaticResource TitleTextBlockStyle}" />
+                    <TextBlock x:Name="TxtDashboardPageDescription" x:Uid="DashboardPageDescription" />
+                </StackPanel>
+                <ProgressRing
+                    x:Name="PrgDashboardRefreshing"
+                    Grid.Column="2"
+                    Width="24"
+                    Height="24"
+                    VerticalAlignment="Center"
+                    AutomationProperties.AutomationId="PrgDashboardRefreshing"
+                    IsActive="{x:Bind ViewModel.IsRefreshing, Mode=OneWay}"
+                    Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsRefreshing), Mode=OneWay}" />
+                <Button
+                    x:Name="BtnRefreshDashboard"
+                    x:Uid="BtnRefreshDashboard"
+                    Grid.Column="3"
+                    VerticalAlignment="Bottom"
+                    AutomationProperties.AutomationId="BtnRefreshDashboard"
+                    Command="{x:Bind ViewModel.RefreshCommand}" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button
+                x:Name="BtnDashboardRunningContainers"
+                Grid.Column="0"
+                Padding="16"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Stretch"
+                AutomationProperties.AutomationId="BtnDashboardRunningContainers"
+                Command="{x:Bind ViewModel.ShowContainersCommand}">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{x:Bind FormatCount(ViewModel.RunningContainerCount), Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock x:Uid="LblDashboardRunningContainers" Style="{StaticResource CaptionTextBlockStyle}" />
+                    <TextBlock
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind ViewModel.ContainerCountErrorMessage, Mode=OneWay}"
+                        TextWrapping="Wrap"
+                        Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsContainerCountErrorVisible), Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+
+            <Button
+                x:Name="BtnDashboardStoppedContainers"
+                Grid.Column="1"
+                Padding="16"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Stretch"
+                AutomationProperties.AutomationId="BtnDashboardStoppedContainers"
+                Command="{x:Bind ViewModel.ShowContainersCommand}">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{x:Bind FormatCount(ViewModel.StoppedContainerCount), Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock x:Uid="LblDashboardStoppedContainers" Style="{StaticResource CaptionTextBlockStyle}" />
+                    <TextBlock
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind ViewModel.ContainerCountErrorMessage, Mode=OneWay}"
+                        TextWrapping="Wrap"
+                        Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsContainerCountErrorVisible), Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+
+            <Button
+                x:Name="BtnDashboardImages"
+                Grid.Column="2"
+                Padding="16"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Stretch"
+                AutomationProperties.AutomationId="BtnDashboardImages"
+                Command="{x:Bind ViewModel.ShowImagesCommand}">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{x:Bind FormatCount(ViewModel.ImageCount), Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock x:Uid="LblDashboardImages" Style="{StaticResource CaptionTextBlockStyle}" />
+                    <TextBlock
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind ViewModel.ImageCountErrorMessage, Mode=OneWay}"
+                        TextWrapping="Wrap"
+                        Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsImageCountErrorVisible), Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+
+            <Button
+                x:Name="BtnDashboardVolumes"
+                Grid.Column="3"
+                Padding="16"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Stretch"
+                AutomationProperties.AutomationId="BtnDashboardVolumes"
+                Command="{x:Bind ViewModel.ShowVolumesCommand}">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{x:Bind FormatCount(ViewModel.VolumeCount), Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock x:Uid="LblDashboardVolumes" Style="{StaticResource CaptionTextBlockStyle}" />
+                    <TextBlock
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind ViewModel.VolumeCountErrorMessage, Mode=OneWay}"
+                        TextWrapping="Wrap"
+                        Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsVolumeCountErrorVisible), Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+
+            <Button
+                x:Name="BtnDashboardNetworks"
+                Grid.Column="4"
+                Padding="16"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Stretch"
+                AutomationProperties.AutomationId="BtnDashboardNetworks"
+                Command="{x:Bind ViewModel.ShowNetworksCommand}">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="{x:Bind FormatCount(ViewModel.NetworkCount), Mode=OneWay}" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <TextBlock x:Uid="LblDashboardNetworks" Style="{StaticResource CaptionTextBlockStyle}" />
+                    <TextBlock
+                        Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+                        Style="{StaticResource CaptionTextBlockStyle}"
+                        Text="{x:Bind ViewModel.NetworkCountErrorMessage, Mode=OneWay}"
+                        TextWrapping="Wrap"
+                        Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsNetworkCountErrorVisible), Mode=OneWay}" />
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <Border
+            Grid.Row="2"
+            Padding="16"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="{ThemeResource WslContainersSurfaceBorderThickness}"
+            CornerRadius="{StaticResource OverlayCornerRadius}">
+            <Grid RowSpacing="8">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <TextBlock
+                    x:Name="TxtDashboardStatsTitle"
+                    x:Uid="DashboardStatsTitle"
+                    Grid.Row="0"
+                    Style="{StaticResource BodyStrongTextBlockStyle}" />
+
+                <InfoBar
+                    x:Name="InfoBarDashboardStatsError"
+                    Grid.Row="1"
+                    IsClosable="False"
+                    Severity="Error"
+                    IsOpen="{x:Bind ViewModel.IsStatsErrorVisible, Mode=OneWay}"
+                    Message="{x:Bind ViewModel.StatsErrorMessage, Mode=OneWay}" />
+
+                <Grid Grid.Row="2">
+                    <ListView
+                        x:Name="LstDashboardStats"
+                        AutomationProperties.AutomationId="LstDashboardStats"
+                        ItemsSource="{x:Bind ViewModel.ContainerStats, Mode=OneWay}"
+                        SelectionMode="None"
+                        Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsStatsLoading), Mode=OneWay}">
+                        <ListView.HeaderTemplate>
+                            <DataTemplate>
+                                <Grid Padding="8,4" ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="120" />
+                                        <ColumnDefinition Width="200" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock x:Uid="TxtDashboardStatsColumnName" Grid.Column="0" FontWeight="SemiBold" />
+                                    <TextBlock x:Uid="TxtDashboardStatsColumnCpu" Grid.Column="1" FontWeight="SemiBold" />
+                                    <TextBlock x:Uid="TxtDashboardStatsColumnMemory" Grid.Column="2" FontWeight="SemiBold" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.HeaderTemplate>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="vm:DashboardContainerStatsRowViewModel">
+                                <Grid Padding="8" ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="120" />
+                                        <ColumnDefinition Width="200" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind Name}" />
+                                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind CpuText}" />
+                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind MemoryText}" />
+                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8">
+                                        <Button
+                                            x:Uid="BtnDashboardStatsDetails"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.AutomationId="{x:Bind ContainerId, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDashboardStatsDetails}"
+                                            Click="BtnStatsDetails_Click"
+                                            CommandParameter="{x:Bind}" />
+                                        <Button
+                                            x:Uid="BtnDashboardStatsLogs"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.AutomationId="{x:Bind ContainerId, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDashboardStatsLogs}"
+                                            Click="BtnStatsLogs_Click"
+                                            CommandParameter="{x:Bind}" />
+                                    </StackPanel>
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+
+                    <TextBlock
+                        x:Name="TxtDashboardStatsEmptyState"
+                        x:Uid="TxtDashboardStatsEmptyState"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsStatsEmpty), Mode=OneWay}" />
+
+                    <StackPanel
+                        x:Name="PanelDashboardStatsLoading"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="12"
+                        Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsStatsLoading), Mode=OneWay}">
+                        <ProgressRing
+                            x:Name="RingDashboardStatsLoading"
+                            Width="20"
+                            Height="20"
+                            IsActive="{x:Bind ViewModel.IsStatsLoading, Mode=OneWay}" />
+                        <TextBlock
+                            x:Uid="TxtDashboardStatsLoading"
+                            VerticalAlignment="Center" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

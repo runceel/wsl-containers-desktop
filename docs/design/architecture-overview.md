@@ -148,6 +148,8 @@ flowchart TB
 - ViewModelはApplication層のユースケース/抽象にのみ依存し、Infrastructureの具象クラスを直接参照しない。
 - ナビゲーション基盤・ローカライズ基盤の詳細は
   [`docs/design/presentation-navigation.md`](presentation-navigation.md) を参照。
+- ダッシュボード（概要）画面ViewModelのサマリ件数・稼働中コンテナのリソース使用量表示・遷移導線の詳細は
+  [`docs/design/dashboard-view.md`](dashboard-view.md) を参照。
 - コンテナ一覧ViewModelの状態管理とログ表示の詳細は
   [`docs/design/containers-view.md`](containers-view.md) を参照。
 - イメージ一覧ViewModelの状態管理の詳細は [`docs/design/images-view.md`](images-view.md) を参照。

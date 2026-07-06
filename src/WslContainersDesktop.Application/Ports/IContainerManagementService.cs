@@ -14,6 +14,12 @@ public interface IContainerManagementService
     Task<IReadOnlyList<Container>> GetContainersAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 現在稼働中のコンテナのリソース使用量を取得する。
+    /// </summary>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task<IReadOnlyList<ContainerResourceUsage>> GetStatsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 指定したコンテナを起動する。停止中でない場合は
     /// <see cref="Exceptions.InvalidContainerOperationException"/> をスローする。
     /// </summary>

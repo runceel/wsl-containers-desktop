@@ -33,6 +33,36 @@ public sealed class ContainerManagementServiceTests
     }
 
     [TestMethod]
+    public async Task GetStatsAsync_RuntimeClientReturnsUsages_ReturnsSameUsages()
+    {
+        // Arrange
+        var u1 = new ContainerResourceUsage("c1", "n1", 12.5, 1000, 2000);
+        var u2 = new ContainerResourceUsage("c2", "n2", 0, 500, 0);
+        var client = new FakeContainerRuntimeClient { Stats = [u1, u2] };
+        var sut = new ContainerManagementService(client);
+
+        // Act
+        var actual = await sut.GetStatsAsync();
+
+        // Assert
+        Assert.HasCount(2, actual);
+        Assert.AreEqual(u1, actual[0]);
+        Assert.AreEqual(u2, actual[1]);
+        Assert.HasCount(1, client.GetContainerStatsCalls);
+    }
+
+    [TestMethod]
+    public async Task GetStatsAsync_RuntimeClientThrows_PropagatesException()
+    {
+        // Arrange
+        var client = new FakeContainerRuntimeClient { GetContainerStatsException = new ContainerRuntimeException("stats", 1, "boom") };
+        var sut = new ContainerManagementService(client);
+
+        // Act & Assert
+        await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.GetStatsAsync());
+    }
+
+    [TestMethod]
     public async Task StartAsync_ContainerIsStopped_CallsClientStartAndReturnsRunningContainer()
     {
         // Arrange

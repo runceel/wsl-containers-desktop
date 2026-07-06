@@ -123,6 +123,9 @@
   <data name="AppTitleBar.Title" xml:space="preserve">
     <value>WSL Containers Desktop</value>
   </data>
+  <data name="NavItemDashboard.Content" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
   <data name="NavItemContainers.Content" xml:space="preserve">
     <value>Containers</value>
   </data>
@@ -137,6 +140,54 @@
   </data>
   <data name="NavItemSettings.Content" xml:space="preserve">
     <value>Settings</value>
+  </data>
+  <data name="DashboardPageTitle.Text" xml:space="preserve">
+    <value>Dashboard</value>
+  </data>
+  <data name="DashboardPageDescription.Text" xml:space="preserve">
+    <value>An overview of the WSL Containers resources on this machine.</value>
+  </data>
+  <data name="BtnRefreshDashboard.Content" xml:space="preserve">
+    <value>Refresh</value>
+  </data>
+  <data name="LblDashboardRunningContainers.Text" xml:space="preserve">
+    <value>Running containers</value>
+  </data>
+  <data name="LblDashboardStoppedContainers.Text" xml:space="preserve">
+    <value>Stopped containers</value>
+  </data>
+  <data name="LblDashboardImages.Text" xml:space="preserve">
+    <value>Images</value>
+  </data>
+  <data name="LblDashboardVolumes.Text" xml:space="preserve">
+    <value>Volumes</value>
+  </data>
+  <data name="LblDashboardNetworks.Text" xml:space="preserve">
+    <value>Networks</value>
+  </data>
+  <data name="DashboardStatsTitle.Text" xml:space="preserve">
+    <value>Running container resource usage</value>
+  </data>
+  <data name="TxtDashboardStatsColumnName.Text" xml:space="preserve">
+    <value>Name</value>
+  </data>
+  <data name="TxtDashboardStatsColumnCpu.Text" xml:space="preserve">
+    <value>CPU</value>
+  </data>
+  <data name="TxtDashboardStatsColumnMemory.Text" xml:space="preserve">
+    <value>Memory</value>
+  </data>
+  <data name="BtnDashboardStatsDetails.Content" xml:space="preserve">
+    <value>Details</value>
+  </data>
+  <data name="BtnDashboardStatsLogs.Content" xml:space="preserve">
+    <value>Logs</value>
+  </data>
+  <data name="TxtDashboardStatsEmptyState.Text" xml:space="preserve">
+    <value>No running containers.</value>
+  </data>
+  <data name="TxtDashboardStatsLoading.Text" xml:space="preserve">
+    <value>Loading…</value>
   </data>
   <data name="ContainersPageTitle.Text" xml:space="preserve">
     <value>Containers</value>

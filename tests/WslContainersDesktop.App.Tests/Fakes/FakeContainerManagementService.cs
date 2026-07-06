@@ -19,6 +19,18 @@ internal sealed class FakeContainerManagementService : IContainerManagementServi
 
     public IReadOnlyList<Container> DefaultContainers { get; set; } = [];
 
+    public IReadOnlyList<ContainerResourceUsage> Stats { get; set; } = [];
+
+    public Exception? GetStatsException { get; set; }
+
+    /// <summary>
+    /// 設定されている場合、<see cref="GetStatsAsync"/> はこのゲートが完了するまで待機する。
+    /// 読み込み中の状態（IsStatsLoading）を観測するために使用する。
+    /// </summary>
+    public TaskCompletionSource<bool>? GetStatsGate { get; set; }
+
+    public int GetStatsCallCount { get; private set; }
+
     public Exception? StartException { get; set; }
 
     public Exception? StopException { get; set; }
@@ -83,6 +95,22 @@ internal sealed class FakeContainerManagementService : IContainerManagementServi
         }
 
         return Task.FromResult(DefaultContainers);
+    }
+
+    public async Task<IReadOnlyList<ContainerResourceUsage>> GetStatsAsync(CancellationToken cancellationToken = default)
+    {
+        GetStatsCallCount++;
+        if (GetStatsGate is not null)
+        {
+            await GetStatsGate.Task;
+        }
+
+        if (GetStatsException is not null)
+        {
+            throw GetStatsException;
+        }
+
+        return Stats;
     }
 
     public async Task<Container> StartAsync(string containerId, CancellationToken cancellationToken = default)
