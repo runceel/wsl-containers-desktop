@@ -77,6 +77,10 @@ public sealed partial class DashboardViewModel : ObservableObject
     [ObservableProperty]
     public partial bool IsRefreshing { get; private set; }
 
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsStatsEmpty))]
+    public partial bool IsStatsLoading { get; private set; }
+
     public bool IsContainerCountErrorVisible => ContainerCountErrorMessage is not null;
 
     public bool IsImageCountErrorVisible => ImageCountErrorMessage is not null;
@@ -89,7 +93,7 @@ public sealed partial class DashboardViewModel : ObservableObject
 
     public bool IsStatsErrorVisible => StatsErrorMessage is not null;
 
-    public bool IsStatsEmpty => ContainerStats.Count == 0 && StatsErrorMessage is null;
+    public bool IsStatsEmpty => !IsStatsLoading && ContainerStats.Count == 0 && StatsErrorMessage is null;
 
     /// <summary>
     /// すべてのサマリ件数と稼働中コンテナのリソース使用量を再取得する。
@@ -107,6 +111,10 @@ public sealed partial class DashboardViewModel : ObservableObject
         IsRefreshing = true;
         try
         {
+            // Stats セクションは Refresh 中に一旦クリアするため、読み込み中であることを示す。
+            // これにより一覧が空になった瞬間に「対象なし」が点滅するのを防ぐ。
+            IsStatsLoading = true;
+
             ContainerCountErrorMessage = null;
             RunningContainerCount = null;
             StoppedContainerCount = null;
@@ -175,6 +183,7 @@ public sealed partial class DashboardViewModel : ObservableObject
             }
             finally
             {
+                IsStatsLoading = false;
                 OnPropertyChanged(nameof(IsStatsEmpty));
             }
         }

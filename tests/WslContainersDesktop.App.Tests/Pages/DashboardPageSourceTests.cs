@@ -8,6 +8,19 @@ namespace WslContainersDesktop_App_Tests.Pages;
 public sealed class DashboardPageSourceTests
 {
     [TestMethod]
+    public void DashboardPage_XamlShowsLoadingIndicatorWhileStatsLoading()
+    {
+        // Arrange
+        // Refresh 中に Stats 一覧が一瞬空になり「対象なし」が点滅するのを避けるため、
+        // 読み込み中は ProgressRing を表示し、一覧の空状態表示は抑制する。
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\DashboardPage.xaml");
+
+        // Assert
+        StringAssert.Contains(sourceText, "ProgressRing");
+        StringAssert.Contains(sourceText, "IsStatsLoading");
+    }
+
+    [TestMethod]
     public void DashboardPage_XamlDisplaysCountsAndStatsFields()
     {
         // Arrange

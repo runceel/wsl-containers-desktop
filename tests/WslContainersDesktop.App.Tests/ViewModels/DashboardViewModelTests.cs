@@ -220,6 +220,60 @@ public sealed class DashboardViewModelTests
     }
 
     [TestMethod]
+    public void BeforeRefresh_IsStatsLoadingIsFalse()
+    {
+        var h = CreateHarness();
+
+        Assert.IsFalse(h.Sut.IsStatsLoading);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_WhileStatsFetchInProgress_IsStatsLoadingTrueAndEmptyStateSuppressed()
+    {
+        var h = CreateHarness();
+        SeedAllSucceed(h);
+        h.Container.Stats = []; // 稼働中0件でも、読み込み中は「対象なし」を表示しない。
+        var gate = new TaskCompletionSource<bool>();
+        h.Container.GetStatsGate = gate;
+
+        // Stats取得が完了する前に制御が戻るよう、await せずにコマンドを起動する。
+        var refreshTask = h.Sut.RefreshCommand.ExecuteAsync(null);
+
+        Assert.IsTrue(h.Sut.IsStatsLoading);
+        Assert.IsFalse(h.Sut.IsStatsEmpty);
+
+        gate.SetResult(true);
+        await refreshTask;
+
+        Assert.IsFalse(h.Sut.IsStatsLoading);
+        Assert.IsTrue(h.Sut.IsStatsEmpty);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_AfterCompletion_IsStatsLoadingIsFalse()
+    {
+        var h = CreateHarness();
+        SeedAllSucceed(h);
+        h.Container.Stats = [new ContainerResourceUsage("c1", "web", 1.0, 1L, 2L)];
+
+        await h.Sut.RefreshCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(h.Sut.IsStatsLoading);
+        Assert.IsFalse(h.Sut.IsStatsEmpty);
+    }
+
+    [TestMethod]
+    public async Task RefreshAsync_StatsFetchFails_IsStatsLoadingIsFalse()
+    {
+        var h = CreateHarness();
+        h.Container.GetStatsException = new ContainerRuntimeException("stats", 1, "stats boom");
+
+        await h.Sut.RefreshCommand.ExecuteAsync(null);
+
+        Assert.IsFalse(h.Sut.IsStatsLoading);
+    }
+
+    [TestMethod]
     public async Task RefreshAsync_StatsFetchFails_CountsStillSet()
     {
         var h = CreateHarness();

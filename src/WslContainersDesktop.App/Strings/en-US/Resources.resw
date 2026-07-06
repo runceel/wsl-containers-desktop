@@ -186,6 +186,9 @@
   <data name="TxtDashboardStatsEmptyState.Text" xml:space="preserve">
     <value>No running containers.</value>
   </data>
+  <data name="TxtDashboardStatsLoading.Text" xml:space="preserve">
+    <value>Loading…</value>
+  </data>
   <data name="ContainersPageTitle.Text" xml:space="preserve">
     <value>Containers</value>
   </data>

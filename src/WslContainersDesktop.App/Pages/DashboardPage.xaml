@@ -206,7 +206,8 @@
                         x:Name="LstDashboardStats"
                         AutomationProperties.AutomationId="LstDashboardStats"
                         ItemsSource="{x:Bind ViewModel.ContainerStats, Mode=OneWay}"
-                        SelectionMode="None">
+                        SelectionMode="None"
+                        Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsStatsLoading), Mode=OneWay}">
                         <ListView.HeaderTemplate>
                             <DataTemplate>
                                 <Grid Padding="8,4" ColumnSpacing="12">
@@ -259,6 +260,23 @@
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsStatsEmpty), Mode=OneWay}" />
+
+                    <StackPanel
+                        x:Name="PanelDashboardStatsLoading"
+                        HorizontalAlignment="Center"
+                        VerticalAlignment="Center"
+                        Orientation="Horizontal"
+                        Spacing="12"
+                        Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsStatsLoading), Mode=OneWay}">
+                        <ProgressRing
+                            x:Name="RingDashboardStatsLoading"
+                            Width="20"
+                            Height="20"
+                            IsActive="{x:Bind ViewModel.IsStatsLoading, Mode=OneWay}" />
+                        <TextBlock
+                            x:Uid="TxtDashboardStatsLoading"
+                            VerticalAlignment="Center" />
+                    </StackPanel>
                 </Grid>
             </Grid>
         </Border>
