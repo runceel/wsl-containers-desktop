@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -13,7 +14,8 @@ namespace WslContainersDesktop_App;
 
 public sealed partial class MainWindow : Window
 {
-    private readonly NavigationViewModel _viewModel = new();
+    private readonly NavigationViewModel _viewModel =
+        ((App)Application.Current).Services.GetRequiredService<NavigationViewModel>();
     private readonly Dictionary<NavigationViewItem, NavigationPageKey> _navigationItemToPageKey;
 
     public MainWindow()
@@ -31,6 +33,7 @@ public sealed partial class MainWindow : Window
 
         _navigationItemToPageKey = new()
         {
+            [NavItemDashboard] = NavigationPageKey.Dashboard,
             [NavItemContainers] = NavigationPageKey.Containers,
             [NavItemImages] = NavigationPageKey.Images,
             [NavItemVolumes] = NavigationPageKey.Volumes,

@@ -21,8 +21,11 @@ internal sealed class FakeVolumeManagementService : IVolumeManagementService
 
     public List<string> DeleteCalls { get; } = [];
 
+    public int GetVolumesCallCount { get; private set; }
+
     public Task<IReadOnlyList<ContainerVolume>> GetVolumesAsync(CancellationToken cancellationToken = default)
     {
+        GetVolumesCallCount++;
         if (GetVolumesException is not null)
         {
             throw GetVolumesException;

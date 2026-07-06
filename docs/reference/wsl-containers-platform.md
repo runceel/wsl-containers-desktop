@@ -1,6 +1,6 @@
 # WSL Containers プラットフォーム仕様サマリ
 
-> **最終確認日: 2026-07-02**（Microsoft Build 2026 発表直後の情報。**Public Preview** のため
+> **最終確認日: 2026-07-03**（Microsoft Build 2026 発表直後の情報。**Public Preview** のため
 > 仕様は変わりやすい。実装前に必ず一次情報源または Microsoft Learn MCP で最新情報を確認すること）
 
 本アプリ（WSL Containers Desktop）は、この「WSL Containers」機能をGUIで管理するための
@@ -41,6 +41,34 @@ Microsoft Build 2026 で、WSL (Windows Subsystem for Linux) に **WSL Container
   # GPUアクセスを確認する例（PyTorch + CUDA）
   wslc run --rm --gpus all pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python -c "import torch; print(torch.cuda.is_available())"
   ```
+
+#### `wslc stats`（稼働中コンテナのリソース使用量）— 実機確認済み（wslc 2.9.3.0）
+
+- 実機（wslc `2.9.3.0`, 2026-07-03 確認）で検証した事実。本アプリのダッシュボードが利用する。
+- **`--no-stream` オプションは存在しない**。`stats` は常にスナップショット（1回分）を返すため、
+  Docker CLI の `docs stats --no-stream` に相当する指定は不要。誤って付けると `wslc` は
+  終了コード 1 で失敗する。
+- 正しいコマンドは `wslc stats --format json`（`--format` は `json` / `table`、既定は `table`）。
+  その他のオプションは `-a`/`--all`、`--no-trunc`。
+- 出力は**JSON配列**で、各要素は以下のキーを持つ（値はすべて文字列）:
+  ```json
+  [
+    {
+      "BlockIO": "0 B / 0 B",
+      "CPUPerc": "0.00%",
+      "ID": "…",
+      "MemPerc": "0.01%",
+      "MemUsage": "1.82 MiB / 15.37 GiB",
+      "Name": "wcd-demo-idle",
+      "NetIO": "0 B / 0 B",
+      "PIDs": "3"
+    }
+  ]
+  ```
+  - メモリは `使用量 / 上限` を**空白区切り**（例: `"1.82 MiB / 15.37 GiB"`）で返す。
+    単位は2進接頭辞（`MiB`/`GiB` 等）。CPUは末尾に `%` が付く（例: `"0.00%"`）。
+  - 本アプリが利用するのは `ID` / `Name` / `CPUPerc` / `MemUsage` のみ。
+    `BlockIO` / `MemPerc` / `NetIO` / `PIDs` は現状は使わない。
 
 ### 2. WSL Container API（本アプリが主に統合すべき対象）
 

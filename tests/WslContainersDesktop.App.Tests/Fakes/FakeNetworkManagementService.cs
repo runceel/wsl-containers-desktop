@@ -21,8 +21,11 @@ internal sealed class FakeNetworkManagementService : INetworkManagementService
 
     public List<string> DeleteCalls { get; } = [];
 
+    public int GetNetworksCallCount { get; private set; }
+
     public Task<IReadOnlyList<ContainerNetworkResource>> GetNetworksAsync(CancellationToken cancellationToken = default)
     {
+        GetNetworksCallCount++;
         if (GetNetworksException is not null)
         {
             throw GetNetworksException;

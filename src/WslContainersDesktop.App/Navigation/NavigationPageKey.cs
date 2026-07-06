@@ -8,6 +8,9 @@ namespace WslContainersDesktop_App.Navigation;
 /// </summary>
 public enum NavigationPageKey
 {
+    /// <summary>ダッシュボード（概要）ページ。</summary>
+    Dashboard,
+
     /// <summary>コンテナー一覧ページ。</summary>
     Containers,
 

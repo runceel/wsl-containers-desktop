@@ -19,6 +19,12 @@ internal sealed class FakeContainerManagementService : IContainerManagementServi
 
     public IReadOnlyList<Container> DefaultContainers { get; set; } = [];
 
+    public IReadOnlyList<ContainerResourceUsage> Stats { get; set; } = [];
+
+    public Exception? GetStatsException { get; set; }
+
+    public int GetStatsCallCount { get; private set; }
+
     public Exception? StartException { get; set; }
 
     public Exception? StopException { get; set; }
@@ -83,6 +89,17 @@ internal sealed class FakeContainerManagementService : IContainerManagementServi
         }
 
         return Task.FromResult(DefaultContainers);
+    }
+
+    public Task<IReadOnlyList<ContainerResourceUsage>> GetStatsAsync(CancellationToken cancellationToken = default)
+    {
+        GetStatsCallCount++;
+        if (GetStatsException is not null)
+        {
+            throw GetStatsException;
+        }
+
+        return Task.FromResult(Stats);
     }
 
     public async Task<Container> StartAsync(string containerId, CancellationToken cancellationToken = default)

@@ -12,6 +12,11 @@ namespace WslContainersDesktop.Application.Services;
 /// </summary>
 public sealed class ContainerManagementService(IContainerRuntimeClient runtimeClient) : IContainerManagementService
 {
+    public Task<IReadOnlyList<ContainerResourceUsage>> GetStatsAsync(CancellationToken cancellationToken = default)
+    {
+        return runtimeClient.GetContainerStatsAsync(cancellationToken);
+    }
+
     public Task<IReadOnlyList<Container>> GetContainersAsync(CancellationToken cancellationToken = default)
     {
         return runtimeClient.ListContainersAsync(cancellationToken);

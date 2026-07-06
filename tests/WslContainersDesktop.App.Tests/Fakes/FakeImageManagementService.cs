@@ -28,8 +28,11 @@ internal sealed class FakeImageManagementService : IImageManagementService
 
     public List<string> DeleteCalls { get; } = [];
 
+    public int GetImagesCallCount { get; private set; }
+
     public Task<IReadOnlyList<ContainerImage>> GetImagesAsync(CancellationToken cancellationToken = default)
     {
+        GetImagesCallCount++;
         if (GetImagesResults.Count > 0)
         {
             return GetImagesResults.Dequeue()();

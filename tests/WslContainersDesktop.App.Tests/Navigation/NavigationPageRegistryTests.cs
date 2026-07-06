@@ -7,6 +7,7 @@ namespace WslContainersDesktop_App_Tests.Navigation;
 public sealed class NavigationPageRegistryTests
 {
     [TestMethod]
+    [DataRow(NavigationPageKey.Dashboard, typeof(DashboardPage))]
     [DataRow(NavigationPageKey.Containers, typeof(ContainersPage))]
     [DataRow(NavigationPageKey.Images, typeof(ImagesPage))]
     [DataRow(NavigationPageKey.Volumes, typeof(VolumesPage))]

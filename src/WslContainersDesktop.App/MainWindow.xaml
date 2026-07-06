@@ -37,6 +37,14 @@
             SelectionChanged="NavView_SelectionChanged">
             <NavigationView.MenuItems>
                 <NavigationViewItem
+                    x:Name="NavItemDashboard"
+                    x:Uid="NavItemDashboard"
+                    AutomationProperties.AutomationId="NavItemDashboard">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE80A;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+                <NavigationViewItem
                     x:Name="NavItemContainers"
                     x:Uid="NavItemContainers"
                     AutomationProperties.AutomationId="NavItemContainers">

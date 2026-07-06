@@ -7,13 +7,13 @@ namespace WslContainersDesktop_App_Tests.ViewModels;
 public sealed class NavigationViewModelTests
 {
     [TestMethod]
-    public void Constructor_NoArguments_CurrentPageKeyIsContainers()
+    public void Constructor_NoArguments_CurrentPageKeyIsDashboard()
     {
         // Arrange & Act
         var sut = new NavigationViewModel();
 
         // Assert
-        Assert.AreEqual(NavigationPageKey.Containers, sut.CurrentPageKey);
+        Assert.AreEqual(NavigationPageKey.Dashboard, sut.CurrentPageKey);
     }
 
     [TestMethod]
@@ -81,8 +81,8 @@ public sealed class NavigationViewModelTests
         };
 
         // Act
-        // 既定値のContainersと同じキーへ遷移させても変化はない想定。
-        sut.NavigateToCommand.Execute(NavigationPageKey.Containers);
+        // 既定値のDashboardと同じキーへ遷移させても変化はない想定。
+        sut.NavigateToCommand.Execute(NavigationPageKey.Dashboard);
 
         // Assert
         Assert.AreEqual(0, raisedCount);
