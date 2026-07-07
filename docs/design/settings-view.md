@@ -6,7 +6,7 @@
 
 ## 概要
 
-設定画面は初期版として2カテゴリを扱う（[`docs/specs/0007-settings.md`](../specs/0007-settings.md)）。
+設定画面は初期版として、アプリ情報表示に加えて2カテゴリを扱う（[`docs/specs/0007-settings.md`](../specs/0007-settings.md)）。
 
 1. **WSL連携状態の確認**（読み取りのみ）: WSLバージョン検出と、WSL Containersの動作要件充足判定。
 2. **リソース制限**（読み取り/変更/保存/リセット）: メモリ量(MB)と論理プロセッサ数を
@@ -104,8 +104,8 @@
 
 ## SettingsPage（View）
 
-- ヘッダー（4pxアクセントバー付きカード）、連携状態カード（WSLバージョン表示、wslc利用可否、要件未達時の
-  警告`InfoBar`）、リソース制限カード（メモリ/プロセッサ入力、Save/Resetボタン、
+- ヘッダー（4pxアクセントバー付きカード）、アプリ情報カード（アプリ表示名、目的文、アプリバージョン）、連携状態カード
+  （WSLバージョン表示、wslc利用可否、要件未達時の警告`InfoBar`）、リソース制限カード（メモリ/プロセッサ入力、Save/Resetボタン、
   `CanEditResourceLimits`で有効化）、エラー`InfoBar`と成功`InfoBar`で構成する。
 - 入力欄は`Mode=TwoWay, UpdateSourceTrigger=PropertyChanged`でバインドし、空欄=WSL既定であることを
   ヒントで示す。

@@ -4,7 +4,7 @@
 
 ## 目的
 
-WSL Containers Desktop は、WSL Containers を管理する Windows ネイティブの開発者向けデスクトップアプリである。
+Hakonexa - WSL Containers Manager は、WSL Containers を管理する Windows ネイティブの開発者向けデスクトップアプリである。
 UIは、コンテナの状態・操作・ログを短時間で把握できるよう、Fluent Design に沿った明確な視覚階層を持つ。
 
 ## 基本原則

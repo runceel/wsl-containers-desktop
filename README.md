@@ -1,6 +1,6 @@
-# WSL Containers Desktop
+# Hakonexa - WSL Containers Manager
 
-WSL Containers Desktop は、WSL (Windows Subsystem for Linux) 上のコンテナを管理するための
+Hakonexa - WSL Containers Manager は、WSL (Windows Subsystem for Linux) 上のコンテナを管理するための
 WinUI 3 / .NET デスクトップアプリケーションです。Docker Desktop と同等の機能セット
 （コンテナ/イメージ/ボリューム/ネットワークの管理、ログ表示等）を目標としています。
 

@@ -1,4 +1,7 @@
+using System.Linq;
 using System.Text.RegularExpressions;
+using System.Xml.Linq;
+using WslContainersDesktop_App.Pages;
 
 namespace WslContainersDesktop_App_Tests.Pages;
 
@@ -108,6 +111,43 @@ public sealed class SettingsPageSourceTests
     }
 
     [TestMethod]
+    public void SettingsPage_AppInfoDisplaysPackageVersion()
+    {
+        // Arrange
+        var xamlText = ReadRepositorySourceFile(XamlRelativePath);
+        var codeBehindText = ReadRepositorySourceFile(CodeBehindRelativePath);
+
+        // Assert
+        StringAssert.Contains(xamlText, "x:Name=\"TxtAppVersionLabel\"");
+        StringAssert.Contains(xamlText, "x:Uid=\"TxtAppVersionLabel\"");
+        StringAssert.Contains(xamlText, "x:Name=\"TxtAppVersionValue\"");
+        StringAssert.Contains(xamlText, "Text=\"{x:Bind AppVersionText, Mode=OneWay}\"");
+        StringAssert.Contains(codeBehindText, "Package.Current.Id.Version");
+        StringAssert.Contains(codeBehindText, "public string AppVersionText { get; }");
+    }
+
+    [TestMethod]
+    public void SettingsPage_AppVersionLabelResource_UsesLocalizedText()
+    {
+        // Arrange
+        var resourceDocument = XDocument.Parse(ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Strings\en-US\Resources.resw"));
+
+        // Act
+        var appVersionLabelText = GetResourceValue(resourceDocument, "TxtAppVersionLabel.Text");
+
+        // Assert
+        Assert.AreEqual("App version:", appVersionLabelText);
+    }
+
+    [TestMethod]
+    public void FormatPackageVersion_Components_ReturnsFourPartVersion()
+    {
+        // Assert
+        Assert.AreEqual("1.2.3.4", SettingsPage.FormatPackageVersion(1, 2, 3, 4));
+        Assert.AreEqual("10.20.30.40", SettingsPage.FormatPackageVersion(10, 20, 30, 40));
+    }
+
+    [TestMethod]
     public void SettingsPage_ResolvesViewModelFromDependencyInjection()
     {
         // Arrange
@@ -150,6 +190,19 @@ public sealed class SettingsPageSourceTests
         Assert.IsTrue(
             handlerIndex < dialogIndex && dialogIndex < primaryResultIndex && primaryResultIndex < resetCommandIndex,
             "Expected the reset command to execute only inside the primary-confirmation branch of the dialog.");
+    }
+
+    private static string GetResourceValue(XDocument resourceDocument, string resourceName)
+    {
+        var dataElement = resourceDocument.Root?
+            .Elements("data")
+            .FirstOrDefault(element => string.Equals((string?)element.Attribute("name"), resourceName, StringComparison.Ordinal));
+
+        Assert.IsNotNull(dataElement, $"Expected resource key '{resourceName}' to exist in the resources file.");
+        var valueElement = dataElement!.Element("value");
+        Assert.IsNotNull(valueElement, $"Expected resource key '{resourceName}' to contain a <value> element.");
+
+        return valueElement!.Value;
     }
 
     private static string ReadRepositorySourceFile(string relativePath)

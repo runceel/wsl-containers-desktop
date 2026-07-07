@@ -118,10 +118,10 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="MainWindow.Title" xml:space="preserve">
-    <value>WSL Containers Desktop</value>
+    <value>Hakonexa - WSL Containers Manager</value>
   </data>
   <data name="AppTitleBar.Title" xml:space="preserve">
-    <value>WSL Containers Desktop</value>
+    <value>Hakonexa - WSL Containers Manager</value>
   </data>
   <data name="NavItemDashboard.Content" xml:space="preserve">
     <value>Dashboard</value>
@@ -516,6 +516,15 @@
   <data name="SettingsPageDescription.Text" xml:space="preserve">
     <value>Review WSL integration status and configure WSL resource limits.</value>
   </data>
+  <data name="SettingsAppName.Text" xml:space="preserve">
+    <value>Hakonexa - WSL Containers Manager</value>
+  </data>
+  <data name="SettingsAppPurpose.Text" xml:space="preserve">
+    <value>Manage WSL Containers from a native Windows desktop app.</value>
+  </data>
+  <data name="TxtAppVersionLabel.Text" xml:space="preserve">
+    <value>App version:</value>
+  </data>
   <data name="TxtWslIntegrationHeader.Text" xml:space="preserve">
     <value>WSL integration status</value>
   </data>
@@ -568,9 +577,9 @@
     <value>Cancel</value>
   </data>
   <data name="AppDisplayName" xml:space="preserve">
-    <value>WSL Containers Desktop</value>
+    <value>Hakonexa - WSL Containers Manager</value>
   </data>
   <data name="AppDescription" xml:space="preserve">
-    <value>WSL Containers Desktop</value>
+    <value>Hakonexa - WSL Containers Manager</value>
   </data>
 </root>

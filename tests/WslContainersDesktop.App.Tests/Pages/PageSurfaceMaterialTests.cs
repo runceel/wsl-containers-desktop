@@ -16,7 +16,7 @@ public sealed class PageSurfaceMaterialTests
     [DataRow(@"src\WslContainersDesktop.App\Pages\ImagesPage.xaml", 2)]
     [DataRow(@"src\WslContainersDesktop.App\Pages\NetworksPage.xaml", 3)]
     [DataRow(@"src\WslContainersDesktop.App\Pages\VolumesPage.xaml", 2)]
-    [DataRow(@"src\WslContainersDesktop.App\Pages\SettingsPage.xaml", 3)]
+    [DataRow(@"src\WslContainersDesktop.App\Pages\SettingsPage.xaml", 4)]
     public void Page_ContentSurfaces_UseLayerFillOverMica(string relativePath, int expectedSurfaceCount)
     {
         // Arrange
