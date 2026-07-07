@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Reflection;
 using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Domain;
 using WslContainersDesktop_App.ViewModels;
@@ -26,7 +27,7 @@ public sealed class ImagesViewModelTests
         {
             DefaultImages = [CreateImage("img-1"), CreateImage("img-2")],
         };
-        var sut = new ImagesViewModel(service);
+        var sut = CreateViewModel(service);
 
         // Act
         await sut.RefreshAsync();
@@ -44,7 +45,7 @@ public sealed class ImagesViewModelTests
     {
         // Arrange
         var service = new FakeImageManagementService { DefaultImages = [] };
-        var sut = new ImagesViewModel(service);
+        var sut = CreateViewModel(service);
 
         // Act
         await sut.RefreshAsync();
@@ -61,7 +62,7 @@ public sealed class ImagesViewModelTests
         var service = new FakeImageManagementService();
         service.GetImagesResults.Enqueue(() => Task.FromResult<IReadOnlyList<ContainerImage>>([CreateImage("img-1")]));
         service.GetImagesResults.Enqueue(() => Task.FromException<IReadOnlyList<ContainerImage>>(new ContainerRuntimeException("list", 1, "一覧の取得に失敗しました。")));
-        var sut = new ImagesViewModel(service);
+        var sut = CreateViewModel(service);
         await sut.RefreshAsync();
 
         // Act
@@ -82,10 +83,8 @@ public sealed class ImagesViewModelTests
             DefaultImages = [],
             PullResultImages = [CreateImage("img-1")],
         };
-        var sut = new ImagesViewModel(service)
-        {
-            PullReference = "  ubuntu:latest  ",
-        };
+        var sut = CreateViewModel(service);
+        sut.PullReference = "  ubuntu:latest  ";
 
         // Act
         await sut.PullAsync();
@@ -104,10 +103,8 @@ public sealed class ImagesViewModelTests
     {
         // Arrange
         var service = new FakeImageManagementService();
-        var sut = new ImagesViewModel(service)
-        {
-            PullReference = string.Empty,
-        };
+        var sut = CreateViewModel(service);
+        sut.PullReference = string.Empty;
 
         // Act
         await sut.PullAsync();
@@ -126,10 +123,8 @@ public sealed class ImagesViewModelTests
     {
         // Arrange
         var service = new FakeImageManagementService();
-        var sut = new ImagesViewModel(service)
-        {
-            PullReference = "   ",
-        };
+        var sut = CreateViewModel(service);
+        sut.PullReference = "   ";
 
         // Act
         await sut.PullAsync();
@@ -151,10 +146,8 @@ public sealed class ImagesViewModelTests
             PullGate = gate,
             PullResultImages = [CreateImage("img-1")],
         };
-        var sut = new ImagesViewModel(service)
-        {
-            PullReference = "ubuntu:latest",
-        };
+        var sut = CreateViewModel(service);
+        sut.PullReference = "ubuntu:latest";
 
         // Act
         var pullTask = sut.PullAsync();
@@ -171,10 +164,8 @@ public sealed class ImagesViewModelTests
     {
         // Arrange
         var service = new FakeImageManagementService { PullException = new ContainerRuntimeException("pull", 1, "pull failed") };
-        var sut = new ImagesViewModel(service)
-        {
-            PullReference = "ubuntu:latest",
-        };
+        var sut = CreateViewModel(service);
+        sut.PullReference = "ubuntu:latest";
 
         // Act
         await sut.PullAsync();
@@ -187,6 +178,151 @@ public sealed class ImagesViewModelTests
     }
 
     [TestMethod]
+    public async Task RunAsync_TaggedImage_BuildsRunRequestFromDialogFieldsAndShowsSuccess()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultImages = [CreateImage("img-1")],
+        };
+        var sut = CreateViewModel(service);
+        await sut.RefreshAsync();
+        var row = sut.Images[0];
+        SetViewModelProperty(sut, "RunContainerName", " web ");
+        SetViewModelProperty(sut, "RunRemoveWhenStopped", true);
+        SetViewModelProperty(sut, "RunPortMappingsText", "8080:80\r\r8443:443");
+        SetViewModelProperty(sut, "RunEnvironmentVariablesText", "FOO=bar\rBAR=baz");
+        SetViewModelProperty(sut, "RunCommandText", " echo hi ");
+
+        // Act
+        await sut.RunAsync(row);
+
+        // Assert
+        Assert.HasCount(1, service.RunRequests);
+        var actual = service.RunRequests[0];
+        Assert.AreEqual("ubuntu:latest", actual.ImageReference);
+        Assert.AreEqual("web", actual.ContainerName);
+        Assert.IsTrue(actual.RemoveWhenStopped);
+        CollectionAssert.AreEqual(new[] { "8080:80", "8443:443" }, actual.PortMappings.ToList());
+        CollectionAssert.AreEqual(new[] { "FOO=bar", "BAR=baz" }, actual.EnvironmentVariables.ToList());
+        Assert.AreEqual("echo hi", actual.Command);
+        Assert.AreEqual("Container started.", sut.StatusMessage);
+        Assert.IsNull(sut.ErrorMessage);
+        Assert.IsFalse(GetViewModelBooleanProperty(sut, "IsRunningImage"));
+        Assert.AreEqual(string.Empty, GetViewModelProperty(sut, "RunContainerName"));
+        Assert.IsFalse(GetViewModelBooleanProperty(sut, "RunRemoveWhenStopped"));
+        Assert.AreEqual(string.Empty, GetViewModelProperty(sut, "RunPortMappingsText"));
+        Assert.AreEqual(string.Empty, GetViewModelProperty(sut, "RunEnvironmentVariablesText"));
+        Assert.AreEqual(string.Empty, GetViewModelProperty(sut, "RunCommandText"));
+    }
+
+    [TestMethod]
+    public async Task RunAsync_UntaggedImage_UsesImageIdAsReference()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultImages = [new ContainerImage("img-1", string.Empty, string.Empty, 120L, CreatedAt)],
+        };
+        var sut = CreateViewModel(service);
+        await sut.RefreshAsync();
+        var row = sut.Images[0];
+
+        // Act
+        await sut.RunAsync(row);
+
+        // Assert
+        Assert.AreEqual("img-1", service.RunRequests[0].ImageReference);
+    }
+
+    [TestMethod]
+    public async Task RunAsync_TagIsEmpty_UsesImageIdAsReference()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultImages = [new ContainerImage("img-1", "ubuntu", string.Empty, 120L, CreatedAt)],
+        };
+        var sut = CreateViewModel(service);
+        await sut.RefreshAsync();
+        var row = sut.Images[0];
+
+        // Act
+        await sut.RunAsync(row);
+
+        // Assert
+        Assert.AreEqual("img-1", service.RunRequests[0].ImageReference);
+    }
+
+    [TestMethod]
+    public async Task RunAsync_CommandIsWhiteSpace_SendsEmptyCommand()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultImages = [CreateImage("img-1")],
+        };
+        var sut = CreateViewModel(service);
+        await sut.RefreshAsync();
+        var row = sut.Images[0];
+        SetViewModelProperty(sut, "RunCommandText", "   ");
+
+        // Act
+        await sut.RunAsync(row);
+
+        // Assert
+        Assert.AreEqual(string.Empty, service.RunRequests[0].Command);
+    }
+
+    [TestMethod]
+    public async Task RunAsync_ServiceThrows_ErrorMessageIsSetBusyFlagIsResetAndInputIsPreserved()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultImages = [CreateImage("img-1")],
+            RunException = new ContainerRuntimeException("run", 1, "start failed"),
+        };
+        var sut = CreateViewModel(service);
+        await sut.RefreshAsync();
+        var row = sut.Images[0];
+        var expectedCommand = " echo hi ";
+        SetViewModelProperty(sut, "RunCommandText", expectedCommand);
+
+        // Act
+        await sut.RunAsync(row);
+
+        // Assert
+        Assert.AreEqual("start failed", sut.ErrorMessage);
+        Assert.IsFalse(GetViewModelBooleanProperty(sut, "IsRunningImage"));
+        Assert.AreEqual(expectedCommand, GetViewModelProperty(sut, "RunCommandText"));
+    }
+
+    [TestMethod]
+    public async Task RunAsync_OperationIsRunning_IsRunningImageIsTrueThenFalse()
+    {
+        // Arrange
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var service = new FakeContainerManagementService
+        {
+            DefaultImages = [CreateImage("img-1")],
+            RunGate = gate,
+        };
+        var sut = CreateViewModel(service);
+        await sut.RefreshAsync();
+        var row = sut.Images[0];
+
+        // Act
+        var runTask = sut.RunAsync(row);
+
+        // Assert
+        Assert.IsTrue(GetViewModelBooleanProperty(sut, "IsRunningImage"));
+        gate.SetResult(true);
+        await runTask;
+        Assert.IsFalse(GetViewModelBooleanProperty(sut, "IsRunningImage"));
+    }
+
+    [TestMethod]
     public async Task DeleteAsync_AfterPullSucceeded_ClearsStaleStatusMessage()
     {
         // Arrange
@@ -195,10 +331,8 @@ public sealed class ImagesViewModelTests
             DefaultImages = [CreateImage("img-1")],
             PullResultImages = [CreateImage("img-1")],
         };
-        var sut = new ImagesViewModel(service)
-        {
-            PullReference = "ubuntu:latest",
-        };
+        var sut = CreateViewModel(service);
+        sut.PullReference = "ubuntu:latest";
         await sut.RefreshAsync();
         await sut.PullAsync();
         var row = sut.Images[0];
@@ -219,7 +353,7 @@ public sealed class ImagesViewModelTests
             DefaultImages = [CreateImage("img-1")],
             DeleteResultImages = [],
         };
-        var sut = new ImagesViewModel(service);
+        var sut = CreateViewModel(service);
         await sut.RefreshAsync();
         var row = sut.Images[0];
 
@@ -240,7 +374,7 @@ public sealed class ImagesViewModelTests
             DefaultImages = [CreateImage("img-1")],
             DeleteException = new ContainerRuntimeException("delete", 1, "delete failed"),
         };
-        var sut = new ImagesViewModel(service);
+        var sut = CreateViewModel(service);
         await sut.RefreshAsync();
         var row = sut.Images[0];
 
@@ -258,7 +392,7 @@ public sealed class ImagesViewModelTests
     {
         // Arrange
         var service = new FakeImageManagementService { DefaultImages = [CreateImage("img-1"), CreateImage("img-2")] };
-        var sut = new ImagesViewModel(service);
+        var sut = CreateViewModel(service);
         await sut.RefreshAsync();
         var row1 = sut.Images[0];
         var row2 = sut.Images[1];
@@ -277,7 +411,7 @@ public sealed class ImagesViewModelTests
     {
         // Arrange
         var service = new FakeImageManagementService { DefaultImages = [CreateImage("img-1"), CreateImage("img-2")] };
-        var sut = new ImagesViewModel(service);
+        var sut = CreateViewModel(service);
         await sut.RefreshAsync();
         var actions = new List<NotifyCollectionChangedAction>();
         sut.Images.CollectionChanged += (_, e) => actions.Add(e.Action);
@@ -294,7 +428,7 @@ public sealed class ImagesViewModelTests
     {
         // Arrange
         var service = new FakeImageManagementService { DefaultImages = [CreateImage("img-1"), CreateImage("img-2")] };
-        var sut = new ImagesViewModel(service);
+        var sut = CreateViewModel(service);
         await sut.RefreshAsync();
         var row1 = sut.Images[0];
         service.DefaultImages = [CreateImage("img-1")];
@@ -312,7 +446,7 @@ public sealed class ImagesViewModelTests
     {
         // Arrange
         var service = new FakeImageManagementService { DefaultImages = [CreateImage("img-1")] };
-        var sut = new ImagesViewModel(service);
+        var sut = CreateViewModel(service);
         await sut.RefreshAsync();
         var row1 = sut.Images[0];
         service.DefaultImages = [CreateImage("img-1"), CreateImage("img-2")];
@@ -334,7 +468,7 @@ public sealed class ImagesViewModelTests
         {
             DefaultImages = [new ContainerImage("img-1", "ubuntu", "20.04", 120L, CreatedAt)],
         };
-        var sut = new ImagesViewModel(service);
+        var sut = CreateViewModel(service);
         await sut.RefreshAsync();
         var originalRow = sut.Images[0];
         service.DefaultImages = [new ContainerImage("img-1", "ubuntu", "22.04", 120L, CreatedAt)];
@@ -353,7 +487,7 @@ public sealed class ImagesViewModelTests
     {
         // Arrange
         var service = new FakeImageManagementService { DefaultImages = [CreateImage("img-1")] };
-        var sut = new ImagesViewModel(service);
+        var sut = CreateViewModel(service);
         await sut.RefreshAsync();
         var row1 = sut.Images[0];
         service.DefaultImages = [CreateImage("img-1")];
@@ -363,5 +497,32 @@ public sealed class ImagesViewModelTests
 
         // Assert
         Assert.AreSame(row1, sut.Images[0]);
+    }
+
+    private static ImagesViewModel CreateViewModel(FakeImageManagementService imageService)
+        => new(imageService, new FakeContainerManagementService());
+
+    private static ImagesViewModel CreateViewModel(FakeContainerManagementService service)
+        => new(service, service);
+
+    private static void SetViewModelProperty(object target, string propertyName, object? value)
+    {
+        var property = target.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        if (property is not null && property.CanWrite)
+        {
+            property.SetValue(target, value);
+        }
+    }
+
+    private static bool GetViewModelBooleanProperty(object target, string propertyName)
+    {
+        var property = target.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        return property is not null && property.GetValue(target) is bool value && value;
+    }
+
+    private static object? GetViewModelProperty(object target, string propertyName)
+    {
+        var property = target.GetType().GetProperty(propertyName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        return property?.GetValue(target);
     }
 }

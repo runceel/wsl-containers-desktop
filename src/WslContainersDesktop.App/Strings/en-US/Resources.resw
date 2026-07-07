@@ -301,7 +301,7 @@
     <value>Images</value>
   </data>
   <data name="ImagesPageDescription.Text" xml:space="preserve">
-    <value>Pull and remove container images.</value>
+    <value>Pull, run, and remove container images.</value>
   </data>
   <data name="BtnRefreshImages.Content" xml:space="preserve">
     <value>Refresh</value>
@@ -312,8 +312,44 @@
   <data name="BtnPullImage.Content" xml:space="preserve">
     <value>Pull</value>
   </data>
+  <data name="BtnRunImage.Content" xml:space="preserve">
+    <value>Run</value>
+  </data>
   <data name="BtnDeleteImage.Content" xml:space="preserve">
     <value>Delete</value>
+  </data>
+  <data name="RunImageDialog.Title" xml:space="preserve">
+    <value>Run image</value>
+  </data>
+  <data name="RunImageDialog.PrimaryButtonText" xml:space="preserve">
+    <value>Run</value>
+  </data>
+  <data name="RunImageDialog.CloseButtonText" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="TxtRunContainerName.Header" xml:space="preserve">
+    <value>Container name</value>
+  </data>
+  <data name="TxtRunContainerName.PlaceholderText" xml:space="preserve">
+    <value>Optional</value>
+  </data>
+  <data name="TglRunRemoveWhenStopped.Header" xml:space="preserve">
+    <value>Remove when stopped</value>
+  </data>
+  <data name="TxtRunPortMappings.Header" xml:space="preserve">
+    <value>Port mappings</value>
+  </data>
+  <data name="TxtRunPortMappings.PlaceholderText" xml:space="preserve">
+    <value>8080:80</value>
+  </data>
+  <data name="TxtRunEnvironmentVariables.Header" xml:space="preserve">
+    <value>Environment variables</value>
+  </data>
+  <data name="TxtRunEnvironmentVariables.PlaceholderText" xml:space="preserve">
+    <value>FOO=bar</value>
+  </data>
+  <data name="TxtRunCommand.Header" xml:space="preserve">
+    <value>Command</value>
   </data>
   <data name="TxtImagesEmptyState.Text" xml:space="preserve">
     <value>No images.</value>

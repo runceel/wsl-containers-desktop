@@ -21,6 +21,13 @@ public interface IContainerRuntimeClient
     Task<IReadOnlyList<ContainerImage>> ListImagesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 指定したイメージから新しいコンテナーを起動する。
+    /// </summary>
+    /// <param name="request">起動要求。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task RunContainerAsync(ContainerRunRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 指定したイメージ参照を取得する。
     /// </summary>
     /// <param name="imageReference">取得するイメージ参照。</param>

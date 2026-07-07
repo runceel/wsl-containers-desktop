@@ -12,6 +12,8 @@
 
 - `VolumesPage`はローカルボリューム一覧を表示する。各行は`VolumeRowViewModel`で、ボリューム名、
   ドライバー、作成日時、使用状況、削除操作を表示する。
+- 表形式の`ListView`は`TableListViewItemStyle`で行コンテンツを横方向いっぱいに広げ、ヘッダーGridと
+  行Gridの水平paddingを揃える。
 - 使用状況は、参照中コンテナ名がある場合はコンテナ名をカンマ区切りで表示し、参照がない場合は
   `Unused`として表示する。
 - 参照中ボリュームの削除ボタンは無効化する。
@@ -54,4 +56,3 @@
   Application層で推定できない参照中ボリュームの拒否は例外としてPresentation層へ伝播し、
   `ErrorMessage`に表示する。
 - 削除失敗時は対象行を一覧に残し、`IsBusy`を解除する。
-

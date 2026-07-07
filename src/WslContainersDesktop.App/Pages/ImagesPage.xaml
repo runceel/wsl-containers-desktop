@@ -24,6 +24,44 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
+        <ContentDialog
+            x:Name="RunImageDialog"
+            x:Uid="RunImageDialog"
+            DefaultButton="Primary">
+            <StackPanel Spacing="12">
+                <TextBox
+                    x:Name="TxtRunContainerName"
+                    x:Uid="TxtRunContainerName"
+                    AutomationProperties.AutomationId="TxtRunContainerName"
+                    Text="{x:Bind ViewModel.RunContainerName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <ToggleSwitch
+                    x:Name="TglRunRemoveWhenStopped"
+                    x:Uid="TglRunRemoveWhenStopped"
+                    AutomationProperties.AutomationId="TglRunRemoveWhenStopped"
+                    IsOn="{x:Bind ViewModel.RunRemoveWhenStopped, Mode=TwoWay}" />
+                <TextBox
+                    x:Name="TxtRunPortMappings"
+                    x:Uid="TxtRunPortMappings"
+                    Height="96"
+                    AcceptsReturn="True"
+                    AutomationProperties.AutomationId="TxtRunPortMappings"
+                    Text="{x:Bind ViewModel.RunPortMappingsText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox
+                    x:Name="TxtRunEnvironmentVariables"
+                    x:Uid="TxtRunEnvironmentVariables"
+                    Height="96"
+                    AcceptsReturn="True"
+                    AutomationProperties.AutomationId="TxtRunEnvironmentVariables"
+                    Text="{x:Bind ViewModel.RunEnvironmentVariablesText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                <TextBox
+                    x:Name="TxtRunCommand"
+                    x:Uid="TxtRunCommand"
+                    AcceptsReturn="True"
+                    AutomationProperties.AutomationId="TxtRunCommand"
+                    Text="{x:Bind ViewModel.RunCommandText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            </StackPanel>
+        </ContentDialog>
+
         <Border
             Grid.Row="0"
             Padding="16"
@@ -114,7 +152,7 @@
                             <ColumnDefinition Width="2*" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="224" />
                         </Grid.ColumnDefinitions>
                         <TextBlock x:Name="TxtImageColumnName" x:Uid="TxtImageColumnName" Grid.Column="0" FontWeight="SemiBold" />
                         <TextBlock x:Name="TxtImageColumnId" x:Uid="TxtImageColumnId" Grid.Column="1" FontWeight="SemiBold" />
@@ -126,34 +164,39 @@
                         x:Name="LstImages"
                         Grid.Row="1"
                         AutomationProperties.AutomationId="LstImages"
+                        ItemContainerStyle="{StaticResource TableListViewItemStyle}"
                         ItemsSource="{x:Bind ViewModel.Images, Mode=OneWay}"
                         SelectionMode="None">
-                        <ListView.ItemContainerStyle>
-                            <Style TargetType="ListViewItem">
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                            </Style>
-                        </ListView.ItemContainerStyle>
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="vm:ImageRowViewModel">
-                                <Grid Padding="8" ColumnSpacing="12" HorizontalAlignment="Stretch">
+                                <Grid Padding="12,8" ColumnSpacing="12" HorizontalAlignment="Stretch">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="2*" />
                                         <ColumnDefinition Width="2*" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="224" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
                                     <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Id}" />
                                     <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind SizeBytes}" />
                                     <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" />
-                                    <Button
-                                        x:Uid="BtnDeleteImage"
-                                        Grid.Column="4"
-                                        VerticalAlignment="Center"
-                                        AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDeleteImage}"
-                                        CommandParameter="{x:Bind}"
-                                        Click="BtnDeleteImage_Click" />
+                                    <StackPanel Grid.Column="4" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+                                        <Button
+                                            x:Name="BtnRunImage"
+                                            x:Uid="BtnRunImage"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnRunImage}"
+                                            CommandParameter="{x:Bind}"
+                                            Click="BtnRunImage_Click" />
+                                        <Button
+                                            x:Name="BtnDeleteImage"
+                                            x:Uid="BtnDeleteImage"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDeleteImage}"
+                                            CommandParameter="{x:Bind}"
+                                            Click="BtnDeleteImage_Click" />
+                                    </StackPanel>
                                 </Grid>
                             </DataTemplate>
                         </ListView.ItemTemplate>

@@ -309,6 +309,79 @@ public sealed class ContainerManagementServiceTests
     }
 
     [TestMethod]
+    public async Task RunAsync_RequestHasImageReference_CallsRuntimeRunContainerWithNormalizedRequestAndDoesNotListContainers()
+    {
+        // Arrange
+        var client = new FakeContainerRuntimeClient();
+        var sut = new ContainerManagementService(client);
+        var request = new ContainerRunRequest
+        {
+            ImageReference = " ubuntu:latest ",
+            ContainerName = " web ",
+            RemoveWhenStopped = true,
+            PortMappings = [" 8080:80 ", " ", " 8443:443"],
+            EnvironmentVariables = [" FOO=bar ", " "],
+            Command = " echo hi ",
+        };
+
+        // Act
+        await sut.RunAsync(request);
+
+        // Assert
+        Assert.HasCount(1, client.RunContainerCalls);
+        var actual = client.RunContainerCalls[0];
+        Assert.AreEqual("ubuntu:latest", actual.ImageReference);
+        Assert.AreEqual("web", actual.ContainerName);
+        Assert.IsTrue(actual.RemoveWhenStopped);
+        CollectionAssert.AreEqual(new[] { "8080:80", "8443:443" }, actual.PortMappings.ToList());
+        CollectionAssert.AreEqual(new[] { "FOO=bar" }, actual.EnvironmentVariables.ToList());
+        Assert.AreEqual("echo hi", actual.Command);
+        Assert.AreEqual(0, client.ListContainersCallCount);
+    }
+
+    [TestMethod]
+    public async Task RunAsync_ImageReferenceIsWhiteSpace_ThrowsArgumentExceptionAndDoesNotCallRuntime()
+    {
+        // Arrange
+        var client = new FakeContainerRuntimeClient();
+        var sut = new ContainerManagementService(client);
+        var request = new ContainerRunRequest { ImageReference = "   " };
+
+        // Act & Assert
+        await Assert.ThrowsExactlyAsync<ArgumentException>(() => sut.RunAsync(request));
+        Assert.IsEmpty(client.RunContainerCalls);
+    }
+
+    [TestMethod]
+    public async Task RunAsync_CommandIsWhiteSpace_NormalizesCommandToEmpty()
+    {
+        // Arrange
+        var client = new FakeContainerRuntimeClient();
+        var sut = new ContainerManagementService(client);
+        var request = new ContainerRunRequest { ImageReference = "hello-world", Command = "   " };
+
+        // Act
+        await sut.RunAsync(request);
+
+        // Assert
+        Assert.AreEqual(string.Empty, client.RunContainerCalls[0].Command);
+    }
+
+    [TestMethod]
+    public async Task RunAsync_RuntimeThrows_PropagatesException()
+    {
+        // Arrange
+        var runtimeException = new InvalidOperationException("boom");
+        var client = new FakeContainerRuntimeClient { RunContainerException = runtimeException };
+        var sut = new ContainerManagementService(client);
+        var request = new ContainerRunRequest { ImageReference = "hello-world" };
+
+        // Act & Assert
+        var ex = await Assert.ThrowsExactlyAsync<InvalidOperationException>(() => sut.RunAsync(request));
+        Assert.AreSame(runtimeException, ex);
+    }
+
+    [TestMethod]
     public async Task GetContainerDetailAsync_ContainerExists_ReturnsRuntimeDetailAndCallsRuntimeDetail()
     {
         // Arrange

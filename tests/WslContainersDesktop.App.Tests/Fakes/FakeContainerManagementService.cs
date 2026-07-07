@@ -9,7 +9,7 @@ namespace WslContainersDesktop_App_Tests.Fakes;
 /// <see cref="IContainerManagementService"/> のテスト用フェイク実装。
 /// 呼び出し回数に応じて異なる結果を返せるよう <see cref="GetContainersResults"/> をキューとして保持する。
 /// </summary>
-internal sealed class FakeContainerManagementService : IContainerManagementService
+internal sealed class FakeContainerManagementService : IContainerManagementService, IImageManagementService
 {
     /// <summary>
     /// <see cref="GetContainersAsync"/> の呼び出しごとに順番に消費される結果。
@@ -55,6 +55,30 @@ internal sealed class FakeContainerManagementService : IContainerManagementServi
 
     public List<string> DeleteCalls { get; } = [];
 
+    public IReadOnlyList<ContainerImage> DefaultImages { get; set; } = [];
+
+    public Queue<Func<Task<IReadOnlyList<ContainerImage>>>> GetImagesResults { get; } = new();
+
+    public IReadOnlyList<ContainerImage> PullResultImages { get; set; } = [];
+
+    public IReadOnlyList<ContainerImage> DeleteResultImages { get; set; } = [];
+
+    public Exception? PullException { get; set; }
+
+    public TaskCompletionSource<bool>? PullGate { get; set; }
+
+    public TaskCompletionSource<bool>? DeleteGate { get; set; }
+
+    public List<string> PullCalls { get; } = [];
+
+    public List<string> ImageDeleteCalls { get; } = [];
+
+    public List<ContainerRunRequest> RunRequests { get; } = [];
+
+    public TaskCompletionSource<bool>? RunGate { get; set; }
+
+    public Exception? RunException { get; set; }
+
     public IReadOnlyList<string> DefaultLogs { get; set; } = [];
 
     public ContainerDetail? ContainerDetail { get; set; }
@@ -86,6 +110,58 @@ internal sealed class FakeContainerManagementService : IContainerManagementServi
     public List<string> OpenExecSessionCalls { get; } = [];
 
     public List<string> FollowContainerLogsCalls { get; } = [];
+
+    Task<IReadOnlyList<ContainerImage>> IImageManagementService.GetImagesAsync(CancellationToken cancellationToken)
+    {
+        if (GetImagesResults.Count > 0)
+        {
+            return GetImagesResults.Dequeue()();
+        }
+
+        return Task.FromResult(DefaultImages);
+    }
+
+    async Task IImageManagementService.PullAsync(string imageReference, CancellationToken cancellationToken)
+    {
+        PullCalls.Add(imageReference);
+        if (PullGate is not null)
+        {
+            await PullGate.Task;
+        }
+
+        if (PullException is not null)
+        {
+            throw PullException;
+        }
+    }
+
+    async Task IImageManagementService.DeleteAsync(string imageId, CancellationToken cancellationToken)
+    {
+        ImageDeleteCalls.Add(imageId);
+        if (DeleteGate is not null)
+        {
+            await DeleteGate.Task;
+        }
+
+        if (DeleteException is not null)
+        {
+            throw DeleteException;
+        }
+    }
+
+    public async Task RunAsync(ContainerRunRequest request, CancellationToken cancellationToken = default)
+    {
+        RunRequests.Add(request);
+        if (RunGate is not null)
+        {
+            await RunGate.Task;
+        }
+
+        if (RunException is not null)
+        {
+            throw RunException;
+        }
+    }
 
     public Task<IReadOnlyList<Container>> GetContainersAsync(CancellationToken cancellationToken = default)
     {

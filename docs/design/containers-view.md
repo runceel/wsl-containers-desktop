@@ -13,6 +13,8 @@
 
 - `ContainersPage`は標準`ListView`を表形式に並べてコンテナ一覧を表示する。CommunityToolkitの
   `DataGrid`はスクロールバー状態更新タイマー内でUIスレッドCOM例外が発生するため使用しない。
+- 表形式の`ListView`は`TableListViewItemStyle`で行コンテンツを横方向いっぱいに広げ、ヘッダーGridと
+  行Gridの水平paddingを揃える。
 - 一覧列は名前、イメージ、状態、作成日時、操作を表示する。状態列は`DisplayState`
   （`ContainerRowDisplayState`。実際の`State`と進行中の操作種別`PendingOperation`の組み合わせ）を
   表示用テキストへ変換し、実行中/停止中に加えて起動中・停止処理中・再起動中・削除中といった

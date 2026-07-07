@@ -22,6 +22,27 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
         return runtimeClient.ListContainersAsync(cancellationToken);
     }
 
+    public Task RunAsync(ContainerRunRequest request, CancellationToken cancellationToken = default)
+    {
+        var imageReference = request.ImageReference.Trim();
+        if (imageReference.Length == 0)
+        {
+            throw new ArgumentException("Image reference is required.", nameof(request));
+        }
+
+        var normalizedRequest = new ContainerRunRequest
+        {
+            ImageReference = imageReference,
+            ContainerName = request.ContainerName.Trim(),
+            RemoveWhenStopped = request.RemoveWhenStopped,
+            PortMappings = TrimAndRemoveEmpty(request.PortMappings),
+            EnvironmentVariables = TrimAndRemoveEmpty(request.EnvironmentVariables),
+            Command = request.Command.Trim(),
+        };
+
+        return runtimeClient.RunContainerAsync(normalizedRequest, cancellationToken);
+    }
+
     public async Task<Container> StartAsync(string containerId, CancellationToken cancellationToken = default)
     {
         var container = await FindContainerAsync(containerId, cancellationToken);
@@ -124,5 +145,13 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
         }
 
         throw new ContainerNotFoundException(containerId);
+    }
+
+    private static IReadOnlyList<string> TrimAndRemoveEmpty(IReadOnlyList<string> values)
+    {
+        return values
+            .Select(value => value.Trim())
+            .Where(value => value.Length > 0)
+            .ToList();
     }
 }

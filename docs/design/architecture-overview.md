@@ -13,7 +13,7 @@
 | `src/WslContainersDesktop.Domain` | classlib | コンテナ/イメージ/ボリューム/ネットワークエンティティ・状態・詳細情報値オブジェクト・状態別操作可否 |
 | `src/WslContainersDesktop.Application` | classlib | コンテナ/イメージ/ボリューム/ネットワーク管理ユースケース、execセッション抽象、Inbound/Outboundポート |
 | `src/WslContainersDesktop.Infrastructure` | classlib | `wslc` CLIラッパーによるWSL Containers連携 |
-| `src/WslContainersDesktop.App` | WinUI3 MSIXパッケージアプリ（net10.0-windows） | Presentation層。ナビゲーション、ローカライズ、DI構成、コンテナ一覧/詳細/ログ/シェル表示、イメージ一覧/pull/削除、ボリューム一覧/作成/削除、ネットワーク一覧/作成/削除、設定（WSL連携状態確認・リソース制限編集）を実装済み |
+| `src/WslContainersDesktop.App` | WinUI3 MSIXパッケージアプリ（net10.0-windows） | Presentation層。ナビゲーション、ローカライズ、DI構成、コンテナ一覧/詳細/ログ/シェル表示、イメージ一覧/pull/起動/削除、ボリューム一覧/作成/削除、ネットワーク一覧/作成/削除、設定（WSL連携状態確認・リソース制限編集）を実装済み |
 | `tests/WslContainersDesktop.Domain.Tests` | MSTest | Domain層の単体テスト |
 | `tests/WslContainersDesktop.Application.Tests` | MSTest | Application層の単体テスト |
 | `tests/WslContainersDesktop.Infrastructure.Tests` | MSTest | Infrastructure層のCLIクライアント/ランナー単体テスト |
@@ -21,7 +21,7 @@
 
 現在の主要な振る舞いは、コンテナ一覧取得、起動・停止・再起動・削除、詳細情報表示、ログの
 スナップショット表示とライブ追跡、稼働中コンテナへの対話的execシェル、イメージ一覧取得、
-イメージpull、イメージ削除、ボリューム一覧取得、ボリューム作成、ボリューム削除、
+イメージpull、イメージからの新規コンテナ起動、イメージ削除、ボリューム一覧取得、ボリューム作成、ボリューム削除、
 ネットワーク一覧取得、ネットワーク作成、ネットワーク削除、WSL連携状態の確認、WSLリソース制限
 （メモリ量・論理プロセッサ数）の確認・保存・リセットである。
 
@@ -69,14 +69,16 @@ flowchart TB
 - Infrastructureが実装すべき抽象（インターフェース）をこの層で定義する
   （例: `IContainerRuntimeClient`）。
 - Domainのみに依存する。
-- `IContainerManagementService`はPresentation層向けのInboundポートであり、一覧取得、起動・停止・
-  再起動・削除、詳細取得、既存ログ取得、ライブログ追跡、対話的execセッション開始を提供する。
-- `ContainerManagementService`は操作前に`IContainerRuntimeClient.ListContainersAsync`で対象コンテナの
-  存在と状態を検証する。再起動は`wslc`のサブコマンドではなく停止→起動として扱うが、停止中コンテナを
-  起動にすり替えない。execセッション開始は実行中コンテナにだけ許可する。
+- `IContainerManagementService`はPresentation層向けのInboundポートであり、一覧取得、イメージからの
+  新規起動、既存コンテナの起動・停止・再起動・削除、詳細取得、既存ログ取得、ライブログ追跡、
+  対話的execセッション開始を提供する。
+- `ContainerManagementService`は既存コンテナ操作の前に`IContainerRuntimeClient.ListContainersAsync`で対象コンテナの
+  存在と状態を検証する。イメージからの新規起動では`ContainerRunRequest`を正規化してランタイムへ委譲し、
+  起動直後の一覧照合には依存しない。再起動は`wslc`のサブコマンドではなく停止→起動として扱うが、
+  停止中コンテナを起動にすり替えない。execセッション開始は実行中コンテナにだけ許可する。
 - `IContainerRuntimeClient`はInfrastructure層向けのOutboundポートであり、CLI/SDKなど具体的な
   ランタイム連携方式をApplication層から隠蔽する。コンテナ操作に加えて、詳細取得、execセッション開始、
-  イメージ一覧取得、pull、削除のランタイム呼び出しもこのポートに集約する。
+  イメージ一覧取得、pull、削除、イメージからの起動のランタイム呼び出しもこのポートに集約する。
 - `IContainerExecSession`は対話的execセッションの抽象であり、出力チャンクの読み取り、コマンド送信、
   明示的な切断、切断状態を提供する。
 - `IImageManagementService`はPresentation層向けのInboundポートであり、イメージ一覧取得、pull、
@@ -109,8 +111,10 @@ flowchart TB
 - 現在は [ADR-0009](../adr/0009-wrap-wslc-cli-for-infrastructure-layer.md) に基づき、
   `WslcCliContainerRuntimeClient`が`wslc` CLIを呼び出して`IContainerRuntimeClient`を実装する。
 - イメージ一覧は`wslc image list --format json --no-trunc`のJSONを`ContainerImage`へ変換する。
-  pullは`wslc pull <image>`、削除は`wslc image remove <image>`を呼び出す。削除時は強制削除フラグを
-  付けず、参照中イメージの拒否は`wslc`のエラーとしてApplication/Presentation層へ伝播する。
+  pullは`wslc pull <image>`、イメージからの起動は`wslc run -d ... <image>`、削除は
+  `wslc image remove <image>`を呼び出す。起動時は停止時自動削除、コンテナ名、ポート公開、環境変数、
+  任意のシェルコマンドを引数へ変換する。削除時は強制削除フラグを付けず、参照中イメージの拒否は
+  `wslc`のエラーとしてApplication/Presentation層へ伝播する。
 - ボリューム一覧は`wslc volume list --format json`のJSONを基点に、各ボリュームの
   `wslc volume inspect <name>`から作成日時を補完して`ContainerVolume`へ変換する。作成は
   `wslc volume create <name>`、削除は`wslc volume remove <name>`を呼び出す。削除時は強制削除フラグを

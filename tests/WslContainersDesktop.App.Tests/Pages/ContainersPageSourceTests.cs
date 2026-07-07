@@ -19,6 +19,17 @@ public sealed class ContainersPageSourceTests
             "State列は途中状態（Stopping等）を反映するため DisplayState を Mode=OneWay でバインドする必要がある。");
     }
 
+    [TestMethod]
+    public void ContainersPage_ListViewItemsUseSharedTableStyle()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\ContainersPage.xaml");
+
+        // Assert
+        StringAssert.Contains(sourceText, "ItemContainerStyle=\"{StaticResource TableListViewItemStyle}\"");
+        StringAssert.Contains(sourceText, "<Grid Padding=\"12,8\" ColumnSpacing=\"12\" HorizontalAlignment=\"Stretch\">");
+    }
+
     private static string ReadRepositorySourceFile(string relativePath)
     {
         var repositoryRoot = FindRepositoryRoot();

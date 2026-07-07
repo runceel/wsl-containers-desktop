@@ -31,6 +31,17 @@ public sealed class VolumesPageSourceTests
     }
 
     [TestMethod]
+    public void VolumesPage_ListViewItemsUseSharedTableStyle()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\VolumesPage.xaml");
+
+        // Assert
+        StringAssert.Contains(sourceText, "ItemContainerStyle=\"{StaticResource TableListViewItemStyle}\"");
+        StringAssert.Contains(sourceText, "<Grid Padding=\"12,8\" ColumnSpacing=\"12\" HorizontalAlignment=\"Stretch\">");
+    }
+
+    [TestMethod]
     public void VolumesPage_DeleteClickShowsConfirmationBeforeExecutingDeleteCommand()
     {
         // Arrange
