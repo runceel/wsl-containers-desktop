@@ -21,6 +21,54 @@ public sealed class ImagesPageSourceTests
     }
 
     [TestMethod]
+    public void ImagesPage_RowIncludesRunActionWithAutomationId()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\ImagesPage.xaml");
+
+        // Assert
+        StringAssert.Contains(sourceText, "BtnRunImage");
+        StringAssert.Contains(sourceText, "ConverterParameter=BtnRunImage");
+    }
+
+    [TestMethod]
+    public void ImagesPage_RunDialogIncludesDetailedFields()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\ImagesPage.xaml");
+
+        // Assert
+        StringAssert.Contains(sourceText, "TxtRunContainerName");
+        StringAssert.Contains(sourceText, "TglRunRemoveWhenStopped");
+        StringAssert.Contains(sourceText, "TxtRunPortMappings");
+        StringAssert.Contains(sourceText, "TxtRunEnvironmentVariables");
+        StringAssert.Contains(sourceText, "TxtRunCommand");
+    }
+
+    [TestMethod]
+    public void ImagesPage_RunClickShowsDialogBeforeExecutingRunCommand()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\ImagesPage.xaml.cs");
+
+        // Act
+        var handlerIndex = sourceText.IndexOf("BtnRunImage_Click", StringComparison.Ordinal);
+        var handlerSearchStart = Math.Max(handlerIndex, 0);
+        var dialogIndex = sourceText.IndexOf("RunImageDialog.ShowAsync", handlerSearchStart, StringComparison.Ordinal);
+        var primaryResultIndex = sourceText.IndexOf("ContentDialogResult.Primary", handlerSearchStart, StringComparison.Ordinal);
+        var runCommandIndex = sourceText.IndexOf("RunCommand.ExecuteAsync", handlerSearchStart, StringComparison.Ordinal);
+
+        // Assert
+        Assert.IsGreaterThanOrEqualTo(0, handlerIndex, "Expected ImagesPage to define BtnRunImage_Click.");
+        Assert.IsGreaterThanOrEqualTo(0, dialogIndex, "Expected image run to show the run configuration dialog.");
+        Assert.IsGreaterThanOrEqualTo(0, primaryResultIndex, "Expected image run to require primary confirmation.");
+        Assert.IsGreaterThanOrEqualTo(0, runCommandIndex, "Expected confirmed image run to execute RunCommand.");
+        Assert.IsTrue(
+            handlerIndex < dialogIndex && dialogIndex < primaryResultIndex && primaryResultIndex < runCommandIndex,
+            "Expected the run configuration dialog to be shown before executing the run command.");
+    }
+
+    [TestMethod]
     public void ImagesPage_HeaderIncludesAccentBar()
     {
         // Arrange
@@ -45,6 +93,22 @@ public sealed class ImagesPageSourceTests
         StringAssert.Contains(sourceText, "x:Name=\"TxtImageColumnCreatedAt\"");
         StringAssert.Contains(sourceText, "Grid.Row=\"1\"");
         StringAssert.Contains(sourceText, "Background=\"{ThemeResource LayerFillColorDefaultBrush}\"");
+    }
+
+    [TestMethod]
+    public void ImagesPage_ListViewItemsUseSharedStretchStyle()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\ImagesPage.xaml");
+        var listSectionText = ExtractRegion(sourceText, "<Grid Grid.Row=\"0\" Padding=\"12,8\" ColumnSpacing=\"12\">", "</ListView>");
+
+        // Assert
+        StringAssert.Contains(sourceText, "ItemContainerStyle=\"{StaticResource TableListViewItemStyle}\"");
+        StringAssert.Contains(sourceText, "HorizontalAlignment=\"Stretch\"");
+        Assert.IsGreaterThanOrEqualTo(
+            2,
+            CountOccurrences(listSectionText, "<ColumnDefinition Width=\"224\" />"),
+            "Expected the image list header and row to reserve the same fixed action-button column width.");
     }
 
     [TestMethod]
@@ -93,6 +157,30 @@ public sealed class ImagesPageSourceTests
 
         Assert.IsTrue(File.Exists(fullPath), $"Expected source file '{relativePath}' to exist at '{fullPath}'.");
         return File.ReadAllText(fullPath);
+    }
+
+    private static int CountOccurrences(string text, string value)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = text.IndexOf(value, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += value.Length;
+        }
+
+        return count;
+    }
+
+    private static string ExtractRegion(string text, string startMarker, string endMarker)
+    {
+        var startIndex = text.IndexOf(startMarker, StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, startIndex, $"Expected to find start marker '{startMarker}'.");
+
+        var endIndex = text.IndexOf(endMarker, startIndex, StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, endIndex, $"Expected to find end marker '{endMarker}' after '{startMarker}'.");
+
+        return text[startIndex..(endIndex + endMarker.Length)];
     }
 
     private static string FindRepositoryRoot()

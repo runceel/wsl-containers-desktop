@@ -14,6 +14,61 @@ namespace WslContainersDesktop.Infrastructure.Tests.Clients;
 public sealed class WslcCliContainerRuntimeClientTests
 {
     [TestMethod]
+    public async Task RunContainerAsync_RequestHasAllOptions_CliArgumentsAreDetachedRunWithOptionsAndShellCommand()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, string.Empty, string.Empty) };
+        var sut = new WslcCliContainerRuntimeClient(runner);
+        var request = new ContainerRunRequest
+        {
+            ImageReference = "nginx:latest",
+            ContainerName = "web",
+            RemoveWhenStopped = true,
+            PortMappings = ["8080:80", "8443:443"],
+            EnvironmentVariables = ["FOO=bar", "BAZ=qux"],
+            Command = "echo \"hello world\"",
+        };
+
+        // Act
+        await sut.RunContainerAsync(request);
+
+        // Assert
+        CollectionAssert.AreEqual(
+            new[] { "run", "-d", "--rm", "--name", "web", "-p", "8080:80", "-p", "8443:443", "-e", "FOO=bar", "-e", "BAZ=qux", "nginx:latest", "/bin/sh", "-lc", "echo \"hello world\"" },
+            runner.Calls[0].ToList());
+    }
+
+    [TestMethod]
+    public async Task RunContainerAsync_CommandIsEmpty_CliArgumentsDoNotOverrideImageDefaultCommand()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, string.Empty, string.Empty) };
+        var sut = new WslcCliContainerRuntimeClient(runner);
+        var request = new ContainerRunRequest { ImageReference = "hello-world", Command = string.Empty };
+
+        // Act
+        await sut.RunContainerAsync(request);
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "run", "-d", "hello-world" }, runner.Calls[0].ToList());
+    }
+
+    [TestMethod]
+    public async Task RunContainerAsync_RemoveWhenStoppedIsFalse_DoesNotEmitRmFlag()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, string.Empty, string.Empty) };
+        var sut = new WslcCliContainerRuntimeClient(runner);
+        var request = new ContainerRunRequest { ImageReference = "hello-world", RemoveWhenStopped = false };
+
+        // Act
+        await sut.RunContainerAsync(request);
+
+        // Assert
+        CollectionAssert.DoesNotContain(runner.Calls[0].ToList(), "--rm");
+    }
+
+    [TestMethod]
     public async Task ListContainersAsync_CliReturnsContainers_MapsJsonToContainers()
     {
         // Arrange

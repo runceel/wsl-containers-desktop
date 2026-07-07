@@ -103,11 +103,12 @@
                         x:Name="LstContainers"
                         Grid.Row="1"
                         AutomationProperties.AutomationId="LstContainers"
+                        ItemContainerStyle="{StaticResource TableListViewItemStyle}"
                         ItemsSource="{x:Bind ViewModel.Containers, Mode=OneWay}"
                         SelectionMode="None">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="vm:ContainerRowViewModel">
-                                <Grid Padding="8" ColumnSpacing="12">
+                                <Grid Padding="12,8" ColumnSpacing="12" HorizontalAlignment="Stretch">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="260" />
                                         <ColumnDefinition Width="100" />

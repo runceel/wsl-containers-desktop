@@ -125,11 +125,12 @@
                         x:Name="LstVolumes"
                         Grid.Row="1"
                         AutomationProperties.AutomationId="LstVolumes"
+                        ItemContainerStyle="{StaticResource TableListViewItemStyle}"
                         ItemsSource="{x:Bind ViewModel.Volumes, Mode=OneWay}"
                         SelectionMode="None">
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="vm:VolumeRowViewModel">
-                                <Grid Padding="8" ColumnSpacing="12">
+                                <Grid Padding="12,8" ColumnSpacing="12" HorizontalAlignment="Stretch">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="220" />
                                         <ColumnDefinition Width="120" />

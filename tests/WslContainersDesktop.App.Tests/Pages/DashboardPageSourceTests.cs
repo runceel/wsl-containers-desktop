@@ -112,6 +112,28 @@ public sealed class DashboardPageSourceTests
     }
 
     [TestMethod]
+    public void DashboardPage_StatsListViewRowsStretchHorizontally()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\DashboardPage.xaml");
+        var themeResourcesText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Themes\AppThemeResources.xaml");
+        var statsListViewText = ExtractRegion(sourceText, "x:Name=\"LstDashboardStats\"", "</ListView>");
+        var statsRowTemplateText = ExtractRegion(statsListViewText, "x:DataType=\"vm:DashboardContainerStatsRowViewModel\"", "</DataTemplate>");
+
+        // Assert
+        StringAssert.Contains(themeResourcesText, "x:Key=\"TableListViewItemStyle\"");
+        StringAssert.Contains(themeResourcesText, "Property=\"HorizontalAlignment\" Value=\"Stretch\"");
+        StringAssert.Contains(themeResourcesText, "Property=\"HorizontalContentAlignment\" Value=\"Stretch\"");
+        StringAssert.Contains(themeResourcesText, "Property=\"Padding\" Value=\"0\"");
+        StringAssert.Contains(statsListViewText, "ItemContainerStyle=\"{StaticResource TableListViewItemStyle}\"");
+        StringAssert.Contains(statsRowTemplateText, "HorizontalAlignment=\"Stretch\"");
+        Assert.IsGreaterThanOrEqualTo(
+            2,
+            CountOccurrences(statsListViewText, "<ColumnDefinition Width=\"192\" />"),
+            "Expected the stats header and row to reserve the same fixed action-button column width.");
+    }
+
+    [TestMethod]
     public void DashboardPage_CodeBehindResolvesViewModelFromServices()
     {
         // Arrange
@@ -186,6 +208,17 @@ public sealed class DashboardPageSourceTests
         }
 
         return count;
+    }
+
+    private static string ExtractRegion(string text, string startMarker, string endMarker)
+    {
+        var startIndex = text.IndexOf(startMarker, StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, startIndex, $"Expected to find start marker '{startMarker}'.");
+
+        var endIndex = text.IndexOf(endMarker, startIndex, StringComparison.Ordinal);
+        Assert.IsGreaterThanOrEqualTo(0, endIndex, $"Expected to find end marker '{endMarker}' after '{startMarker}'.");
+
+        return text[startIndex..(endIndex + endMarker.Length)];
     }
 
     private static string ReadRepositorySourceFile(string relativePath)

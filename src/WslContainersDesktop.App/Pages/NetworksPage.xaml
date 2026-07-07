@@ -143,17 +143,12 @@
                             x:Name="LstNetworks"
                             Grid.Row="1"
                             AutomationProperties.AutomationId="LstNetworks"
+                            ItemContainerStyle="{StaticResource TableListViewItemStyle}"
                             ItemsSource="{x:Bind ViewModel.Networks, Mode=OneWay}"
                             SelectionMode="None">
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <!-- HorizontalContentAlignment="Stretch" lets each row fill the ListView width. -->
-                                    <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-                                </Style>
-                            </ListView.ItemContainerStyle>
                             <ListView.ItemTemplate>
                                 <DataTemplate x:DataType="vm:NetworkRowViewModel">
-                                    <Grid Padding="8" ColumnSpacing="12" HorizontalAlignment="Stretch">
+                                    <Grid Padding="12,8" ColumnSpacing="12" HorizontalAlignment="Stretch">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="180" />
                                             <ColumnDefinition Width="120" />

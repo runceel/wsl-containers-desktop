@@ -398,7 +398,7 @@ public sealed class DashboardViewModelTests
     {
         var h = CreateHarness();
         SeedAllSucceed(h);
-        var imagesVm = new ImagesViewModel(h.Image);
+        var imagesVm = new ImagesViewModel(h.Image, h.Container);
         var volumesVm = new VolumesViewModel(h.Volume);
         var networksVm = new NetworksViewModel(h.Network);
         var containersVm = h.Containers;

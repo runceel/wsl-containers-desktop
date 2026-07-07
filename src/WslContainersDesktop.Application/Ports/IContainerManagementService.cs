@@ -20,6 +20,13 @@ public interface IContainerManagementService
     Task<IReadOnlyList<ContainerResourceUsage>> GetStatsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// 指定したイメージから新しいコンテナを起動する。
+    /// </summary>
+    /// <param name="request">起動要求。</param>
+    /// <param name="cancellationToken">キャンセルトークン。</param>
+    Task RunAsync(ContainerRunRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// 指定したコンテナを起動する。停止中でない場合は
     /// <see cref="Exceptions.InvalidContainerOperationException"/> をスローする。
     /// </summary>

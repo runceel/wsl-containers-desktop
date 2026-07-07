@@ -205,6 +205,7 @@
                     <ListView
                         x:Name="LstDashboardStats"
                         AutomationProperties.AutomationId="LstDashboardStats"
+                        ItemContainerStyle="{StaticResource TableListViewItemStyle}"
                         ItemsSource="{x:Bind ViewModel.ContainerStats, Mode=OneWay}"
                         SelectionMode="None"
                         Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsStatsLoading), Mode=OneWay}">
@@ -215,7 +216,7 @@
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="120" />
                                         <ColumnDefinition Width="200" />
-                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="192" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock x:Uid="TxtDashboardStatsColumnName" Grid.Column="0" FontWeight="SemiBold" />
                                     <TextBlock x:Uid="TxtDashboardStatsColumnCpu" Grid.Column="1" FontWeight="SemiBold" />
@@ -225,17 +226,17 @@
                         </ListView.HeaderTemplate>
                         <ListView.ItemTemplate>
                             <DataTemplate x:DataType="vm:DashboardContainerStatsRowViewModel">
-                                <Grid Padding="8" ColumnSpacing="12">
+                                <Grid Padding="8" ColumnSpacing="12" HorizontalAlignment="Stretch">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="120" />
                                         <ColumnDefinition Width="200" />
-                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="192" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind Name}" />
                                     <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind CpuText}" />
                                     <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind MemoryText}" />
-                                    <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8">
+                                    <StackPanel Grid.Column="3" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
                                         <Button
                                             x:Uid="BtnDashboardStatsDetails"
                                             VerticalAlignment="Center"

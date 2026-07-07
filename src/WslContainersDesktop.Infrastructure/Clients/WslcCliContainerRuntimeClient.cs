@@ -87,6 +87,44 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
         return RunAsync(["pull", imageReference], cancellationToken);
     }
 
+    public Task RunContainerAsync(ContainerRunRequest request, CancellationToken cancellationToken = default)
+    {
+        var arguments = new List<string> { "run", "-d" };
+        if (request.RemoveWhenStopped)
+        {
+            arguments.Add("--rm");
+        }
+
+        if (request.ContainerName.Length > 0)
+        {
+            arguments.Add("--name");
+            arguments.Add(request.ContainerName);
+        }
+
+        foreach (var mapping in request.PortMappings)
+        {
+            arguments.Add("-p");
+            arguments.Add(mapping);
+        }
+
+        foreach (var variable in request.EnvironmentVariables)
+        {
+            arguments.Add("-e");
+            arguments.Add(variable);
+        }
+
+        arguments.Add(request.ImageReference);
+
+        if (request.Command.Length > 0)
+        {
+            arguments.Add("/bin/sh");
+            arguments.Add("-lc");
+            arguments.Add(request.Command);
+        }
+
+        return RunAsync(arguments, cancellationToken);
+    }
+
     public Task DeleteImageAsync(string imageId, CancellationToken cancellationToken = default)
     {
         return RunAsync(["image", "remove", imageId], cancellationToken);

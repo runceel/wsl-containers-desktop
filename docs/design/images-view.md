@@ -5,13 +5,16 @@
 ## 概要
 
 `ImagesViewModel`（`ViewModels/ImagesViewModel.cs`）は、ローカルイメージ一覧の取得、レジストリからの
-pull、不要イメージの削除を担うViewModel。Application層の`IImageManagementService`にのみ依存し、
-`wslc` CLIの具体的な呼び出し方法には依存しない。
+pull、不要イメージの削除、イメージからのコンテナー起動を担うViewModel。Application層の
+`IImageManagementService`と`IContainerManagementService`に依存し、`wslc` CLIの具体的な呼び出し方法には
+依存しない。
 
 ## 一覧UI
 
 - `ImagesPage`はローカルイメージ一覧を表示する。各行は`ImageRowViewModel`で、表示名、イメージID、
-  サイズ（バイト）、作成日時、削除操作を表示する。
+  サイズ（バイト）、作成日時、起動操作、削除操作を表示する。
+- 表形式の`ListView`は`TableListViewItemStyle`で行コンテンツを横方向いっぱいに広げ、ヘッダーGridと
+  行Gridの水平paddingを揃える。起動/削除のアクション列はヘッダーと行で同じ固定幅を予約する。
 - 表示名はDomain層の`ContainerImage.DisplayName`を使う。untaggedイメージは`<none>:<none>`として表示し、
   一覧・削除の対象に含める。
 - 作成日時は`DateTimeOffsetToLocalStringConverter`でローカル日時へ変換して表示する。
@@ -48,3 +51,18 @@ pull、不要イメージの削除を担うViewModel。Application層の`IImageM
 - 削除は`wslc image remove <image>`に委譲され、強制削除フラグは付けない。参照中イメージやランタイム不調は
   `IImageManagementService`からの例外としてPresentation層へ伝播し、`ErrorMessage`に表示する。
 - 削除失敗時は対象行を一覧に残し、`IsBusy`を解除する。
+
+## イメージからの起動操作
+
+- `ImagesPage`の起動ボタンは、`ContentDialog`でコンテナー名、停止時の自動削除、ポートマッピング、
+  環境変数、上書きコマンドを入力してから`ImagesViewModel.RunCommand`を実行する。
+- `RunAsync`はタグ付きイメージでは`repository:tag`を起動元イメージ参照として使い、repositoryまたはtagが
+  空・`<none>`の場合はイメージIDを使う。
+- コンテナー名、ポートマッピング、環境変数、コマンドはViewModelのダイアログ入力プロパティで保持する。
+  `RunAsync`は前後の空白を取り除き、CR/LFいずれの改行でも複数行入力を分割し、空行を除いたリストとして
+  `ContainerRunRequest`へ渡す。
+- 起動中は`IsRunningImage`を`true`にし、`RunCommand`の再実行を抑止する。成功時は`StatusMessage`に
+  `Container started.`を表示してRunダイアログ入力をクリアし、失敗時は入力値を保持したまま`ErrorMessage`に
+  失敗理由を表示する。
+- 新規コンテナー起動は`IContainerManagementService.RunAsync`に委譲する。`ContainerRunRequest`は
+  Application層のポート契約に含まれる要求DTOとして`WslContainersDesktop.Application.Ports`に置く。

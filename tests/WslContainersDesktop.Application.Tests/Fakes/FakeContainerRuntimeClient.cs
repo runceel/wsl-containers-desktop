@@ -80,8 +80,15 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
 
     public List<string> DeleteNetworkCalls { get; } = [];
 
+    public List<ContainerRunRequest> RunContainerCalls { get; } = [];
+
+    public int ListContainersCallCount { get; private set; }
+
+    public Exception? RunContainerException { get; set; }
+
     public Task<IReadOnlyList<Container>> ListContainersAsync(CancellationToken cancellationToken = default)
     {
+        ListContainersCallCount++;
         return Task.FromResult(Containers);
     }
 
@@ -267,6 +274,17 @@ internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
         if (DeleteNetworkException is not null)
         {
             throw DeleteNetworkException;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task RunContainerAsync(ContainerRunRequest request, CancellationToken cancellationToken = default)
+    {
+        RunContainerCalls.Add(request);
+        if (RunContainerException is not null)
+        {
+            throw RunContainerException;
         }
 
         return Task.CompletedTask;

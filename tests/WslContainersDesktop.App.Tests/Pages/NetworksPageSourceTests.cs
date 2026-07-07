@@ -38,8 +38,7 @@ public sealed class NetworksPageSourceTests
         var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\NetworksPage.xaml");
 
         // Assert
-        StringAssert.Contains(sourceText, "<ListView.ItemContainerStyle>");
-        StringAssert.Contains(sourceText, "HorizontalContentAlignment=\"Stretch\"");
+        StringAssert.Contains(sourceText, "ItemContainerStyle=\"{StaticResource TableListViewItemStyle}\"");
         StringAssert.Contains(sourceText, "HorizontalAlignment=\"Stretch\"");
     }
 

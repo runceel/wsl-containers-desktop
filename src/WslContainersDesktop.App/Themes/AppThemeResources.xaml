@@ -25,4 +25,9 @@
             <Thickness x:Key="WslContainersSurfaceBorderThickness">2</Thickness>
         </ResourceDictionary>
     </ResourceDictionary.ThemeDictionaries>
+    <Style x:Key="TableListViewItemStyle" TargetType="ListViewItem">
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Padding" Value="0" />
+    </Style>
 </ResourceDictionary>

@@ -62,6 +62,21 @@ public sealed partial class ImagesPage : Page
         }
     }
 
+    private async void BtnRunImage_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { CommandParameter: ImageRowViewModel row })
+        {
+            return;
+        }
+
+        RunImageDialog.XamlRoot = XamlRoot;
+        var result = await RunImageDialog.ShowAsync();
+        if (result == ContentDialogResult.Primary)
+        {
+            await ViewModel.RunCommand.ExecuteAsync(row);
+        }
+    }
+
     /// <summary>
     /// x:Bind用のbool→Visibility変換関数。値がtrueのとき表示する。
     /// </summary>
