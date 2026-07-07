@@ -121,7 +121,7 @@ public sealed class SettingsPageSourceTests
         StringAssert.Contains(xamlText, "x:Name=\"TxtAppVersionLabel\"");
         StringAssert.Contains(xamlText, "x:Uid=\"TxtAppVersionLabel\"");
         StringAssert.Contains(xamlText, "x:Name=\"TxtAppVersionValue\"");
-        StringAssert.Contains(xamlText, "Text=\"{x:Bind AppVersionText, Mode=OneWay}\"");
+        StringAssert.Contains(xamlText, "Text=\"{x:Bind AppVersionText, Mode=OneTime}\"");
         StringAssert.Contains(codeBehindText, "Package.Current.Id.Version");
         StringAssert.Contains(codeBehindText, "public string AppVersionText { get; }");
     }

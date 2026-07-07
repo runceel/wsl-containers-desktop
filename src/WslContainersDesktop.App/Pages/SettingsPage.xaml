@@ -73,7 +73,7 @@
                         <TextBlock
                             x:Name="TxtAppVersionValue"
                             VerticalAlignment="Center"
-                            Text="{x:Bind AppVersionText, Mode=OneWay}" />
+                            Text="{x:Bind AppVersionText, Mode=OneTime}" />
                     </StackPanel>
                 </StackPanel>
             </Border>
