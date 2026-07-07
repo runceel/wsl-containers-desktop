@@ -3,7 +3,7 @@
 > **最終確認日: 2026-07-03**（Microsoft Build 2026 発表直後の情報。**Public Preview** のため
 > 仕様は変わりやすい。実装前に必ず一次情報源または Microsoft Learn MCP で最新情報を確認すること）
 
-本アプリ（WSL Containers Desktop）は、この「WSL Containers」機能をGUIで管理するための
+本アプリ（Hakonexa - WSL Containers Manager）は、この「WSL Containers」機能をGUIで管理するための
 Docker Desktop相当のアプリである。つまり本アプリの Infrastructure層（[ADR-0005](../adr/0005-adopt-clean-architecture-layering.md)）は、
 ここに書かれている `wslc` CLI または WSL Container API のいずれか（両方）をラップして実装することになる。
 

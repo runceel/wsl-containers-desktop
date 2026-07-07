@@ -1,10 +1,12 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using System.Globalization;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using WslContainersDesktop_App.ViewModels;
+using Windows.ApplicationModel;
 using Windows.ApplicationModel.Resources;
 
 namespace WslContainersDesktop_App.Pages;
@@ -32,6 +34,15 @@ public sealed partial class SettingsPage : Page
     /// ページのViewModel。
     /// </summary>
     public SettingsViewModel ViewModel { get; }
+
+    /// <summary>
+    /// 表示用のアプリパッケージバージョン文字列。
+    /// </summary>
+    public string AppVersionText { get; } = FormatPackageVersion(
+        Package.Current.Id.Version.Major,
+        Package.Current.Id.Version.Minor,
+        Package.Current.Id.Version.Build,
+        Package.Current.Id.Version.Revision);
 
     private async void SettingsPage_Loaded(object sender, RoutedEventArgs e)
     {
@@ -70,4 +81,17 @@ public sealed partial class SettingsPage : Page
     /// <param name="value">変換元の値。</param>
     /// <returns>対応する <see cref="Visibility"/>。</returns>
     public Visibility ToVisibleWhenFalse(bool value) => value ? Visibility.Collapsed : Visibility.Visible;
+
+    /// <summary>
+    /// パッケージバージョンの4要素を表示用文字列に変換する。
+    /// </summary>
+    /// <param name="major">メジャーバージョン。</param>
+    /// <param name="minor">マイナーバージョン。</param>
+    /// <param name="build">ビルド番号。</param>
+    /// <param name="revision">リビジョン番号。</param>
+    /// <returns>表示用の4要素バージョン文字列。</returns>
+    public static string FormatPackageVersion(int major, int minor, int build, int revision)
+    {
+        return string.Format(CultureInfo.InvariantCulture, "{0}.{1}.{2}.{3}", major, minor, build, revision);
+    }
 }
