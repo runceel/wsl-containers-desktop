@@ -1,51 +1,69 @@
 # Hakonexa - WSL Containers Manager
 
-Hakonexa - WSL Containers Manager は、WSL (Windows Subsystem for Linux) 上のコンテナを管理するための
-WinUI 3 / .NET デスクトップアプリケーションです。Docker Desktop と同等の機能セット
-（コンテナ/イメージ/ボリューム/ネットワークの管理、ログ表示等）を目標としています。
+[日本語版 README](README.ja.md)
 
-## 現状
+> Note: Linked repository Markdown documents are currently mostly written in Japanese.
 
-Issue #3（土台: 空のWinUIウィンドウ起動）でプロジェクト本体（`.slnx`/各層の`.csproj`）を
-スキャフォールドし、`NavigationView`によるプレースホルダ画面切り替えとローカライズ基盤を実装済みです。
-実際のドメイン/ユースケースロジック（Domain/Application/Infrastructure層）はまだ空で、
-今後の機能実装で積み上げていきます。
+Hakonexa - WSL Containers Manager is a WinUI / .NET desktop application for managing
+containers on WSL (Windows Subsystem for Linux). It targets the new **WSL Containers**
+platform (`wslc` CLI / WSL Container API, Public Preview) and aims to provide a native
+Windows experience for day-to-day container, image, volume, network, log, shell, and WSL
+resource management.
 
-## 対象プラットフォーム: WSL Containers
+## Screenshot
 
-本アプリは Microsoft Build 2026 で発表されたばかりの **WSL Containers**（`wslc` CLI /
-WSL Container API, Public Preview）をGUIで管理するアプリです。仕様のサマリは
-[`docs/reference/wsl-containers-platform.md`](docs/reference/wsl-containers-platform.md)
-にまとめています（Public Preview中のため仕様が頻繁に変わる可能性があります）。
+![Hakonexa dashboard screenshot](docs/assets/screenshots/hakonexa-dashboard.png)
 
-## アーキテクチャ
+## Current status
 
-クリーンアーキテクチャを意識した4層構成（Domain / Application / Infrastructure /
-Presentation）を採用しています。詳細は
-[`docs/design/architecture-overview.md`](docs/design/architecture-overview.md)、
-採用理由は [ADR-0005](docs/adr/0005-adopt-clean-architecture-layering.md) を参照してください。
+The application is no longer just a scaffold. The solution contains the clean architecture
+projects and implements the main WinUI shell plus management screens for:
 
-## ドキュメント
+- dashboard summary and running container resource usage
+- container list, start, stop, restart, delete, details, logs, and interactive exec shell
+- image list, pull, run, and remove
+- volume list, create, and remove
+- network list, create, and remove
+- settings for WSL integration status and WSL resource limits
 
-| ディレクトリ | 内容 |
+The managed platform, WSL Containers, is still in Public Preview, so runtime behavior and
+APIs may change. See [`docs/reference/wsl-containers-platform.md`](docs/reference/wsl-containers-platform.md)
+for the current platform notes and primary references.
+
+## Architecture
+
+The repository follows a clean architecture-oriented four-layer structure:
+
+| Layer | Responsibility |
 |---|---|
-| [`docs/specs/`](docs/specs/README.md) | 個別機能の仕様書（何を作るか） |
-| [`docs/design/`](docs/design/README.md) | 現在の設計の最新スナップショット |
-| [`docs/adr/`](docs/adr/README.md) | 設計判断・プロセス決定の記録 (Architecture Decision Record) |
-| [`docs/reference/`](docs/reference/README.md) | WSL Containers等、外部プラットフォームの仕様参照資料 |
+| Domain | Entities, value objects, and domain rules |
+| Application | Use cases and interfaces for external dependencies |
+| Infrastructure | `wslc` CLI integration and concrete system I/O |
+| Presentation | WinUI views, view models, navigation, localization, and DI composition |
 
-## AIコーディングエージェントでの開発
+See [`docs/design/architecture-overview.md`](docs/design/architecture-overview.md) for the
+current architecture snapshot and [ADR-0005](docs/adr/0005-adopt-clean-architecture-layering.md)
+for the layering decision.
 
-本リポジトリは GitHub Copilot CLI 等のAIコーディングエージェントを用いた開発を前提としています。
-エージェント向けの運用ルール（開発フロー、TDD、ADR運用、モデルルーティング等）は
-[`AGENTS.md`](AGENTS.md) にまとめています。人間のコントリビューターが同じ開発フローに
-従う場合も、そちらを参照してください。
+## Documentation
 
-## セットアップ（Copilot CLIでの開発に必要なplugin）
+| Directory | Contents |
+|---|---|
+| [`docs/specs/`](docs/specs/README.md) | Feature specifications: what the app should do |
+| [`docs/design/`](docs/design/README.md) | Current design snapshots |
+| [`docs/adr/`](docs/adr/README.md) | Architecture Decision Records |
+| [`docs/reference/`](docs/reference/README.md) | External platform references, including WSL Containers |
 
-このリポジトリのCopilot運用には、以下のplugin/marketplaceが必要です。
-未導入の環境では以下を実行してください（Copilot CLIのユーザー設定に対する変更のため、
-リポジトリのクローンだけでは再現されません）。
+## Development with AI coding agents
+
+This repository is designed to be developed with GitHub Copilot CLI and other AI coding
+agents. Agent operating rules, including the required feature workflow, TDD policy, ADR
+handling, and model routing, are documented in [`AGENTS.md`](AGENTS.md).
+
+## Copilot CLI plugin setup
+
+The repository workflow expects the following Copilot CLI plugins/marketplaces. These are
+user-level Copilot CLI settings, so they are not restored automatically by cloning the repo.
 
 ```powershell
 copilot plugin marketplace add dotnet/skills
@@ -56,12 +74,8 @@ copilot plugin install dotnet-nuget@dotnet-agent-skills
 copilot plugin install microsoftdocs/mcp
 ```
 
-> 複数の `copilot plugin install` を同時並行で実行すると、marketplaceのgit clone処理が
-> 競合し破損することがあります。**必ず1つずつ順番に**実行してください。
->
-> `microsoftdocs/mcp` はGitHubリポジトリからの直接インストール（`owner/repo`形式）です。
-> CLIから「Direct plugin installs (repos, URLs, local paths) are deprecated」という警告が
-> 出る場合がありますが、本執筆時点ではこの形式のみが利用可能です。marketplace経由の
-> インストール方法が提供されたら、そちらに切り替えてください。
+Run the `copilot plugin install` commands one at a time. Running several installs in
+parallel can corrupt the marketplace clone used by Copilot CLI.
 
-`winui`/`dotnet`（awesome-copilot marketplace）は個々の開発環境で別途導入済みである前提です。
+The `winui` and `dotnet` plugins from the awesome-copilot marketplace are expected to be
+installed separately in each development environment.
