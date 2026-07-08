@@ -240,13 +240,13 @@
                                         <Button
                                             x:Uid="BtnDashboardStatsDetails"
                                             VerticalAlignment="Center"
-                                            AutomationProperties.AutomationId="{x:Bind ContainerId, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDashboardStatsDetails}"
+                                            AutomationProperties.AutomationId="{x:Bind ContainerId, Mode=OneTime, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDashboardStatsDetails}"
                                             Click="BtnStatsDetails_Click"
                                             CommandParameter="{x:Bind}" />
                                         <Button
                                             x:Uid="BtnDashboardStatsLogs"
                                             VerticalAlignment="Center"
-                                            AutomationProperties.AutomationId="{x:Bind ContainerId, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDashboardStatsLogs}"
+                                            AutomationProperties.AutomationId="{x:Bind ContainerId, Mode=OneTime, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnDashboardStatsLogs}"
                                             Click="BtnStatsLogs_Click"
                                             CommandParameter="{x:Bind}" />
                                     </StackPanel>
