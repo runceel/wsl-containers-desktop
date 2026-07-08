@@ -55,6 +55,168 @@ function New-RandomPassword {
     return $builder.ToString()
 }
 
+function Assert-PackageImagesResolve {
+    <#
+      .SYNOPSIS
+        Fails the build if any image referenced by the produced package's
+        AppxManifest.xml cannot be resolved to a physically-present file --
+        exactly the check Microsoft Store performs during ingestion, whose
+        failure surfaces as "Package acceptance validation error: The following
+        image(s) specified in the appxManifest.xml ... were not found".
+
+      .DESCRIPTION
+        The manifest references logo / tile / splash images by *logical* path
+        (e.g. Assets\StoreLogo.png). The Store resolves each via MRT
+        (resources.pri) to its scale/targetsize-qualified physical files and
+        confirms those files exist inside the package. This function reproduces
+        that resolution locally so a broken package is caught before upload
+        instead of after a slow Partner Center round-trip:
+          1. For a .msixbundle, inspect every inner architecture .msix; for a
+             plain .msix, inspect that single package.
+          2. Extract the package (it is a zip) and collect every manifest value
+             that ends in an image extension.
+          3. For each image, resolve through resources.pri: every candidate file
+             the PRI maps the logical name to must exist. If the image is not
+             indexed in the PRI, fall back to a literal file-existence check.
+          4. Throw with the offending package + image list if anything is
+             unresolved.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$PackagePath
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    $imageExtensions = @('.png', '.jpg', '.jpeg', '.gif', '.ico')
+
+    $workRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("msix-imgcheck-" + [System.Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Force -Path $workRoot | Out-Null
+    try {
+        # Resolve the set of inner .msix packages to inspect.
+        $innerPackages = [System.Collections.Generic.List[string]]::new()
+        $extension = [System.IO.Path]::GetExtension($PackagePath)
+        if ($extension -ieq '.msixbundle' -or $extension -ieq '.appxbundle') {
+            $bundleDir = Join-Path $workRoot 'bundle'
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($PackagePath, $bundleDir)
+            Get-ChildItem -LiteralPath $bundleDir -Filter '*.msix' -File |
+                ForEach-Object { $innerPackages.Add($_.FullName) }
+            if ($innerPackages.Count -eq 0) {
+                throw "No inner .msix packages were found inside bundle '$PackagePath'."
+            }
+        } else {
+            $innerPackages.Add($PackagePath)
+        }
+
+        $overallErrors = [System.Collections.Generic.List[string]]::new()
+
+        foreach ($pkg in $innerPackages) {
+            $pkgName = Split-Path -Leaf $pkg
+            $pkgDir = Join-Path $workRoot ([System.IO.Path]::GetFileNameWithoutExtension($pkg))
+            [System.IO.Compression.ZipFile]::ExtractToDirectory($pkg, $pkgDir)
+
+            $manifestPath = Join-Path $pkgDir 'AppxManifest.xml'
+            if (-not (Test-Path $manifestPath)) {
+                $overallErrors.Add("[$pkgName] AppxManifest.xml is missing from the package.")
+                continue
+            }
+
+            # Collect every manifest value (element text or attribute) that
+            # references an image file. Scanning generically avoids hard-coding
+            # the manifest schema, so new tile/badge images are covered too.
+            [xml]$pkgManifest = Get-Content -LiteralPath $manifestPath -Raw
+            $imageRefs = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+            foreach ($node in $pkgManifest.SelectNodes('//*')) {
+                if ($node.ChildNodes.Count -eq 1 -and $node.FirstChild.NodeType -eq [System.Xml.XmlNodeType]::Text) {
+                    $val = $node.InnerText.Trim()
+                    if ($val -and ($imageExtensions -contains ([System.IO.Path]::GetExtension($val)).ToLowerInvariant())) {
+                        [void]$imageRefs.Add($val)
+                    }
+                }
+                foreach ($attr in $node.Attributes) {
+                    $val = $attr.Value.Trim()
+                    if ($val -and ($imageExtensions -contains ([System.IO.Path]::GetExtension($val)).ToLowerInvariant())) {
+                        [void]$imageRefs.Add($val)
+                    }
+                }
+            }
+
+            if ($imageRefs.Count -eq 0) {
+                continue
+            }
+
+            # Dump resources.pri (if present) to resolve MRT logical -> physical.
+            $namedResources = $null
+            $priPath = Join-Path $pkgDir 'resources.pri'
+            if (Test-Path $priPath) {
+                $priDumpPath = Join-Path $pkgDir '_imgcheck_pri_dump.xml'
+                & winapp tool makepri dump /if $priPath /o /of $priDumpPath *> $null
+                if (($LASTEXITCODE -eq 0) -and (Test-Path $priDumpPath)) {
+                    [xml]$priXml = Get-Content -LiteralPath $priDumpPath -Raw
+                    $namedResources = $priXml.SelectNodes('//NamedResource')
+                }
+            }
+
+            $missingForPackage = [System.Collections.Generic.List[string]]::new()
+            foreach ($ref in $imageRefs) {
+                $logicalForward = ($ref -replace '\\', '/')
+                $resolved = $false
+
+                if ($namedResources) {
+                    $match = $null
+                    foreach ($nr in $namedResources) {
+                        if ($nr.uri -and ($nr.uri -imatch ('/Files/' + [regex]::Escape($logicalForward) + '$'))) {
+                            $match = $nr
+                            break
+                        }
+                    }
+                    if ($match) {
+                        $candidateValues = @($match.Candidate | ForEach-Object { $_.Value } | Where-Object { $_ })
+                        if ($candidateValues.Count -gt 0) {
+                            $missingCandidates = @()
+                            foreach ($cv in $candidateValues) {
+                                $candidatePath = Join-Path $pkgDir ($cv -replace '\\', '/')
+                                if (-not (Test-Path -LiteralPath $candidatePath)) {
+                                    $missingCandidates += $cv
+                                }
+                            }
+                            $resolved = $true  # image is accounted for via the PRI
+                            if ($missingCandidates.Count -gt 0) {
+                                $missingForPackage.Add("$ref (resources.pri maps it to missing file(s): $($missingCandidates -join ', '))")
+                            }
+                        }
+                    }
+                }
+
+                if (-not $resolved) {
+                    # Not indexed in the PRI: require the literal file to exist.
+                    $literalPath = Join-Path $pkgDir $logicalForward
+                    if (-not (Test-Path -LiteralPath $literalPath)) {
+                        $missingForPackage.Add("$ref (no resources.pri entry and no literal file in package)")
+                    }
+                }
+            }
+
+            if ($missingForPackage.Count -gt 0) {
+                $overallErrors.Add("[$pkgName] unresolved manifest image(s):`n      - " + ($missingForPackage -join "`n      - "))
+            } else {
+                Write-Host "    [$pkgName] all $($imageRefs.Count) manifest image(s) resolve to present files."
+            }
+        }
+
+        if ($overallErrors.Count -gt 0) {
+            throw ("Store image validation FAILED for '$([System.IO.Path]::GetFileName($PackagePath))'. " +
+                "Microsoft Store would reject this package with 'image(s) ... were not found'.`n" +
+                ($overallErrors -join "`n") +
+                "`n`nEnsure the manifest's image assets and their scale-qualified variants are packaged " +
+                "(Content items in WslContainersDesktop.App.csproj must include Assets\*.png with " +
+                "CopyToPublishDirectory=PreserveNewest).")
+        }
+    }
+    finally {
+        Remove-Item -LiteralPath $workRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 # ---------------------------------------------------------------------------
 # Resolve paths
 # ---------------------------------------------------------------------------
@@ -238,6 +400,17 @@ if (-not (Test-Path $packageOut)) {
 
 $packageSizeMB = [math]::Round((Get-Item $packageOut).Length / 1MB, 2)
 Write-Host "    Produced $packageFileName ($packageSizeMB MB)"
+
+# ---------------------------------------------------------------------------
+# Validate that every manifest-referenced image resolves inside the package
+# BEFORE wrapping/uploading. This reproduces the Microsoft Store ingestion
+# check whose failure reads "image(s) ... were not found", converting a slow
+# Partner Center rejection into an immediate, local, actionable error.
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "==> Validating manifest image assets resolve inside the package" -ForegroundColor Cyan
+Assert-PackageImagesResolve -PackagePath $packageOut
+Write-Host "    Image validation passed."
 
 # ---------------------------------------------------------------------------
 # Wrap into .msixupload (a zip containing the bundle/package at the root)
