@@ -53,6 +53,7 @@ for the layering decision.
 | [`docs/design/`](docs/design/README.md) | Current design snapshots |
 | [`docs/adr/`](docs/adr/README.md) | Architecture Decision Records |
 | [`docs/reference/`](docs/reference/README.md) | External platform references, including WSL Containers |
+| [`docs/privacy-policy.md`](docs/privacy-policy.md) | Privacy policy for Microsoft Store submission |
 
 ## Development with AI coding agents
 
