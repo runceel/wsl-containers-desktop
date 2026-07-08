@@ -7,6 +7,9 @@ WinUI / .NET デスクトップアプリケーションです。新しい **WSL 
 （`wslc` CLI / WSL Container API, Public Preview）を対象に、コンテナ、イメージ、ボリューム、
 ネットワーク、ログ、シェル、WSLリソース設定をWindowsネイティブのUIから扱える体験を目指しています。
 
+また、本リポジトリは .NET の Agents skill と WinUI の Agents skill を組み合わせて、GitHub Copilot app
+で実際のデスクトップアプリを開発する実験的なプロジェクトでもあります。
+
 ## スクリーンショット
 
 ![Hakonexa ダッシュボードのスクリーンショット](docs/assets/screenshots/hakonexa-dashboard.png)

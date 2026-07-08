@@ -10,6 +10,9 @@ platform (`wslc` CLI / WSL Container API, Public Preview) and aims to provide a 
 Windows experience for day-to-day container, image, volume, network, log, shell, and WSL
 resource management.
 
+This repository is also a small experiment in using the combination of .NET Agents skills and
+WinUI Agents skills to build a real desktop application with the GitHub Copilot app.
+
 ## Screenshot
 
 ![Hakonexa dashboard screenshot](docs/assets/screenshots/hakonexa-dashboard.png)
