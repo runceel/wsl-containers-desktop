@@ -51,6 +51,7 @@ WinUI / .NET デスクトップアプリケーションです。新しい **WSL 
 | [`docs/design/`](docs/design/README.md) | 現在の設計の最新スナップショット |
 | [`docs/adr/`](docs/adr/README.md) | 設計判断・プロセス決定の記録 (Architecture Decision Record) |
 | [`docs/reference/`](docs/reference/README.md) | WSL Containers等、外部プラットフォームの仕様参照資料 |
+| [`docs/privacy-policy.md`](docs/privacy-policy.md) | Microsoft Store提出用のプライバシーポリシー |
 
 ## AIコーディングエージェントでの開発
 
