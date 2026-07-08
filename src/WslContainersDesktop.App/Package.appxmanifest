@@ -8,15 +8,15 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="4F24CC3B-CE1C-4B87-92A5-48C0A3EB5A98"
-    Publisher="CN=AppPublisher"
+    Name="45014okazuki.Hakonexa-WSLContainersManager"
+    Publisher="CN=57A8C5FA-395A-4109-91A0-CF1B93556B5D"
     Version="1.0.0.0" />
 
   <mp:PhoneIdentity PhoneProductId="4F24CC3B-CE1C-4B87-92A5-48C0A3EB5A98" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>ms-resource:AppDisplayName</DisplayName>
-    <PublisherDisplayName>AppPublisher</PublisherDisplayName>
+    <PublisherDisplayName>okazuki</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
