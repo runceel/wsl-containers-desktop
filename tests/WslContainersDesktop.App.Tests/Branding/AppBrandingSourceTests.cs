@@ -8,6 +8,9 @@ namespace WslContainersDesktop_App_Tests.Branding;
 public sealed class AppBrandingSourceTests
 {
     private const string ExpectedAppName = "Hakonexa - WSL Containers Manager";
+    private const string ExpectedPackageIdentityName = "45014okazuki.Hakonexa-WSLContainersManager";
+    private const string ExpectedPackageIdentityPublisher = "CN=57A8C5FA-395A-4109-91A0-CF1B93556B5D";
+    private const string ExpectedPublisherDisplayName = "okazuki";
     private const string ExpectedSettingsPurpose = "Manage WSL Containers from a native Windows desktop app.";
 
     [TestMethod]
@@ -58,6 +61,27 @@ public sealed class AppBrandingSourceTests
         StringAssert.Contains(manifestText, "<DisplayName>ms-resource:AppDisplayName</DisplayName>");
         StringAssert.Contains(manifestText, "DisplayName=\"ms-resource:AppDisplayName\"");
         StringAssert.Contains(manifestText, "Description=\"ms-resource:AppDescription\"");
+    }
+
+    [TestMethod]
+    public void AppBranding_Manifest_UsesStorePackageIdentityValues()
+    {
+        // Arrange
+        var manifestDocument = XDocument.Parse(ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Package.appxmanifest"));
+        XNamespace manifestNamespace = "http://schemas.microsoft.com/appx/manifest/foundation/windows10";
+
+        // Act
+        var identityElement = manifestDocument.Root?.Element(manifestNamespace + "Identity");
+        var publisherDisplayNameElement = manifestDocument.Root?
+            .Element(manifestNamespace + "Properties")?
+            .Element(manifestNamespace + "PublisherDisplayName");
+
+        // Assert
+        Assert.IsNotNull(identityElement, "Expected the app package manifest to contain an Identity element.");
+        Assert.AreEqual(ExpectedPackageIdentityName, (string?)identityElement!.Attribute("Name"));
+        Assert.AreEqual(ExpectedPackageIdentityPublisher, (string?)identityElement.Attribute("Publisher"));
+        Assert.IsNotNull(publisherDisplayNameElement, "Expected the app package manifest to contain a PublisherDisplayName element.");
+        Assert.AreEqual(ExpectedPublisherDisplayName, publisherDisplayNameElement!.Value);
     }
 
     [TestMethod]
