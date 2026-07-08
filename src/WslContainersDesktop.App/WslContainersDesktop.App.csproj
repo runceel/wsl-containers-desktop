@@ -26,9 +26,17 @@
     <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
   </PropertyGroup>
 
+  <!--
+    dotnet publish -p:GenerateAppxPackageOnBuild=false (winapp CLIによる
+    パッケージング用にMSIXの単一プロジェクトパッケージングを無効化して
+    publishする場合)では、Content項目のペイロードコピーはMSIXパッケージング
+    専用ターゲット経由でしか行われず、通常のpublish出力コピーは発生しない。
+    CopyToPublishDirectoryを明示することで、GenerateAppxPackageOnBuildの
+    値に関わらずAssetsがpublish出力へ確実にコピーされるようにする。
+  -->
   <ItemGroup>
-    <Content Include="Assets\*.png" />
-    <Content Include="Assets\AppIcon.ico" />
+    <Content Include="Assets\*.png" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Assets\AppIcon.ico" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
