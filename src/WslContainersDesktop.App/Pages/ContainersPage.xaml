@@ -279,6 +279,7 @@
                     x:Name="TxtShellStatus"
                     Grid.Row="2"
                     Text="{x:Bind ViewModel.ShellStatusMessage, Mode=OneWay}"
+                    TextWrapping="WrapWholeWords"
                     Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsShellStatusVisible), Mode=OneWay}" />
 
                 <ListView
@@ -286,7 +287,20 @@
                     Grid.Row="3"
                     AutomationProperties.AutomationId="LstShellOutput"
                     ItemsSource="{x:Bind ViewModel.ShellOutput, Mode=OneWay}"
-                    SelectionMode="None" />
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    ScrollViewer.HorizontalScrollMode="Enabled"
+                    SelectionMode="None">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Left" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{x:Bind}" TextWrapping="NoWrap" />
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
 
                 <Grid Grid.Row="4" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
@@ -381,6 +395,7 @@
                     x:Name="TxtLogStatus"
                     Grid.Row="2"
                     Text="{x:Bind ViewModel.LogStatusMessage, Mode=OneWay}"
+                    TextWrapping="WrapWholeWords"
                     Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsLogStatusVisible), Mode=OneWay}" />
 
                 <Grid Grid.Row="3">
@@ -388,6 +403,8 @@
                         x:Name="LstLogs"
                         AutomationProperties.AutomationId="LstLogs"
                         ItemsSource="{x:Bind ViewModel.LogLines, Mode=OneWay}"
+                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                        ScrollViewer.HorizontalScrollMode="Enabled"
                         SelectionMode="None"
                         Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsLogEmpty), Mode=OneWay}">
                         <!--
@@ -400,6 +417,16 @@
                             スクロールして読んでいる場合は追従しない」挙動をWinUI自身が保証するため、
                             ScrollViewerを自前で探索・監視するコードは不要になる。
                         -->
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Left" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock Text="{x:Bind}" TextWrapping="NoWrap" />
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
                         <ListView.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <ItemsStackPanel ItemsUpdatingScrollMode="KeepLastItemInView" />
