@@ -1,6 +1,7 @@
 // Copyright (c) Microsoft Corporation.
 // Licensed under the MIT License.
 
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using WslContainersDesktop_App.ViewModels;
 
@@ -12,9 +13,10 @@ namespace WslContainersDesktop_App.Windows;
 /// 同期して表示される(状態を複製しない)。
 /// </summary>
 /// <remarks>
-/// タイトルバーの閉じるボタンでこのウィンドウを閉じても、ログ追跡自体は停止しない
-/// (ログ追跡の停止は本ウィンドウ・小さいログパネルどちらからでも<see cref="ContainersViewModel.CloseLogsCommand"/>
-/// で行う。ウィンドウを閉じる操作とセッションを閉じる操作は意図的に分離している)。
+/// タイトルバーの閉じるボタン・ウィンドウ内のCloseボタンのどちらでこのウィンドウを閉じても、
+/// ログ追跡自体は停止しない(このウィンドウを閉じる操作は「このウィンドウを閉じるだけ」であり、
+/// ログ追跡の停止とは意図的に分離している)。ログ追跡を停止するには、小さいログパネル側の
+/// <see cref="ContainersViewModel.CloseLogsCommand"/>に配線されたCloseボタンを使う。
 /// </remarks>
 public sealed partial class LogsWindow : Window
 {
@@ -28,6 +30,12 @@ public sealed partial class LogsWindow : Window
         InitializeComponent();
 
         Title = new global::Windows.ApplicationModel.Resources.ResourceLoader().GetString("LogsWindow.Title");
+
+        // MainWindowと同じ、アプリアイコン付きのカスタムTitleBarをTall高さで表示する。
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(LogsWindowTitleBar);
+        AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+        AppWindow.SetIcon("Assets/AppIcon.ico");
 
         // DPIスケールはXamlRootが確定するActivated後でないと取得できないため、初回のみここでリサイズする。
         Activated += LogsWindow_Activated;
@@ -43,6 +51,14 @@ public sealed partial class LogsWindow : Window
         AppWindow.Resize(new global::Windows.Graphics.SizeInt32(
             (int)(DefaultWidthInDips * scale),
             (int)(DefaultHeightInDips * scale)));
+    }
+
+    /// <summary>
+    /// Closeボタン押下時のハンドラ。ログ追跡は停止せず、このウィンドウを閉じるだけにする。
+    /// </summary>
+    private void BtnCloseLogs_Click(object sender, RoutedEventArgs e)
+    {
+        Close();
     }
 
     /// <summary>

@@ -11,7 +11,23 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid Padding="24,16,24,16" RowSpacing="12">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TitleBar
+            x:Name="ShellWindowTitleBar"
+            x:Uid="ShellWindowTitleBar"
+            IsBackButtonVisible="False"
+            IsPaneToggleButtonVisible="False">
+            <TitleBar.IconSource>
+                <ImageIconSource ImageSource="Assets/AppIcon.ico" />
+            </TitleBar.IconSource>
+        </TitleBar>
+
+        <Grid Grid.Row="1" Padding="24,16,24,16" RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -68,7 +84,8 @@
                 x:Uid="BtnCloseShell"
                 VerticalAlignment="Bottom"
                 AutomationProperties.AutomationId="ShellWindow_BtnCloseShell"
-                Command="{x:Bind ViewModel.CloseShellCommand}" />
+                Click="BtnCloseShell_Click" />
+        </Grid>
         </Grid>
     </Grid>
 </Window>

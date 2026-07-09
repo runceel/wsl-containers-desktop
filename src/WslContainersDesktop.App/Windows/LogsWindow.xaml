@@ -11,7 +11,23 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <Grid Padding="24,16,24,16" RowSpacing="12">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TitleBar
+            x:Name="LogsWindowTitleBar"
+            x:Uid="LogsWindowTitleBar"
+            IsBackButtonVisible="False"
+            IsPaneToggleButtonVisible="False">
+            <TitleBar.IconSource>
+                <ImageIconSource ImageSource="Assets/AppIcon.ico" />
+            </TitleBar.IconSource>
+        </TitleBar>
+
+        <Grid Grid.Row="1" Padding="24,16,24,16" RowSpacing="12">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -52,7 +68,7 @@
                 Grid.Column="3"
                 x:Uid="BtnCloseLogs"
                 AutomationProperties.AutomationId="LogsWindow_BtnCloseLogs"
-                Command="{x:Bind ViewModel.CloseLogsCommand}" />
+                Click="BtnCloseLogs_Click" />
         </Grid>
 
         <InfoBar
@@ -95,5 +111,6 @@
             HorizontalAlignment="Center"
             VerticalAlignment="Center"
             Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsLogEmpty), Mode=OneWay}" />
+        </Grid>
     </Grid>
 </Window>

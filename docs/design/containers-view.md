@@ -197,9 +197,15 @@
     両方を同時に表示して入力すると干渉し得る。
   - ウィンドウサイズは`Activated`イベント時に取得した`XamlRoot.RasterizationScale`を用いた近似的な
     DPI考慮のみ（1000x700 DIPs相当）で、モニター間移動時のDPI変化への追従までは行わない。
-- ポップアウト側にもログ用のPause/Resume/Clear/Close、シェル用のコマンド入力・Send・Closeを
-  再配置しており、ユーザーが`ContainersPage`から離れてポップアウトだけが残っている状態でも
-  セッションを操作・終了できる。ただし、ウィンドウのタイトルバーの閉じるボタン（×）はウィンドウを
-  閉じるだけで、ログ追跡やシェル接続そのものは停止しない（停止するには各ウィンドウ内の
-  `CloseLogsCommand`/`CloseShellCommand`を使う）。ウィンドウを閉じる操作とセッションを終了する操作は
-  意図的に分離している。
+- ポップアウト側にもログ用のPause/Resume/Clear、シェル用のコマンド入力・Sendを再配置しており、
+  ユーザーが`ContainersPage`から離れてポップアウトだけが残っている状態でもセッションを操作できる。
+  各ウィンドウ内の`Close`ボタン（`BtnCloseLogs`/`BtnCloseShell`）およびタイトルバーの閉じるボタン
+  （×）は、どちらも**このウィンドウを閉じるだけ**で、ログ追跡やシェル接続そのものは停止しない。
+  ログ追跡・シェル接続を終了するには、小さい補助ペイン側の`CloseLogsCommand`/`CloseShellCommand`
+  に配線されたCloseボタンを使う。ウィンドウを閉じる操作とセッションを終了する操作は意図的に
+  分離している（ポップアウトを閉じても小さい補助ペインは影響を受けず動作し続ける）。
+- `LogsWindow`/`ShellWindow`のタイトルバーは`MainWindow`と同じルック＆フィールにしている。
+  `ExtendsContentIntoTitleBar = true`とアプリアイコン付きの`TitleBar`コントロール
+  （`IsPaneToggleButtonVisible="False"`、`TitleBarHeightOption.Tall`）を各ウィンドウに配置し、
+  `MainWindow`のカスタムタイトルバーと視覚的に統一している（ナビゲーションペインを持たないため
+  ペイントグルボタンのみ非表示にしている）。

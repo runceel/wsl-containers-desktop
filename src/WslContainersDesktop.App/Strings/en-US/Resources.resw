@@ -303,6 +303,12 @@
   <data name="ShellWindow.Title" xml:space="preserve">
     <value>Container shell</value>
   </data>
+  <data name="LogsWindowTitleBar.Title" xml:space="preserve">
+    <value>Container logs</value>
+  </data>
+  <data name="ShellWindowTitleBar.Title" xml:space="preserve">
+    <value>Container shell</value>
+  </data>
   <data name="ImagesPageTitle.Text" xml:space="preserve">
     <value>Images</value>
   </data>
