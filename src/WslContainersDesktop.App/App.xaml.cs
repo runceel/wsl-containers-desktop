@@ -13,6 +13,7 @@ using WslContainersDesktop.Infrastructure.Clients;
 using WslContainersDesktop.Infrastructure.Settings;
 using WslContainersDesktop.Infrastructure.Wsl;
 using WslContainersDesktop_App.ViewModels;
+using WslContainersDesktop_App.Windows;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -74,6 +75,10 @@ public partial class App : Application
         services.AddSingleton<VolumesViewModel>();
         services.AddSingleton<NetworksViewModel>();
         services.AddSingleton<SettingsViewModel>();
+
+        // Logs/Shellパネルのポップアウトウィンドウは、ContainersPageがNavigateのたびに
+        // 作り直されても状態を維持できるよう、アプリケーションライフタイムのSingletonとする。
+        services.AddSingleton<ContainerAuxiliaryWindowManager>();
 
         return services.BuildServiceProvider();
     }

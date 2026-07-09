@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using WslContainersDesktop_App.ViewModels;
+using WslContainersDesktop_App.Windows;
 using Windows.ApplicationModel.Resources;
 
 namespace WslContainersDesktop_App.Pages;
@@ -12,12 +13,17 @@ namespace WslContainersDesktop_App.Pages;
 public sealed partial class ContainersPage : Page
 {
     private readonly ResourceLoader _resourceLoader = new();
+    private readonly ContainerAuxiliaryWindowManager _windowManager;
 
     public ContainersPage()
     {
         // Frame.Navigate(Type)によるページ遷移はパラメーターレスコンストラクタを要求するため、
         // ADR-0010に基づきCompositionRoot(App)のServiceProvider経由でViewModelを解決する。
         ViewModel = ((App)Application.Current).Services.GetRequiredService<ContainersViewModel>();
+
+        // ページはNavigateのたびに作り直されるため、ポップアウトウィンドウの参照はページの
+        // フィールドではなくDIのSingletonである_windowManagerが保持し続ける。
+        _windowManager = ((App)Application.Current).Services.GetRequiredService<ContainerAuxiliaryWindowManager>();
 
         InitializeComponent();
 
@@ -105,6 +111,16 @@ public sealed partial class ContainersPage : Page
         {
             await ViewModel.RestartCommand.ExecuteAsync(row);
         }
+    }
+
+    private void BtnOpenLogsWindow_Click(object sender, RoutedEventArgs e)
+    {
+        _windowManager.ShowLogsWindow();
+    }
+
+    private void BtnOpenShellWindow_Click(object sender, RoutedEventArgs e)
+    {
+        _windowManager.ShowShellWindow();
     }
 
     private static ContainerRowViewModel? GetContainerRow(object sender)

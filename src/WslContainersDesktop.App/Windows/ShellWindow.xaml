@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Window
+    x:Class="WslContainersDesktop_App.Windows.ShellWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:WslContainersDesktop_App.Windows"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid Padding="24,16,24,16" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="TxtShellPanelTitle" Grid.Row="0" x:Uid="TxtShellPanelTitle" Style="{StaticResource SubtitleTextBlockStyle}" />
+
+        <InfoBar
+            x:Name="InfoBarShellError"
+            Grid.Row="1"
+            Severity="Error"
+            IsClosable="False"
+            IsOpen="{x:Bind ViewModel.IsShellError, Mode=OneWay}"
+            Message="{x:Bind ViewModel.ShellStatusMessage, Mode=OneWay}" />
+
+        <TextBlock
+            x:Name="TxtShellStatus"
+            Grid.Row="2"
+            Text="{x:Bind ViewModel.ShellStatusMessage, Mode=OneWay}"
+            Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsShellStatusVisible), Mode=OneWay}" />
+
+        <ListView
+            x:Name="LstShellOutput"
+            Grid.Row="3"
+            AutomationProperties.AutomationId="ShellWindow_LstShellOutput"
+            ItemsSource="{x:Bind ViewModel.ShellOutput, Mode=OneWay}"
+            SelectionMode="None" />
+
+        <Grid Grid.Row="4" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox
+                x:Name="TxtShellCommand"
+                Grid.Column="0"
+                x:Uid="TxtShellCommand"
+                AutomationProperties.AutomationId="ShellWindow_TxtShellCommand"
+                Text="{x:Bind ViewModel.ShellCommandText, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+            <Button
+                x:Name="BtnSendShellCommand"
+                Grid.Column="1"
+                x:Uid="BtnSendShellCommand"
+                VerticalAlignment="Bottom"
+                AutomationProperties.AutomationId="ShellWindow_BtnSendShellCommand"
+                Command="{x:Bind ViewModel.SendShellCommandCommand}" />
+            <Button
+                x:Name="BtnCloseShell"
+                Grid.Column="2"
+                x:Uid="BtnCloseShell"
+                VerticalAlignment="Bottom"
+                AutomationProperties.AutomationId="ShellWindow_BtnCloseShell"
+                Command="{x:Bind ViewModel.CloseShellCommand}" />
+        </Grid>
+    </Grid>
+</Window>

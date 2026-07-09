@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Window
+    x:Class="WslContainersDesktop_App.Windows.LogsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:local="using:WslContainersDesktop_App.Windows"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <Grid Padding="24,16,24,16" RowSpacing="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock x:Name="TxtLogPanelTitle" x:Uid="TxtLogPanelTitle" Grid.Column="0" Style="{StaticResource SubtitleTextBlockStyle}" />
+            <Button
+                x:Name="BtnPauseLogs"
+                Grid.Column="1"
+                x:Uid="BtnPauseLogs"
+                AutomationProperties.AutomationId="LogsWindow_BtnPauseLogs"
+                Command="{x:Bind ViewModel.PauseLogsCommand}"
+                Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsLogsPaused), Mode=OneWay}" />
+            <Button
+                x:Name="BtnResumeLogs"
+                Grid.Column="1"
+                x:Uid="BtnResumeLogs"
+                AutomationProperties.AutomationId="LogsWindow_BtnResumeLogs"
+                Command="{x:Bind ViewModel.ResumeLogsCommand}"
+                Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsLogsPaused), Mode=OneWay}" />
+            <Button
+                x:Name="BtnClearLogs"
+                Grid.Column="2"
+                x:Uid="BtnClearLogs"
+                AutomationProperties.AutomationId="LogsWindow_BtnClearLogs"
+                Command="{x:Bind ViewModel.ClearLogsCommand}" />
+            <Button
+                x:Name="BtnCloseLogs"
+                Grid.Column="3"
+                x:Uid="BtnCloseLogs"
+                AutomationProperties.AutomationId="LogsWindow_BtnCloseLogs"
+                Command="{x:Bind ViewModel.CloseLogsCommand}" />
+        </Grid>
+
+        <InfoBar
+            x:Name="InfoBarLogError"
+            Grid.Row="1"
+            Severity="Error"
+            IsClosable="False"
+            IsOpen="{x:Bind ViewModel.IsLogError, Mode=OneWay}"
+            Message="{x:Bind ViewModel.LogStatusMessage, Mode=OneWay}" />
+
+        <TextBlock
+            x:Name="TxtLogStatus"
+            Grid.Row="2"
+            Text="{x:Bind ViewModel.LogStatusMessage, Mode=OneWay}"
+            Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsLogStatusVisible), Mode=OneWay}" />
+
+        <ListView
+            x:Name="LstLogs"
+            Grid.Row="3"
+            AutomationProperties.AutomationId="LogsWindow_LstLogs"
+            ItemsSource="{x:Bind ViewModel.LogLines, Mode=OneWay}"
+            SelectionMode="None"
+            Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsLogEmpty), Mode=OneWay}">
+            <!--
+                小さいログパネル(ContainersPage.xaml)と同じく、WinUI公式の「Inverted lists」パターン
+                (https://learn.microsoft.com/en-us/windows/apps/design/controls/inverted-lists)に従い、
+                末尾を表示している間だけ新着行に自動追従させる。
+            -->
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsStackPanel ItemsUpdatingScrollMode="KeepLastItemInView" />
+                </ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+        </ListView>
+
+        <TextBlock
+            x:Name="TxtLogEmptyState"
+            Grid.Row="3"
+            x:Uid="TxtLogEmptyState"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center"
+            Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsLogEmpty), Mode=OneWay}" />
+    </Grid>
+</Window>
