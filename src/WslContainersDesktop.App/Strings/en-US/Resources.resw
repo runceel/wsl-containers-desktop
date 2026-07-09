@@ -249,12 +249,6 @@
   <data name="MenuLogs.Text" xml:space="preserve">
     <value>Logs</value>
   </data>
-  <data name="MenuStart.Text" xml:space="preserve">
-    <value>Start</value>
-  </data>
-  <data name="MenuStop.Text" xml:space="preserve">
-    <value>Stop</value>
-  </data>
   <data name="MenuRestart.Text" xml:space="preserve">
     <value>Restart</value>
   </data>

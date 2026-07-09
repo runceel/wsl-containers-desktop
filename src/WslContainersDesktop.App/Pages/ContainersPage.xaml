@@ -91,7 +91,7 @@
                             <ColumnDefinition Width="100" />
                             <ColumnDefinition Width="90" />
                             <ColumnDefinition Width="140" />
-                            <ColumnDefinition Width="52" />
+                            <ColumnDefinition Width="220" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="Name" FontWeight="SemiBold" />
                         <TextBlock Grid.Column="1" Text="Image" FontWeight="SemiBold" />
@@ -114,13 +114,29 @@
                                         <ColumnDefinition Width="100" />
                                         <ColumnDefinition Width="90" />
                                         <ColumnDefinition Width="140" />
-                                        <ColumnDefinition Width="52" />
+                                        <ColumnDefinition Width="220" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind Name}" />
                                     <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Image}" />
                                     <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind DisplayState, Mode=OneWay, Converter={StaticResource StateToDisplayTextConverter}}" />
                                     <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" />
-                                    <StackPanel Grid.Column="4" Orientation="Horizontal">
+                                    <StackPanel Grid.Column="4" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="4">
+                                        <!-- Start/Stopはよく使う操作のため、"..."メニューの中に隠さずトップレベルに表示する。
+                                             状態に応じてどちらか一方(または操作進行中はどちらも非表示)のみ表示する。 -->
+                                        <Button
+                                            x:Uid="BtnStart"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnStart}"
+                                            CommandParameter="{x:Bind}"
+                                            Click="BtnStart_Click"
+                                            Visibility="{x:Bind CanStart, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                        <Button
+                                            x:Uid="BtnStop"
+                                            VerticalAlignment="Center"
+                                            AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnStop}"
+                                            CommandParameter="{x:Bind}"
+                                            Click="BtnStop_Click"
+                                            Visibility="{x:Bind CanStop, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                         <Button
                                             MinWidth="40"
                                             x:Uid="BtnMoreActions"
@@ -143,18 +159,6 @@
                                                         AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuLogs}"
                                                         CommandParameter="{x:Bind Id}"
                                                         Click="BtnLogs_Click" />
-                                                    <MenuFlyoutItem
-                                                        x:Uid="MenuStart"
-                                                        AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuStart}"
-                                                        CommandParameter="{x:Bind}"
-                                                        Click="MenuStart_Click"
-                                                        Visibility="{x:Bind CanStart, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
-                                                    <MenuFlyoutItem
-                                                        x:Uid="MenuStop"
-                                                        AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuStop}"
-                                                        CommandParameter="{x:Bind}"
-                                                        Click="MenuStop_Click"
-                                                        Visibility="{x:Bind CanStop, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
                                                     <MenuFlyoutItem
                                                         x:Uid="MenuRestart"
                                                         AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=MenuRestart}"
@@ -289,6 +293,7 @@
                     x:Name="TxtShellStatus"
                     Grid.Row="2"
                     Text="{x:Bind ViewModel.ShellStatusMessage, Mode=OneWay}"
+                    TextWrapping="WrapWholeWords"
                     Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsShellStatusVisible), Mode=OneWay}" />
 
                 <ListView
@@ -296,7 +301,20 @@
                     Grid.Row="3"
                     AutomationProperties.AutomationId="LstShellOutput"
                     ItemsSource="{x:Bind ViewModel.ShellOutput, Mode=OneWay}"
-                    SelectionMode="None" />
+                    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                    ScrollViewer.HorizontalScrollMode="Enabled"
+                    SelectionMode="None">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Left" />
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="x:String">
+                            <TextBlock Text="{x:Bind}" TextWrapping="NoWrap" />
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
 
                 <Grid Grid.Row="4" ColumnSpacing="8">
                     <Grid.ColumnDefinitions>
@@ -398,6 +416,7 @@
                     x:Name="TxtLogStatus"
                     Grid.Row="2"
                     Text="{x:Bind ViewModel.LogStatusMessage, Mode=OneWay}"
+                    TextWrapping="WrapWholeWords"
                     Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsLogStatusVisible), Mode=OneWay}" />
 
                 <Grid Grid.Row="3">
@@ -405,6 +424,8 @@
                         x:Name="LstLogs"
                         AutomationProperties.AutomationId="LstLogs"
                         ItemsSource="{x:Bind ViewModel.LogLines, Mode=OneWay}"
+                        ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                        ScrollViewer.HorizontalScrollMode="Enabled"
                         SelectionMode="None"
                         Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsLogEmpty), Mode=OneWay}">
                         <!--
@@ -417,6 +438,16 @@
                             スクロールして読んでいる場合は追従しない」挙動をWinUI自身が保証するため、
                             ScrollViewerを自前で探索・監視するコードは不要になる。
                         -->
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <Setter Property="HorizontalContentAlignment" Value="Left" />
+                            </Style>
+                        </ListView.ItemContainerStyle>
+                        <ListView.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <TextBlock Text="{x:Bind}" TextWrapping="NoWrap" />
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
                         <ListView.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <ItemsStackPanel ItemsUpdatingScrollMode="KeepLastItemInView" />

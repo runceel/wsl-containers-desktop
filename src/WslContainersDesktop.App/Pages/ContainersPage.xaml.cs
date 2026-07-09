@@ -89,7 +89,7 @@ public sealed partial class ContainersPage : Page
         }
     }
 
-    private async void MenuStart_Click(object sender, RoutedEventArgs e)
+    private async void BtnStart_Click(object sender, RoutedEventArgs e)
     {
         if (GetContainerRow(sender) is { } row)
         {
@@ -97,7 +97,7 @@ public sealed partial class ContainersPage : Page
         }
     }
 
-    private async void MenuStop_Click(object sender, RoutedEventArgs e)
+    private async void BtnStop_Click(object sender, RoutedEventArgs e)
     {
         if (GetContainerRow(sender) is { } row)
         {
