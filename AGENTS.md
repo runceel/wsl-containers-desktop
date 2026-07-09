@@ -102,15 +102,22 @@ Refactor後もGreenを維持していること、振り返りフェーズはADR/
 ## モデルルーティング（コスト最適化）
 
 [ADR-0004](docs/adr/0004-adopt-model-routing-for-simple-changes.md) /
-[ADR-0008](docs/adr/0008-expand-model-routing-to-mechanical-workflow-steps.md) に基づき、
+[ADR-0008](docs/adr/0008-expand-model-routing-to-mechanical-workflow-steps.md) /
+[ADR-0016](docs/adr/0016-set-sonnet-5-baseline-and-route-green-to-flash.md) に基づき、
 作業の性質でモデルを使い分けます。
 
 | 作業の性質 | 使うagent/モデル |
 |---|---|
 | タイポ修正、フォーマット、挙動を変えないリネーム、ADR/design一覧表への追記、ラバーダック指摘の軽微反映等の機械的な小修正 | [`quick-fix` agent](.github/agents/quick-fix.agent.md)（`mai-code-1-flash-picker` 固定） |
-| TDD Redフェーズ（テスト作成フェーズで入出力・アサーション値・エッジケースまで確定済みの場合） | [`tdd-red` agent](.github/agents/tdd-red.agent.md)（`mai-code-1-flash-picker` 既定。仕様未確定・新規設計判断発生時は通常モデルへエスカレーション） |
-| 設計、ラバーダック、TDD Green/Refactor、ADR作成など判断を伴う作業 | 通常の高性能モデル（既定モデル） |
-| どちらか迷う場合 | **必ず通常フロー側を選ぶ**（コスト削減より品質・仕様漏れ防止を優先） |
+| TDD Redフェーズ（テスト作成フェーズで入出力・アサーション値・エッジケースまで確定済みの場合） | [`tdd-red` agent](.github/agents/tdd-red.agent.md)（`mai-code-1-flash-picker` 既定。仕様未確定・新規設計判断発生時はベースラインへエスカレーション） |
+| TDD Greenフェーズ（確定済み仕様のテストを通す最小実装） | [`tdd-green` agent](.github/agents/tdd-green.agent.md)（`mai-code-1-flash-picker` 既定。新しい非自明な層配置・設計判断が必要な場合はベースラインへエスカレーション） |
+| 機能設計・詳細設計・テスト作成・ラバーダック・TDD Refactor・ADR本文作成など判断を伴う作業 | ベースラインモデル（`claude-sonnet-5` medium）。より高い品質が必要な場合は人間がセッションをopus等に切り替える |
+| どちらか迷う場合 | **必ずベースライン側を選ぶ**（コスト削減より品質・仕様漏れ防止を優先） |
+
+「ベースラインモデル」は判断を伴う作業の既定であり、判断系エージェント（`tdd-refactor` / `adr-writer` 等）には
+モデルをピン留めしない（セッションのドライバモデルを継承する）。Flashに固定するのは
+`tdd-red` / `quick-fix` / `tdd-green`（条件付き）の3つのみ。「肝」（詳細設計・テスト作成・振り返り）は、
+ベースラインの生産＋`rubber-duck`レビューのペアで品質を担保する（[ADR-0016](docs/adr/0016-set-sonnet-5-baseline-and-route-green-to-flash.md)）。
 
 ## 既存の再利用可能なskill/agent（重複させないこと）
 

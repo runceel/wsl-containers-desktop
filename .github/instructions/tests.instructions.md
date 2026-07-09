@@ -46,7 +46,11 @@ public async Task StartAsync_ContainerIsStopped_TransitionsToRunning()
   （[ADR-0008](../../docs/adr/0008-expand-model-routing-to-mechanical-workflow-steps.md)
   により、`tdd-red` agentは既定でコスト最適化モデルを使うため、ここが曖昧なまま
   Redフェーズに進まないこと）。
-- Green フェーズでは「テストを通す」以上の実装をしない（過剰実装をしない）。
+- Green フェーズでは「テストを通す」以上の実装をしない（過剰実装をしない）。Green を担当する
+  `tdd-green` agent は既定でコスト最適化モデル（`mai-code-1-flash-picker`）を使う
+  （[ADR-0016](../../docs/adr/0016-set-sonnet-5-baseline-and-route-green-to-flash.md)）。ただし
+  コンパイル/実装のために新しい非自明な層配置・設計判断が必要になった場合は、ベースラインモデルへ
+  エスカレーションする。
 - Refactor フェーズでは各変更のたびにテストを再実行し、常にGreenを維持する。
 
 ## モック・スタブ

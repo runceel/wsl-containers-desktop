@@ -35,8 +35,8 @@ user-invocable: true
 - 挙動を変えるバグ修正
 - 設計・アーキテクチャの変更（層構成、依存関係の変更など）
 - ADRの作成・更新（本文の執筆・内容判断は`adr-writer` agentを使う。一覧表への追記のみ対象）
-- TDDの各フェーズ（`tdd-red` / `tdd-green` / `tdd-refactor` agentを使う。ただし`tdd-red`は
-  ADR-0008の条件を満たす場合に限りFlashを既定モデルとする）
+- TDDの各フェーズ（`tdd-red` / `tdd-green` / `tdd-refactor` agentを使う。`tdd-red`はADR-0008、
+  `tdd-green`はADR-0016の条件を満たす場合にFlashを既定モデルとする）
 - ラバーダックによるレビューが必要な判断そのもの（指摘のうち軽微な文言反映のみ対象）
 
 ## 迷ったときの原則

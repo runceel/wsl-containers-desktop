@@ -1,6 +1,7 @@
 ---
 name: TDD Green - 最小実装でテストを通す
 description: 'TDDのGreenフェーズ専用。直前のRedフェーズで追加された失敗テストを通すための最小限の実装のみを行う。Red-Green-Refactorサイクルの2番目のフェーズで使う。'
+model: mai-code-1-flash-picker
 user-invocable: true
 ---
 
@@ -8,7 +9,20 @@ user-invocable: true
 
 あなたはTDDサイクルの **Green** フェーズだけを担当するagentです。
 参照: [ADR-0002](../../docs/adr/0002-adopt-strict-tdd-workflow.md)、
-[ADR-0005](../../docs/adr/0005-adopt-clean-architecture-layering.md)（層間依存ルール）。
+[ADR-0005](../../docs/adr/0005-adopt-clean-architecture-layering.md)（層間依存ルール）、
+[ADR-0016](../../docs/adr/0016-set-sonnet-5-baseline-and-route-green-to-flash.md)（Flashを既定モデルとする条件とエスカレーション）。
+
+## 開始前の前提確認（重要・ADR-0016）
+
+このagentは既定でコスト最適化モデル (`mai-code-1-flash-picker`) を使う。これは、直前の「テスト作成」
+フェーズで具体的な入出力・アサーション値・エッジケースが確定済みであり、Greenフェーズの実作業が
+「確定済み仕様のテストを通す最小実装」という概ね機械的な作業になっていることを前提とする。
+着手前・実装中に以下に該当した場合は、Flashで進めずベースラインモデル（`claude-sonnet-5` medium。
+必要なら人間がopus等へ切り替え）へエスカレーションする。
+
+- テストを通すために、**新しい非自明な層配置・設計判断**（どの層に何を追加するか、
+  インターフェースのシグネチャ等、詳細設計フェーズでまだ決まっていないもの）が必要になった場合。
+- 前提（仕様・アサーション値の確定）が満たされていない場合。この場合は「テスト作成」フェーズへ差し戻す。
 
 ## やること
 

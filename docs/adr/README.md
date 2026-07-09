@@ -66,5 +66,6 @@ docs/adr/NNNN-kebab-case-title.md
 | [0013](0013-adopt-differential-updates-for-list-views.md) | 一覧ViewModelの更新に差分更新(ObservableCollectionReconciler)を採用する | Accepted |
 | [0014](0014-dashboard-as-default-landing-and-first-nav-item.md) | ダッシュボード（概要）画面を既定の起動画面かつ先頭のナビゲーション項目にする | Accepted |
 | [0015](0015-promote-navigation-viewmodel-to-di-singleton.md) | `NavigationViewModel`をDIシングルトンに昇格しダッシュボードからの遷移に共有する | Accepted |
+| [0016](0016-set-sonnet-5-baseline-and-route-green-to-flash.md) | モデルルーティングのベースラインをsonnet-5 mediumに定めGreenを条件付きFlashにする | Accepted |
 
 新しいADRを追加したら、この表にも1行追加すること。
