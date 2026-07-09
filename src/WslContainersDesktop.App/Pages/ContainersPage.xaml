@@ -87,11 +87,11 @@
 
                     <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="12">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="260" />
-                            <ColumnDefinition Width="100" />
-                            <ColumnDefinition Width="90" />
-                            <ColumnDefinition Width="140" />
-                            <ColumnDefinition Width="220" />
+                            <ColumnDefinition Width="*" MinWidth="120" />
+                            <ColumnDefinition Width="130" />
+                            <ColumnDefinition Width="120" />
+                            <ColumnDefinition Width="150" />
+                            <ColumnDefinition Width="190" />
                         </Grid.ColumnDefinitions>
                         <TextBlock Grid.Column="0" Text="Name" FontWeight="SemiBold" />
                         <TextBlock Grid.Column="1" Text="Image" FontWeight="SemiBold" />
@@ -110,16 +110,16 @@
                             <DataTemplate x:DataType="vm:ContainerRowViewModel">
                                 <Grid Padding="12,8" ColumnSpacing="12" HorizontalAlignment="Stretch">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="260" />
-                                        <ColumnDefinition Width="100" />
-                                        <ColumnDefinition Width="90" />
-                                        <ColumnDefinition Width="140" />
-                                        <ColumnDefinition Width="220" />
+                                        <ColumnDefinition Width="*" MinWidth="120" />
+                                        <ColumnDefinition Width="130" />
+                                        <ColumnDefinition Width="120" />
+                                        <ColumnDefinition Width="150" />
+                                        <ColumnDefinition Width="190" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind Name}" />
-                                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Image}" />
-                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind DisplayState, Mode=OneWay, Converter={StaticResource StateToDisplayTextConverter}}" />
-                                    <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" />
+                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Image}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind DisplayState, Mode=OneWay, Converter={StaticResource StateToDisplayTextConverter}}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" TextTrimming="CharacterEllipsis" />
                                     <StackPanel Grid.Column="4" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="4">
                                         <!-- Start/Stopはよく使う操作のため、"..."メニューの中に隠さずトップレベルに表示する。
                                              状態に応じてどちらか一方(または操作進行中はどちらも非表示)のみ表示する。 -->
