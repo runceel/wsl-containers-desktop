@@ -76,6 +76,50 @@ public sealed class LogsWindowSourceTests
         StringAssert.Contains(codeBehindSourceText, "AppWindow.SetIcon(\"Assets/AppIcon.ico\");");
     }
 
+    [TestMethod]
+    public void LogsWindow_RootGrid_HasNameForLoadedEventSubscription()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Windows\LogsWindow.xaml");
+
+        // Assert: DPIリサイズはRootGridのLoadedイベントで行う(Activatedはウィンドウ再生成時に
+        // XamlRoot確立前に発火しNullReferenceExceptionを起こすため使わない。再現・詳細は
+        // LogsWindowCodeBehind_DoesNotResizeOnActivated_ToAvoidXamlRootRaceConditionテスト参照)。
+        StringAssert.Contains(sourceText, "x:Name=\"RootGrid\"");
+    }
+
+    [TestMethod]
+    public void LogsWindowCodeBehind_DoesNotResizeOnActivated_ToAvoidXamlRootRaceConditionBug()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Windows\LogsWindow.xaml.cs");
+
+        // Assert: 「Logsウィンドウを閉じて再度開くとアプリがクラッシュする」バグの再発防止。
+        // SingleInstanceWindowOpenerで2回目以降に生成されるLogsWindowはActivate()呼び出しから
+        // Activatedイベント発火までの間にXamlRootが未確立のことがあり、
+        // Content.XamlRoot.RasterizationScaleへの直接アクセスがNullReferenceExceptionで
+        // クラッシュしていた(実機で再現確認済み)。ActivatedではなくLoadedイベントを使い、
+        // XamlRoot確立後にのみリサイズすることでこれを防ぐ。
+        Assert.IsFalse(
+            sourceText.Contains("Activated += LogsWindow_Activated;"),
+            "ActivatedイベントでのDPIリサイズはXamlRoot未確立によるクラッシュを再発させるため使用禁止。");
+        StringAssert.Contains(sourceText, "RootGrid.Loaded +=");
+    }
+
+    [TestMethod]
+    public void LogsWindowCodeBehind_LoadedHandler_ReadsXamlRootFromRootGridNotContent()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Windows\LogsWindow.xaml.cs");
+
+        // Assert: Loadedイベントの時点ではRootGrid.XamlRootが確立済みであることを保証された
+        // 状態で読み取る(Content.XamlRootへの無条件アクセスを再導入しない)。
+        StringAssert.Contains(sourceText, "RootGrid.XamlRoot.RasterizationScale");
+        Assert.IsFalse(
+            sourceText.Contains("Content.XamlRoot.RasterizationScale"),
+            "Content.XamlRootへの無条件アクセスはXamlRoot未確立時にクラッシュするため使用禁止。");
+    }
+
     private static string ReadRepositorySourceFile(string relativePath)
     {
         var repositoryRoot = FindRepositoryRoot();

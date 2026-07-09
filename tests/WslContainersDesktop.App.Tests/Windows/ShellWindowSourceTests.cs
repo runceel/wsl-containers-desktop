@@ -73,6 +73,45 @@ public sealed class ShellWindowSourceTests
         StringAssert.Contains(codeBehindSourceText, "AppWindow.SetIcon(\"Assets/AppIcon.ico\");");
     }
 
+    [TestMethod]
+    public void ShellWindow_RootGrid_HasNameForLoadedEventSubscription()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Windows\ShellWindow.xaml");
+
+        // Assert: DPIリサイズはRootGridのLoadedイベントで行う(Activatedはウィンドウ再生成時に
+        // XamlRoot確立前に発火しNullReferenceExceptionを起こすため使わない)。
+        StringAssert.Contains(sourceText, "x:Name=\"RootGrid\"");
+    }
+
+    [TestMethod]
+    public void ShellWindowCodeBehind_DoesNotResizeOnActivated_ToAvoidXamlRootRaceConditionBug()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Windows\ShellWindow.xaml.cs");
+
+        // Assert: 「Shellウィンドウを閉じて再度開くとアプリがクラッシュする」バグの再発防止
+        // (LogsWindowと同型のバグ。詳細はLogsWindowCodeBehindの対応するテストのコメント参照)。
+        Assert.IsFalse(
+            sourceText.Contains("Activated += ShellWindow_Activated;"),
+            "ActivatedイベントでのDPIリサイズはXamlRoot未確立によるクラッシュを再発させるため使用禁止。");
+        StringAssert.Contains(sourceText, "RootGrid.Loaded +=");
+    }
+
+    [TestMethod]
+    public void ShellWindowCodeBehind_LoadedHandler_ReadsXamlRootFromRootGridNotContent()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Windows\ShellWindow.xaml.cs");
+
+        // Assert: Loadedイベントの時点ではRootGrid.XamlRootが確立済みであることを保証された
+        // 状態で読み取る(Content.XamlRootへの無条件アクセスを再導入しない)。
+        StringAssert.Contains(sourceText, "RootGrid.XamlRoot.RasterizationScale");
+        Assert.IsFalse(
+            sourceText.Contains("Content.XamlRoot.RasterizationScale"),
+            "Content.XamlRootへの無条件アクセスはXamlRoot未確立時にクラッシュするため使用禁止。");
+    }
+
     private static string ReadRepositorySourceFile(string relativePath)
     {
         var repositoryRoot = FindRepositoryRoot();

@@ -37,17 +37,21 @@ public sealed partial class ShellWindow : Window
         AppWindow.TitleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
         AppWindow.SetIcon("Assets/AppIcon.ico");
 
-        // DPIスケールはXamlRootが確定するActivated後でないと取得できないため、初回のみここでリサイズする。
-        Activated += ShellWindow_Activated;
+        // DPIスケールはXamlRootが確定してからでないと取得できない。Activatedイベントは
+        // ウィンドウ再生成時(閉じて再度開いたとき)にXamlRoot確立前に発火することがあり、
+        // Content.XamlRootへの直接アクセスがNullReferenceExceptionでクラッシュする不具合が
+        // 実機で確認された。RootGridのLoadedイベントはXamlRoot確立後にのみ発火するため、
+        // こちらを使う。
+        RootGrid.Loaded += ShellWindow_RootGrid_Loaded;
     }
 
     public ContainersViewModel ViewModel { get; }
 
-    private void ShellWindow_Activated(object sender, WindowActivatedEventArgs args)
+    private void ShellWindow_RootGrid_Loaded(object sender, RoutedEventArgs e)
     {
-        Activated -= ShellWindow_Activated;
+        RootGrid.Loaded -= ShellWindow_RootGrid_Loaded;
 
-        var scale = Content.XamlRoot.RasterizationScale;
+        var scale = RootGrid.XamlRoot.RasterizationScale;
         AppWindow.Resize(new global::Windows.Graphics.SizeInt32(
             (int)(DefaultWidthInDips * scale),
             (int)(DefaultHeightInDips * scale)));
