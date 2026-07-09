@@ -169,3 +169,43 @@
   `double.MaxValue`）が常にクランプされる保証はない。また、新規追加行のレイアウトが
   `ExtentHeight`に反映されるタイミングとの競合により、自前実装では追従が途中で解除される
   不具合が発生していた。
+
+## ログ/シェルパネルの個別ウィンドウ表示（ポップアウト）
+
+- 右側の補助ペインは小さいため、ログ・シェルパネルのヘッダーに「Open in window」ボタン
+  （`BtnOpenLogsWindow`/`BtnOpenShellWindow`）を追加し、同じ内容を大きな個別ウィンドウ
+  （`Windows/LogsWindow.xaml`・`Windows/ShellWindow.xaml`）としても表示できる。小さい補助ペイン自体は
+  引き続き表示されたままで、どちらからでも同じ状態（`ContainersViewModel`の`LogLines`/`ShellOutput`
+  や各種コマンド）を操作できる。詳細パネルはこの導線の対象外。
+- 各ウィンドウは対象ごとに1つだけ開く。ボタンを押したとき既に開いていれば新規に開かず、既存の
+  ウィンドウを`Activate()`するだけにとどめる。この生成/再利用/Closed後の再生成ロジックは
+  `Windows/SingleInstanceWindowOpener.cs`（`SingleInstanceWindowOpener<TWindow>`）に切り出されている。
+  `TWindow`を実際のWinUI `Window`型に固定せず、生成・Activate・Closed購読をすべてデリゲート経由で
+  受け取ることで、実ウィンドウを介さずにMSTestで検証できるようにしている。
+- `ContainersPage`は`Frame.Navigate`のたびに作り直されるため、ウィンドウ参照をページのフィールドで
+  保持することはできない。そこで`Windows/ContainerAuxiliaryWindowManager.cs`をDIの
+  Singleton（`App.xaml.cs`の`ConfigureServices`で登録）として用意し、`SingleInstanceWindowOpener<LogsWindow>`と
+  `SingleInstanceWindowOpener<ShellWindow>`を1組ずつ合成して保持する。`ContainersPage`のClickハンドラは
+  `_windowManager.ShowLogsWindow()`/`ShowShellWindow()`を呼ぶだけで、ウィンドウの生成・再利用判断には
+  関与しない。
+- `LogsWindow`/`ShellWindow`は小さい補助ペインと同じ`ContainersViewModel`インスタンスを共有する
+  （コンストラクタで受け取り、`ViewModel`プロパティとして公開）。そのため以下は既存の設計制約に
+  起因する既知の挙動であり、今回のスコープでは対応しない:
+  - `ContainersViewModel`は単一コンテナの状態のみを保持するため、ポップアウトを開いたまま
+    別コンテナのログ/シェルを開くと、ポップアウト側の表示内容も暗黙に切り替わる。
+  - `ShellCommandText`は小さいシェルパネルとポップアウト`ShellWindow`の間でTwoWay共有されるため、
+    両方を同時に表示して入力すると干渉し得る。
+  - ウィンドウサイズは`Activated`イベント時に取得した`XamlRoot.RasterizationScale`を用いた近似的な
+    DPI考慮のみ（1000x700 DIPs相当）で、モニター間移動時のDPI変化への追従までは行わない。
+- ポップアウト側にもログ用のPause/Resume/Clear、シェル用のコマンド入力・Sendを再配置しており、
+  ユーザーが`ContainersPage`から離れてポップアウトだけが残っている状態でもセッションを操作できる。
+  各ウィンドウ内の`Close`ボタン（`BtnCloseLogs`/`BtnCloseShell`）およびタイトルバーの閉じるボタン
+  （×）は、どちらも**このウィンドウを閉じるだけ**で、ログ追跡やシェル接続そのものは停止しない。
+  ログ追跡・シェル接続を終了するには、小さい補助ペイン側の`CloseLogsCommand`/`CloseShellCommand`
+  に配線されたCloseボタンを使う。ウィンドウを閉じる操作とセッションを終了する操作は意図的に
+  分離している（ポップアウトを閉じても小さい補助ペインは影響を受けず動作し続ける）。
+- `LogsWindow`/`ShellWindow`のタイトルバーは`MainWindow`と同じルック＆フィールにしている。
+  `ExtendsContentIntoTitleBar = true`とアプリアイコン付きの`TitleBar`コントロール
+  （`IsPaneToggleButtonVisible="False"`、`TitleBarHeightOption.Tall`）を各ウィンドウに配置し、
+  `MainWindow`のカスタムタイトルバーと視覚的に統一している（ナビゲーションペインを持たないため
+  ペイントグルボタンのみ非表示にしている）。

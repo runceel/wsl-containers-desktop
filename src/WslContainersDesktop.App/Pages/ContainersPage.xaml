@@ -268,7 +268,17 @@
                 </Grid.RowDefinitions>
 
                 <Grid Grid.Row="0" ColumnSpacing="8">
-                    <TextBlock x:Name="TxtShellPanelTitle" x:Uid="TxtShellPanelTitle" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="TxtShellPanelTitle" Grid.Column="0" x:Uid="TxtShellPanelTitle" Style="{StaticResource SubtitleTextBlockStyle}" />
+                    <Button
+                        x:Name="BtnOpenShellWindow"
+                        Grid.Column="1"
+                        x:Uid="BtnOpenShellWindow"
+                        AutomationProperties.AutomationId="BtnOpenShellWindow"
+                        Click="BtnOpenShellWindow_Click" />
                 </Grid>
 
                 <InfoBar
@@ -357,31 +367,38 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock x:Name="TxtLogPanelTitle" x:Uid="TxtLogPanelTitle" Grid.Column="0" Style="{StaticResource SubtitleTextBlockStyle}" />
                     <Button
-                        x:Name="BtnPauseLogs"
+                        x:Name="BtnOpenLogsWindow"
                         Grid.Column="1"
+                        x:Uid="BtnOpenLogsWindow"
+                        AutomationProperties.AutomationId="BtnOpenLogsWindow"
+                        Click="BtnOpenLogsWindow_Click" />
+                    <Button
+                        x:Name="BtnPauseLogs"
+                        Grid.Column="2"
                         x:Uid="BtnPauseLogs"
                         AutomationProperties.AutomationId="BtnPauseLogs"
                         Command="{x:Bind ViewModel.PauseLogsCommand}"
                         Visibility="{x:Bind ToVisibleWhenFalse(ViewModel.IsLogsPaused), Mode=OneWay}" />
                     <Button
                         x:Name="BtnResumeLogs"
-                        Grid.Column="1"
+                        Grid.Column="2"
                         x:Uid="BtnResumeLogs"
                         AutomationProperties.AutomationId="BtnResumeLogs"
                         Command="{x:Bind ViewModel.ResumeLogsCommand}"
                         Visibility="{x:Bind ToVisibleWhenTrue(ViewModel.IsLogsPaused), Mode=OneWay}" />
                     <Button
                         x:Name="BtnClearLogs"
-                        Grid.Column="2"
+                        Grid.Column="3"
                         x:Uid="BtnClearLogs"
                         AutomationProperties.AutomationId="BtnClearLogs"
                         Command="{x:Bind ViewModel.ClearLogsCommand}" />
                     <Button
                         x:Name="BtnCloseLogs"
-                        Grid.Column="3"
+                        Grid.Column="4"
                         x:Uid="BtnCloseLogs"
                         AutomationProperties.AutomationId="BtnCloseLogs"
                         Command="{x:Bind ViewModel.CloseLogsCommand}" />

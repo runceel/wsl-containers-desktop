@@ -270,6 +270,9 @@
   <data name="BtnCloseLogs.Content" xml:space="preserve">
     <value>Close</value>
   </data>
+  <data name="BtnOpenLogsWindow.Content" xml:space="preserve">
+    <value>Open in window</value>
+  </data>
   <data name="TxtLogEmptyState.Text" xml:space="preserve">
     <value>No logs to display.</value>
   </data>
@@ -282,6 +285,9 @@
   <data name="TxtShellPanelTitle.Text" xml:space="preserve">
     <value>Container shell</value>
   </data>
+  <data name="BtnOpenShellWindow.Content" xml:space="preserve">
+    <value>Open in window</value>
+  </data>
   <data name="BtnCloseShell.Content" xml:space="preserve">
     <value>Close shell</value>
   </data>
@@ -290,6 +296,18 @@
   </data>
   <data name="BtnSendShellCommand.Content" xml:space="preserve">
     <value>Send</value>
+  </data>
+  <data name="LogsWindow.Title" xml:space="preserve">
+    <value>Container logs</value>
+  </data>
+  <data name="ShellWindow.Title" xml:space="preserve">
+    <value>Container shell</value>
+  </data>
+  <data name="LogsWindowTitleBar.Title" xml:space="preserve">
+    <value>Container logs</value>
+  </data>
+  <data name="ShellWindowTitleBar.Title" xml:space="preserve">
+    <value>Container shell</value>
   </data>
   <data name="ImagesPageTitle.Text" xml:space="preserve">
     <value>Images</value>
