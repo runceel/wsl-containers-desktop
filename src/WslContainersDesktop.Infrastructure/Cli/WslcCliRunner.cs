@@ -11,6 +11,7 @@ namespace WslContainersDesktop.Infrastructure.Cli;
 public sealed class WslcCliRunner : IWslcCliRunner
 {
     private readonly IWslcProcessFactory _processFactory;
+    private readonly CliProcessExecutor _cliProcessExecutor;
 
     public WslcCliRunner(string executablePath = "wslc")
         : this(new WslcProcessFactory(), executablePath)
@@ -20,6 +21,7 @@ public sealed class WslcCliRunner : IWslcCliRunner
     public WslcCliRunner(IWslcProcessFactory processFactory, string executablePath = "wslc")
     {
         _processFactory = processFactory;
+        _cliProcessExecutor = new CliProcessExecutor();
         ExecutablePath = executablePath;
     }
 
@@ -50,18 +52,7 @@ public sealed class WslcCliRunner : IWslcCliRunner
             startInfo.ArgumentList.Add(argument);
         }
 
-        using var process = new Process { StartInfo = startInfo };
-        process.Start();
-
-        var standardOutputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var standardErrorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-
-        await process.WaitForExitAsync(cancellationToken);
-
-        var standardOutput = await standardOutputTask;
-        var standardError = await standardErrorTask;
-
-        return new CliResult(process.ExitCode, standardOutput, standardError);
+        return await _cliProcessExecutor.ExecuteAsync(startInfo, cancellationToken);
     }
 
     public async IAsyncEnumerable<string> StreamLinesAsync(
