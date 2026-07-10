@@ -1,0 +1,85 @@
+name: "バグ報告"
+description: "再現可能な不具合を報告します"
+title: "[Bug]: "
+labels:
+  - "bug"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        報告ありがとうございます。調査に必要な情報をできるだけ具体的に記載してください。
+        WSL Containers は Public Preview のため、Windows、WSL、`wslc` のバージョン情報も重要です。
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: "不具合の概要"
+      description: "発生している問題を簡潔に説明してください。"
+      placeholder: "何が問題なのかを記載してください。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "再現手順"
+      description: "問題を再現できる最小限の手順を記載してください。"
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "期待する動作"
+      description: "本来どのように動作すると考えているかを記載してください。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "実際の動作"
+      description: "実際に起きたことや表示されたエラーを記載してください。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: "環境"
+      description: "確認できる範囲で各バージョンを記載してください。"
+      placeholder: |
+        - Hakonexa:
+        - Windows:
+        - CPU アーキテクチャ (x64 / ARM64):
+        - WSL:
+        - wslc:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "ログ"
+      description: "関連するログやスタックトレースがあれば貼り付けてください。機密情報は削除してください。"
+      render: shell
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: "補足情報"
+      description: "スクリーンショットや発生頻度など、調査に役立つ情報があれば記載してください。"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "確認事項"
+      options:
+        - label: "同じ内容の既存Issueがないことを確認しました。"
+          required: true
+        - label: "添付するログや画像から機密情報を削除しました。"
+          required: true
