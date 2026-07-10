@@ -1,0 +1,79 @@
+name: "Feature request"
+description: "Suggest a new feature or an improvement"
+title: "[Feature]: "
+labels:
+  - "enhancement"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the suggestion. Focus on the problem to solve and observable behavior rather than implementation details.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "Problem"
+      description: "Describe the situation and the problem you are trying to solve."
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_value
+    attributes:
+      label: "User value"
+      description: "Describe who would benefit from this proposal and how."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "Proposed behavior"
+      description: "Describe the expected user experience or behavior."
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: "Scope"
+      description: "List what should be included in this proposal."
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: "Out of scope"
+      description: "List anything that should not be included or should be considered later."
+      placeholder: |
+        - ...
+        - ...
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "Acceptance criteria"
+      description: "List observable completion criteria that do not depend on a specific implementation."
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: "Additional context"
+      description: "Add references, mockups, alternatives, or any other useful context."
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Before submitting"
+      options:
+        - label: "I searched for an existing Issue that proposes the same feature."
+          required: true

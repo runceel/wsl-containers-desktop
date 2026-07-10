@@ -1,0 +1,85 @@
+name: "Bug report"
+description: "Report a reproducible problem"
+title: "[Bug]: "
+labels:
+  - "bug"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for the report. Please provide enough detail for us to investigate the problem.
+        WSL Containers is in Public Preview, so the Windows, WSL, and `wslc` versions are important.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: "Summary"
+      description: "Briefly describe the problem."
+      placeholder: "Describe what is not working."
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "Steps to reproduce"
+      description: "Provide the minimum steps needed to reproduce the problem."
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected behavior"
+      description: "Describe what you expected to happen."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "Actual behavior"
+      description: "Describe what happened, including any error messages."
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: "Environment"
+      description: "Provide each version that you can determine."
+      placeholder: |
+        - Hakonexa:
+        - Windows:
+        - CPU architecture (x64 / ARM64):
+        - WSL:
+        - wslc:
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Logs"
+      description: "Paste relevant logs or stack traces. Remove any sensitive information."
+      render: shell
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: "Additional context"
+      description: "Add screenshots, frequency information, or anything else that could help the investigation."
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "Before submitting"
+      options:
+        - label: "I searched for an existing Issue that reports the same problem."
+          required: true
+        - label: "I removed sensitive information from the logs and images that I am attaching."
+          required: true
