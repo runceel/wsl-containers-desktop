@@ -63,6 +63,20 @@ WinUI / .NET デスクトップアプリケーションです。新しい **WSL 
 [`AGENTS.md`](AGENTS.md) にまとめています。人間のコントリビューターが同じ開発フローに従う場合も、
 そちらを参照してください。
 
+## ビルドとテスト
+
+対象アーキテクチャと同じネイティブWindowsホストでビルドとテストを実行します。追加のMSBuildプロパティは不要です。
+
+```powershell
+# ARM64
+dotnet build WslContainersDesktop.slnx -p:Platform=ARM64
+dotnet test tests\WslContainersDesktop.App.Tests\WslContainersDesktop.App.Tests.csproj -p:Platform=ARM64
+
+# x64
+dotnet build WslContainersDesktop.slnx -p:Platform=x64
+dotnet test tests\WslContainersDesktop.App.Tests\WslContainersDesktop.App.Tests.csproj -p:Platform=x64
+```
+
 ## セットアップ（Copilot CLIでの開発に必要なplugin）
 
 このリポジトリのCopilot運用には、以下のplugin/marketplaceが必要です。未導入の環境では以下を
