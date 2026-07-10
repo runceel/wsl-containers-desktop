@@ -15,25 +15,13 @@ namespace WslContainersDesktop_App.ViewModels;
 /// </summary>
 public sealed partial class DashboardViewModel : ObservableObject
 {
-    private readonly IContainerManagementService _containerManagementService;
-    private readonly IImageManagementService _imageManagementService;
-    private readonly IVolumeManagementService _volumeManagementService;
-    private readonly INetworkManagementService _networkManagementService;
+    private readonly IDashboardService _dashboardService;
     private readonly NavigationViewModel _navigation;
     private readonly ContainersViewModel _containers;
 
-    public DashboardViewModel(
-        IContainerManagementService containerManagementService,
-        IImageManagementService imageManagementService,
-        IVolumeManagementService volumeManagementService,
-        INetworkManagementService networkManagementService,
-        NavigationViewModel navigation,
-        ContainersViewModel containers)
+    public DashboardViewModel(IDashboardService dashboardService, NavigationViewModel navigation, ContainersViewModel containers)
     {
-        _containerManagementService = containerManagementService;
-        _imageManagementService = imageManagementService;
-        _volumeManagementService = volumeManagementService;
-        _networkManagementService = networkManagementService;
+        _dashboardService = dashboardService;
         _navigation = navigation;
         _containers = containers;
     }
@@ -118,79 +106,115 @@ public sealed partial class DashboardViewModel : ObservableObject
             ContainerCountErrorMessage = null;
             RunningContainerCount = null;
             StoppedContainerCount = null;
-            try
-            {
-                var containers = await _containerManagementService.GetContainersAsync();
-                RunningContainerCount = containers.Count(c => c.State == ContainerState.Running);
-                StoppedContainerCount = containers.Count(c => c.State == ContainerState.Stopped);
-            }
-            catch (Exception ex)
-            {
-                ContainerCountErrorMessage = ex.Message;
-            }
-
             ImageCountErrorMessage = null;
             ImageCount = null;
-            try
-            {
-                var images = await _imageManagementService.GetImagesAsync();
-                ImageCount = images.Count;
-            }
-            catch (Exception ex)
-            {
-                ImageCountErrorMessage = ex.Message;
-            }
-
             VolumeCountErrorMessage = null;
             VolumeCount = null;
-            try
-            {
-                var volumes = await _volumeManagementService.GetVolumesAsync();
-                VolumeCount = volumes.Count;
-            }
-            catch (Exception ex)
-            {
-                VolumeCountErrorMessage = ex.Message;
-            }
-
             NetworkCountErrorMessage = null;
             NetworkCount = null;
-            try
-            {
-                // システムネットワークも含めた総数を表示する。
-                var networks = await _networkManagementService.GetNetworksAsync();
-                NetworkCount = networks.Count;
-            }
-            catch (Exception ex)
-            {
-                NetworkCountErrorMessage = ex.Message;
-            }
-
             StatsErrorMessage = null;
             ContainerStats.Clear();
             OnPropertyChanged(nameof(IsStatsEmpty));
-            try
-            {
-                var stats = await _containerManagementService.GetStatsAsync();
-                foreach (var usage in stats)
-                {
-                    ContainerStats.Add(new DashboardContainerStatsRowViewModel(usage));
-                }
-            }
-            catch (Exception ex)
-            {
-                StatsErrorMessage = ex.Message;
-            }
-            finally
-            {
-                IsStatsLoading = false;
-                OnPropertyChanged(nameof(IsStatsEmpty));
-            }
+
+            var snapshot = await _dashboardService.GetSnapshotAsync();
+            ApplySnapshot(snapshot);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         finally
         {
+            IsStatsLoading = false;
+            OnPropertyChanged(nameof(IsStatsEmpty));
             IsRefreshing = false;
         }
+    }
+
+    private void ApplySnapshot(DashboardSnapshot? snapshot)
+    {
+        var resolvedSnapshot = snapshot ?? new DashboardSnapshot();
+        ApplyContainers(resolvedSnapshot.Containers);
+        ApplyImages(resolvedSnapshot.Images);
+        ApplyVolumes(resolvedSnapshot.Volumes);
+        ApplyNetworks(resolvedSnapshot.Networks);
+        ApplyStats(resolvedSnapshot.Stats);
+    }
+
+    private void ApplyContainers(DashboardSection<IReadOnlyList<Container>>? section)
+    {
+        var resolvedSection = section ?? new DashboardSection<IReadOnlyList<Container>> { Value = [] };
+        if (resolvedSection.Exception is not null)
+        {
+            ContainerCountErrorMessage = resolvedSection.Exception.Message;
+            RunningContainerCount = null;
+            StoppedContainerCount = null;
+            return;
+        }
+
+        var containers = resolvedSection.Value ?? [];
+        RunningContainerCount = containers.Count(container => container.State == ContainerState.Running);
+        StoppedContainerCount = containers.Count(container => container.State == ContainerState.Stopped);
+    }
+
+    private void ApplyImages(DashboardSection<IReadOnlyList<ContainerImage>>? section)
+    {
+        var resolvedSection = section ?? new DashboardSection<IReadOnlyList<ContainerImage>> { Value = [] };
+        if (resolvedSection.Exception is not null)
+        {
+            ImageCountErrorMessage = resolvedSection.Exception.Message;
+            ImageCount = null;
+            return;
+        }
+
+        ImageCount = resolvedSection.Value?.Count ?? 0;
+    }
+
+    private void ApplyVolumes(DashboardSection<IReadOnlyList<ContainerVolume>>? section)
+    {
+        var resolvedSection = section ?? new DashboardSection<IReadOnlyList<ContainerVolume>> { Value = [] };
+        if (resolvedSection.Exception is not null)
+        {
+            VolumeCountErrorMessage = resolvedSection.Exception.Message;
+            VolumeCount = null;
+            return;
+        }
+
+        VolumeCount = resolvedSection.Value?.Count ?? 0;
+    }
+
+    private void ApplyNetworks(DashboardSection<IReadOnlyList<ContainerNetworkResource>>? section)
+    {
+        var resolvedSection = section ?? new DashboardSection<IReadOnlyList<ContainerNetworkResource>> { Value = [] };
+        if (resolvedSection.Exception is not null)
+        {
+            NetworkCountErrorMessage = resolvedSection.Exception.Message;
+            NetworkCount = null;
+            return;
+        }
+
+        NetworkCount = resolvedSection.Value?.Count ?? 0;
+    }
+
+    private void ApplyStats(DashboardSection<IReadOnlyList<ContainerResourceUsage>>? section)
+    {
+        var resolvedSection = section ?? new DashboardSection<IReadOnlyList<ContainerResourceUsage>> { Value = [] };
+        if (resolvedSection.Exception is not null)
+        {
+            StatsErrorMessage = resolvedSection.Exception.Message;
+            ContainerStats.Clear();
+            OnPropertyChanged(nameof(IsStatsEmpty));
+            return;
+        }
+
+        StatsErrorMessage = null;
+        ContainerStats.Clear();
+        foreach (var usage in resolvedSection.Value ?? [])
+        {
+            ContainerStats.Add(new DashboardContainerStatsRowViewModel(usage));
+        }
+
+        OnPropertyChanged(nameof(IsStatsEmpty));
     }
 
     [RelayCommand]

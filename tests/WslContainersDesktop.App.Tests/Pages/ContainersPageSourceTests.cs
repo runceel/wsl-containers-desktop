@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Xml.Linq;
+
 namespace WslContainersDesktop_App_Tests.Pages;
 
 [TestClass]
@@ -170,17 +173,64 @@ public sealed class ContainersPageSourceTests
     {
         // Arrange
         var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Pages\ContainersPage.xaml");
+        var (headerGrid, rowTemplateGrid) = FindContainersListGrids(sourceText);
 
         // Assert
-        // Start/Stop/…の3ボタンを収めるため、ヘッダー行とデータ行テンプレートの両方で
-        // アクション列(最終列)の幅を"220"に揃える必要がある(片方だけ変更されるとズレる)。
-        var actionColumnWidthOccurrences = System.Text.RegularExpressions.Regex.Matches(
-            sourceText,
-            "<ColumnDefinition Width=\"220\" />").Count;
+        var headerActionColumnWidth = GetFinalColumnWidth(headerGrid, "header");
+        var rowActionColumnWidth = GetFinalColumnWidth(rowTemplateGrid, "row template");
+
         Assert.AreEqual(
-            2,
-            actionColumnWidthOccurrences,
-            "アクション列の幅(220px)はヘッダー行・データ行テンプレートの両方に定義されている必要がある。");
+            headerActionColumnWidth,
+            rowActionColumnWidth,
+            "The header and row template action columns must have the same width.");
+    }
+
+    private static (XElement HeaderGrid, XElement RowTemplateGrid) FindContainersListGrids(string sourceText)
+    {
+        var document = XDocument.Parse(sourceText);
+        XNamespace presentationNamespace = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        XNamespace xamlNamespace = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var listView = document
+            .Descendants(presentationNamespace + "ListView")
+            .SingleOrDefault(element => (string?)element.Attribute(xamlNamespace + "Name") == "LstContainers");
+        Assert.IsNotNull(listView, "Expected ContainersPage to define the LstContainers ListView.");
+
+        var headerGrid = listView.ElementsBeforeSelf().LastOrDefault();
+        Assert.IsNotNull(headerGrid, "Expected LstContainers to have a preceding header element.");
+        Assert.AreEqual(
+            presentationNamespace + "Grid",
+            headerGrid.Name,
+            "Expected LstContainers' immediately preceding sibling to be the column-header Grid.");
+
+        var rowTemplateGrid = listView
+            .Element(presentationNamespace + "ListView.ItemTemplate")?
+            .Element(presentationNamespace + "DataTemplate")?
+            .Elements()
+            .FirstOrDefault();
+        Assert.IsNotNull(rowTemplateGrid, "Expected LstContainers to define an item template root element.");
+        Assert.AreEqual(
+            presentationNamespace + "Grid",
+            rowTemplateGrid.Name,
+            "Expected LstContainers' item template root element to be the row Grid.");
+
+        return (headerGrid, rowTemplateGrid);
+    }
+
+    private static double GetFinalColumnWidth(XElement grid, string gridDescription)
+    {
+        XNamespace presentationNamespace = "http://schemas.microsoft.com/winfx/2006/xaml/presentation";
+        var actionColumn = grid
+            .Element(presentationNamespace + "Grid.ColumnDefinitions")?
+            .Elements(presentationNamespace + "ColumnDefinition")
+            .LastOrDefault();
+        Assert.IsNotNull(actionColumn, $"Expected the {gridDescription} Grid to define an action column.");
+
+        var width = (string?)actionColumn.Attribute("Width");
+        Assert.IsTrue(
+            double.TryParse(width, NumberStyles.Number, CultureInfo.InvariantCulture, out var numericWidth),
+            $"Expected the {gridDescription} action column to have a numeric Width, but found '{width ?? "(missing)"}'.");
+
+        return numericWidth;
     }
 
     private static string ExtractElementMarkup(string sourceText, string marker)

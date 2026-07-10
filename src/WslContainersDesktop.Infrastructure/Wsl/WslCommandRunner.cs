@@ -11,6 +11,7 @@ namespace WslContainersDesktop.Infrastructure.Wsl;
 public sealed class WslCommandRunner : IWslCommandRunner
 {
     private readonly string _executablePath;
+    private readonly CliProcessExecutor _cliProcessExecutor;
 
     /// <summary>
     /// <see cref="WslCommandRunner"/> の新しいインスタンスを初期化する。
@@ -19,6 +20,7 @@ public sealed class WslCommandRunner : IWslCommandRunner
     public WslCommandRunner(string executablePath = "wsl.exe")
     {
         _executablePath = executablePath;
+        _cliProcessExecutor = new CliProcessExecutor();
     }
 
     /// <inheritdoc />
@@ -41,17 +43,6 @@ public sealed class WslCommandRunner : IWslCommandRunner
             startInfo.ArgumentList.Add(argument);
         }
 
-        using var process = new Process { StartInfo = startInfo };
-        process.Start();
-
-        var standardOutputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
-        var standardErrorTask = process.StandardError.ReadToEndAsync(cancellationToken);
-
-        await process.WaitForExitAsync(cancellationToken);
-
-        var standardOutput = await standardOutputTask;
-        var standardError = await standardErrorTask;
-
-        return new CliResult(process.ExitCode, standardOutput, standardError);
+        return await _cliProcessExecutor.ExecuteAsync(startInfo, cancellationToken);
     }
 }

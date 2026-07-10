@@ -64,6 +64,21 @@ This repository is designed to be developed with GitHub Copilot CLI and other AI
 agents. Agent operating rules, including the required feature workflow, TDD policy, ADR
 handling, and model routing, are documented in [`AGENTS.md`](AGENTS.md).
 
+## Building and testing
+
+Build and test on a Windows host that natively matches the target architecture. No additional
+MSBuild properties are required.
+
+```powershell
+# ARM64
+dotnet build WslContainersDesktop.slnx -p:Platform=ARM64
+dotnet test tests\WslContainersDesktop.App.Tests\WslContainersDesktop.App.Tests.csproj -p:Platform=ARM64
+
+# x64
+dotnet build WslContainersDesktop.slnx -p:Platform=x64
+dotnet test tests\WslContainersDesktop.App.Tests\WslContainersDesktop.App.Tests.csproj -p:Platform=x64
+```
+
 ## Copilot CLI plugin setup
 
 The repository workflow expects the following Copilot CLI plugins/marketplaces. These are
