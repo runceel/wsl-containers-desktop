@@ -11,6 +11,7 @@ namespace WslContainersDesktop.Infrastructure.Cli;
 public sealed class WslcInteractiveProcess : IWslcInteractiveProcess
 {
     private const int BufferSize = 1024;
+    private const int OutputChannelCapacity = 5000;
     private readonly Process _process;
 
     public WslcInteractiveProcess(string executablePath, IReadOnlyList<string> arguments)
@@ -50,14 +51,32 @@ public sealed class WslcInteractiveProcess : IWslcInteractiveProcess
 
     public async IAsyncEnumerable<string> ReadOutputAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var channel = Channel.CreateUnbounded<string>();
-        var stdoutTask = ReadChunksAsync(_process.StandardOutput, channel.Writer, cancellationToken);
-        var stderrTask = ReadChunksAsync(_process.StandardError, channel.Writer, cancellationToken);
-        _ = CompleteAfterProcessExitAsync(channel.Writer, stdoutTask, stderrTask, cancellationToken);
-
-        await foreach (var chunk in channel.Reader.ReadAllAsync(cancellationToken))
+        using var readerCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var channel = Channel.CreateBounded<string>(new BoundedChannelOptions(OutputChannelCapacity)
         {
-            yield return chunk;
+            FullMode = BoundedChannelFullMode.Wait,
+        });
+        var stdoutTask = ReadChunksAsync(_process.StandardOutput, channel.Writer, readerCancellation.Token);
+        var stderrTask = ReadChunksAsync(_process.StandardError, channel.Writer, readerCancellation.Token);
+        _ = CompleteAfterProcessExitAsync(channel.Writer, stdoutTask, stderrTask, readerCancellation.Token);
+
+        try
+        {
+            await foreach (var chunk in channel.Reader.ReadAllAsync(cancellationToken))
+            {
+                yield return chunk;
+            }
+        }
+        finally
+        {
+            await readerCancellation.CancelAsync();
+            try
+            {
+                await Task.WhenAll(stdoutTask, stderrTask);
+            }
+            catch (OperationCanceledException) when (readerCancellation.IsCancellationRequested)
+            {
+            }
         }
     }
 

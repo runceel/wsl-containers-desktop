@@ -949,6 +949,202 @@ public sealed class ContainersViewModelTests
     }
 
     [TestMethod]
+    public async Task FollowLiveLine_MultipleCallsBeforeDrain_QueuesSingleDispatchAndAppliesLinesInOrder()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService();
+        var dispatcher = new HoldingUiDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher);
+
+        // Act
+        await sut.FollowLiveLine("first");
+        await sut.FollowLiveLine("second");
+        await sut.FollowLiveLine("third");
+
+        // Assert
+        Assert.AreEqual(1, dispatcher.PendingActions.Count);
+        Assert.AreEqual(0, sut.LogLines.Count);
+
+        dispatcher.Drain();
+
+        CollectionAssert.AreEqual(new[] { "first", "second", "third" }, sut.LogLines.ToList());
+    }
+
+    [TestMethod]
+    public async Task FollowLiveLine_AfterDrainLaterCallsQueueOneNewDispatch()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService();
+        var dispatcher = new HoldingUiDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher);
+        await sut.FollowLiveLine("first");
+        dispatcher.Drain();
+
+        // Act
+        await sut.FollowLiveLine("second");
+        await sut.FollowLiveLine("third");
+
+        // Assert
+        Assert.AreEqual(1, dispatcher.PendingActions.Count);
+        Assert.AreEqual(1, sut.LogLines.Count);
+
+        dispatcher.Drain();
+
+        CollectionAssert.AreEqual(new[] { "first", "second", "third" }, sut.LogLines.ToList());
+    }
+
+    [TestMethod]
+    public async Task FollowLiveLine_WithCapacitySeam_RetainsOnlyNewestDisplayedLines()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService();
+        var dispatcher = new HoldingUiDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher, capacity: 3);
+
+        // Act
+        await sut.FollowLiveLine("one");
+        await sut.FollowLiveLine("two");
+        await sut.FollowLiveLine("three");
+        await sut.FollowLiveLine("four");
+        dispatcher.Drain();
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "two", "three", "four" }, sut.LogLines.ToList());
+    }
+
+    [TestMethod]
+    public async Task PauseLogsAsync_QueuedPendingDispatchBeforePause_DoesNotApplyLinesUntilResume()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService();
+        var dispatcher = new HoldingUiDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher);
+
+        // Act
+        await sut.FollowLiveLine("before-pause");
+        await sut.PauseLogsAsync();
+        dispatcher.Drain();
+
+        // Assert
+        Assert.IsEmpty(sut.LogLines);
+
+        await sut.ResumeLogsAsync();
+        dispatcher.Drain();
+
+        CollectionAssert.AreEqual(new[] { "before-pause" }, sut.LogLines.ToList());
+    }
+
+    [TestMethod]
+    public async Task PauseLogsAsync_AndResume_QueuesSingleDispatchForNewestBufferedLines()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService();
+        var dispatcher = new HoldingUiDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher, capacity: 3);
+        await sut.PauseLogsAsync();
+
+        // Act
+        await sut.FollowLiveLine("one");
+        await sut.FollowLiveLine("two");
+        await sut.FollowLiveLine("three");
+        await sut.FollowLiveLine("four");
+        await sut.ResumeLogsAsync();
+
+        // Assert
+        Assert.AreEqual(1, dispatcher.PendingActions.Count);
+        Assert.AreEqual(0, sut.LogLines.Count);
+
+        dispatcher.Drain();
+
+        CollectionAssert.AreEqual(new[] { "two", "three", "four" }, sut.LogLines.ToList());
+    }
+
+    [TestMethod]
+    public async Task PauseLogsAsync_ResumeAndImmediateFollowLiveLine_PreservesBufferedLinesBeforeNewLiveLine()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService();
+        var dispatcher = new HoldingUiDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher, capacity: 10);
+        await sut.PauseLogsAsync();
+
+        // Act
+        await sut.FollowLiveLine("paused-1");
+        await sut.FollowLiveLine("paused-2");
+        await sut.ResumeLogsAsync();
+        await sut.FollowLiveLine("after-resume");
+
+        // Assert
+        Assert.AreEqual(1, dispatcher.PendingActions.Count);
+        Assert.AreEqual(0, sut.LogLines.Count);
+
+        dispatcher.Drain();
+
+        CollectionAssert.AreEqual(new[] { "paused-1", "paused-2", "after-resume" }, sut.LogLines.ToList());
+    }
+
+    [TestMethod]
+    public async Task ClearLogsAsync_AfterQueuedOutput_DoesNotRestoreStaleLines()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService();
+        var dispatcher = new HoldingUiDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher);
+        await sut.FollowLiveLine("first");
+        await sut.FollowLiveLine("second");
+
+        // Act
+        await sut.ClearLogsAsync();
+        dispatcher.Drain();
+
+        // Assert
+        Assert.IsEmpty(sut.LogLines);
+    }
+
+    [TestMethod]
+    public async Task OpenShellAsync_WithManyChunks_QueuesSingleDispatchAndDiscardsStaleChunksAfterClose()
+    {
+        // Arrange
+        var session = new FakeContainerExecSession(outputChunks: ["one", "two", "three"]);
+        var service = new FakeContainerManagementService { ExecSession = session };
+        var dispatcher = new HoldingUiDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher);
+
+        // Act
+        await sut.OpenShellAsync("c1");
+        await WaitForConditionAsync(() => dispatcher.PendingActions.Count > 0, TimeSpan.FromSeconds(1));
+        Assert.AreEqual(1, dispatcher.PendingActions.Count);
+        await sut.CloseShellAsync();
+        dispatcher.Drain();
+
+        // Assert
+        Assert.AreEqual(0, dispatcher.PendingActions.Count);
+        Assert.AreEqual(0, sut.ShellOutput.Count);
+    }
+
+    [TestMethod]
+    public async Task OpenShellAsync_WithCapacityAndDeferredDispatcher_RetainsOnlyNewestDisplayedChunks()
+    {
+        // Arrange
+        var session = new FakeContainerExecSession(outputChunks: ["one", "two", "three", "four"]);
+        var service = new FakeContainerManagementService { ExecSession = session };
+        var dispatcher = new HoldingUiDispatcher();
+        var sut = new ContainersViewModel(service, dispatcher, capacity: 3);
+
+        // Act
+        await sut.OpenShellAsync("c1");
+        await WaitForConditionAsync(() => dispatcher.PendingActions.Count > 0, TimeSpan.FromSeconds(1));
+
+        // Assert
+        Assert.AreEqual(1, dispatcher.PendingActions.Count);
+        Assert.AreEqual(0, sut.ShellOutput.Count);
+
+        dispatcher.Drain();
+
+        CollectionAssert.AreEqual(new[] { "two", "three", "four" }, sut.ShellOutput.ToList());
+    }
+
+    [TestMethod]
     public async Task CloseLogsAsync_CancelsFollowHidesPanelAndIgnoresPostCloseLines()
     {
         // Arrange
@@ -1547,6 +1743,26 @@ public sealed class ContainersViewModelTests
             CloseCalled = true;
             IsClosed = true;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class HoldingUiDispatcher : IUiDispatcher
+    {
+        public List<Action> PendingActions { get; } = [];
+
+        public void Invoke(Action action)
+        {
+            PendingActions.Add(action);
+        }
+
+        public void Drain()
+        {
+            while (PendingActions.Count > 0)
+            {
+                var action = PendingActions[0];
+                PendingActions.RemoveAt(0);
+                action();
+            }
         }
     }
 

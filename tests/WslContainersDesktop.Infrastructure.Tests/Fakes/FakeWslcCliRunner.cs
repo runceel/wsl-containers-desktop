@@ -55,13 +55,50 @@ internal sealed class FakeWslcCliRunner : IWslcCliRunner
             yield break;
         }
 
-        foreach (var line in Result.StandardOutput.Split(Environment.NewLine, StringSplitOptions.None))
+        // 実プロセス実装（WslcProcess）はstdout/stderrの両方を同じストリームに流し、
+        // 終了コードが非ゼロの場合はストリーム完了時にCliStreamExceptionを表面化させる。
+        // このフェイクの既定動作もそれに合わせることで、GetContainerLogsAsyncのような
+        // 単一ストリーミング呼び出しに対するテストを実プロセスの挙動と一致させる。
+        foreach (var line in SplitResultLines(Result.StandardOutput))
         {
             if (cancellationToken.IsCancellationRequested)
             {
                 yield break;
             }
 
+            yield return line;
+        }
+
+        foreach (var line in SplitResultLines(Result.StandardError))
+        {
+            if (cancellationToken.IsCancellationRequested)
+            {
+                yield break;
+            }
+
+            yield return line;
+        }
+
+        if (Result.ExitCode != 0)
+        {
+            var command = string.Join(' ', arguments);
+            var message = string.IsNullOrWhiteSpace(Result.StandardError)
+                ? $"Command '{command}' exited with code {Result.ExitCode}."
+                : Result.StandardError.Trim();
+            throw new CliStreamException(command, Result.ExitCode, message);
+        }
+    }
+
+    private static IEnumerable<string> SplitResultLines(string text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            yield break;
+        }
+
+        foreach (var rawLine in text.Split('\n'))
+        {
+            var line = rawLine.TrimEnd('\r');
             if (line.Length > 0)
             {
                 yield return line;
