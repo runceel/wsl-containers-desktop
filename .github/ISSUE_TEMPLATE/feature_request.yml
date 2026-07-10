@@ -1,0 +1,79 @@
+name: "機能要望"
+description: "新機能や既存機能の改善を提案します"
+title: "[Feature]: "
+labels:
+  - "enhancement"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提案ありがとうございます。実装方法ではなく、解決したい課題と確認可能な振る舞いを中心に記載してください。
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: "背景・課題"
+      description: "どのような状況で、何に困っているかを記載してください。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_value
+    attributes:
+      label: "ユーザー価値"
+      description: "この提案によって誰がどのような価値を得られるかを記載してください。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: "提案する振る舞い"
+      description: "期待するユーザー体験や動作を記載してください。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: "スコープ"
+      description: "この提案に含めたい内容を記載してください。"
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: "非スコープ"
+      description: "この提案に含めない内容や、将来検討とする内容があれば記載してください。"
+      placeholder: |
+        - ...
+        - ...
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: "受け入れ基準"
+      description: "実装方法に依存しない、完了を確認できる条件を記載してください。"
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: "補足情報"
+      description: "参考資料、モック、代替案などがあれば記載してください。"
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: "確認事項"
+      options:
+        - label: "同じ内容の既存Issueがないことを確認しました。"
+          required: true
