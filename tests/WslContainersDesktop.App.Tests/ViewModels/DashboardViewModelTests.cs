@@ -1,4 +1,6 @@
 using WslContainersDesktop.Application.Exceptions;
+using WslContainersDesktop.Application.Ports;
+using WslContainersDesktop.Application.Services;
 using WslContainersDesktop.Domain;
 using WslContainersDesktop_App.Navigation;
 using WslContainersDesktop_App.ViewModels;
@@ -12,6 +14,7 @@ public sealed class DashboardViewModelTests
     private static readonly DateTimeOffset Now = DateTimeOffset.UnixEpoch;
 
     private sealed record Harness(
+        FakeDashboardService DashboardService,
         FakeContainerManagementService Container,
         FakeImageManagementService Image,
         FakeVolumeManagementService Volume,
@@ -22,14 +25,47 @@ public sealed class DashboardViewModelTests
 
     private static Harness CreateHarness(NavigationPageKey initialKey = NavigationPageKey.Settings)
     {
+        var dashboardService = new FakeDashboardService();
         var container = new FakeContainerManagementService();
         var image = new FakeImageManagementService();
         var volume = new FakeVolumeManagementService();
         var network = new FakeNetworkManagementService();
         var navigation = new NavigationViewModel(initialKey);
         var containers = new ContainersViewModel(container);
-        var sut = new DashboardViewModel(container, image, volume, network, navigation, containers);
-        return new Harness(container, image, volume, network, navigation, containers, sut);
+        var sut = new DashboardViewModel(dashboardService, navigation, containers);
+        return new Harness(dashboardService, container, image, volume, network, navigation, containers, sut);
+    }
+
+    private static DashboardSnapshot CreateSnapshot(
+        IReadOnlyList<Container>? containers = null,
+        IReadOnlyList<ContainerImage>? images = null,
+        IReadOnlyList<ContainerVolume>? volumes = null,
+        IReadOnlyList<ContainerNetworkResource>? networks = null,
+        IReadOnlyList<ContainerResourceUsage>? stats = null)
+    {
+        return new DashboardSnapshot
+        {
+            Containers = new DashboardSection<IReadOnlyList<Container>>
+            {
+                Value = containers ?? [],
+            },
+            Images = new DashboardSection<IReadOnlyList<ContainerImage>>
+            {
+                Value = images ?? [],
+            },
+            Volumes = new DashboardSection<IReadOnlyList<ContainerVolume>>
+            {
+                Value = volumes ?? [],
+            },
+            Networks = new DashboardSection<IReadOnlyList<ContainerNetworkResource>>
+            {
+                Value = networks ?? [],
+            },
+            Stats = new DashboardSection<IReadOnlyList<ContainerResourceUsage>>
+            {
+                Value = stats ?? [],
+            },
+        };
     }
 
     private static void SeedAllSucceed(Harness h)
@@ -58,6 +94,11 @@ public sealed class DashboardViewModelTests
             new ContainerNetworkResource("n2", "bridge", Now, [], false),
             new ContainerNetworkResource("n3", "bridge", Now, [], false),
         ];
+        h.DashboardService.Snapshot = CreateSnapshot(
+            containers: h.Container.DefaultContainers,
+            images: h.Image.DefaultImages,
+            volumes: h.Volume.DefaultVolumes,
+            networks: h.Network.DefaultNetworks);
     }
 
     [TestMethod]
@@ -99,7 +140,7 @@ public sealed class DashboardViewModelTests
     {
         var h = CreateHarness();
         SeedAllSucceed(h);
-        h.Image.GetImagesException = new InvalidOperationException("img boom");
+        h.DashboardService.Snapshot!.Images.Exception = new InvalidOperationException("img boom");
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
@@ -119,8 +160,7 @@ public sealed class DashboardViewModelTests
     {
         var h = CreateHarness();
         SeedAllSucceed(h);
-        h.Container.GetContainersResults.Enqueue(
-            () => Task.FromException<IReadOnlyList<Container>>(new InvalidOperationException("c boom")));
+        h.DashboardService.Snapshot!.Containers.Exception = new InvalidOperationException("c boom");
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
@@ -138,7 +178,7 @@ public sealed class DashboardViewModelTests
     {
         var h = CreateHarness();
         SeedAllSucceed(h);
-        h.Volume.GetVolumesException = new InvalidOperationException("vol boom");
+        h.DashboardService.Snapshot!.Volumes.Exception = new InvalidOperationException("vol boom");
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
@@ -158,7 +198,7 @@ public sealed class DashboardViewModelTests
     {
         var h = CreateHarness();
         SeedAllSucceed(h);
-        h.Network.GetNetworksException = new InvalidOperationException("net boom");
+        h.DashboardService.Snapshot!.Networks.Exception = new InvalidOperationException("net boom");
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
@@ -178,7 +218,7 @@ public sealed class DashboardViewModelTests
     {
         var h = CreateHarness();
         SeedAllSucceed(h);
-        h.Container.Stats =
+        h.DashboardService.Snapshot!.Stats.Value =
         [
             new ContainerResourceUsage("c1", "web", 1.0, 1L, 2L),
             new ContainerResourceUsage("c2", "api", 2.0, 1L, 2L),
@@ -209,7 +249,8 @@ public sealed class DashboardViewModelTests
     public async Task RefreshAsync_StatsFetchFails_SetsStatsErrorMessage()
     {
         var h = CreateHarness();
-        h.Container.GetStatsException = new ContainerRuntimeException("stats", 1, "stats boom");
+        h.DashboardService.Snapshot = CreateSnapshot();
+        h.DashboardService.Snapshot!.Stats.Exception = new ContainerRuntimeException("stats", 1, "stats boom");
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
@@ -232,11 +273,14 @@ public sealed class DashboardViewModelTests
     {
         var h = CreateHarness();
         SeedAllSucceed(h);
-        h.Container.Stats = []; // 稼働中0件でも、読み込み中は「対象なし」を表示しない。
-        var gate = new TaskCompletionSource<bool>();
-        h.Container.GetStatsGate = gate;
+        h.DashboardService.Snapshot!.Stats.Value = [];
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.DashboardService.GetSnapshotAsyncFunc = async _ =>
+        {
+            await gate.Task;
+            return h.DashboardService.Snapshot!;
+        };
 
-        // Stats取得が完了する前に制御が戻るよう、await せずにコマンドを起動する。
         var refreshTask = h.Sut.RefreshCommand.ExecuteAsync(null);
 
         Assert.IsTrue(h.Sut.IsStatsLoading);
@@ -254,7 +298,7 @@ public sealed class DashboardViewModelTests
     {
         var h = CreateHarness();
         SeedAllSucceed(h);
-        h.Container.Stats = [new ContainerResourceUsage("c1", "web", 1.0, 1L, 2L)];
+        h.DashboardService.Snapshot!.Stats.Value = [new ContainerResourceUsage("c1", "web", 1.0, 1L, 2L)];
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
@@ -266,7 +310,8 @@ public sealed class DashboardViewModelTests
     public async Task RefreshAsync_StatsFetchFails_IsStatsLoadingIsFalse()
     {
         var h = CreateHarness();
-        h.Container.GetStatsException = new ContainerRuntimeException("stats", 1, "stats boom");
+        h.DashboardService.Snapshot = CreateSnapshot();
+        h.DashboardService.Snapshot!.Stats.Exception = new ContainerRuntimeException("stats", 1, "stats boom");
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
@@ -278,7 +323,7 @@ public sealed class DashboardViewModelTests
     {
         var h = CreateHarness();
         SeedAllSucceed(h);
-        h.Container.GetStatsException = new ContainerRuntimeException("stats", 1, "stats boom");
+        h.DashboardService.Snapshot!.Stats.Exception = new ContainerRuntimeException("stats", 1, "stats boom");
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
@@ -292,6 +337,7 @@ public sealed class DashboardViewModelTests
     public async Task RefreshAsync_AllSourcesReturnEmpty_SetsAllCountsToZero()
     {
         var h = CreateHarness();
+        h.DashboardService.Snapshot = CreateSnapshot();
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
@@ -328,18 +374,29 @@ public sealed class DashboardViewModelTests
             new Container("c2", "api", "img", ContainerState.Running, Now),
             new Container("c3", "db", "img", ContainerState.Stopped, Now),
         ];
-        h.Container.Stats =
-        [
-            new ContainerResourceUsage("c1", "web", 1.0, 1L, 2L),
-            new ContainerResourceUsage("c2", "api", 2.0, 1L, 2L),
-        ];
+        h.DashboardService.Snapshot = CreateSnapshot(
+            containers: h.Container.DefaultContainers,
+            images: h.Image.DefaultImages,
+            volumes: h.Volume.DefaultVolumes,
+            networks: [
+                new ContainerNetworkResource("n0", "bridge", Now, [], true),
+                new ContainerNetworkResource("n1", "bridge", Now, [], false),
+                new ContainerNetworkResource("n2", "bridge", Now, [], false),
+                new ContainerNetworkResource("n3", "bridge", Now, [], false),
+            ],
+            stats: [
+                new ContainerResourceUsage("c1", "web", 1.0, 1L, 2L),
+                new ContainerResourceUsage("c2", "api", 2.0, 1L, 2L),
+            ]);
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
-        h.Image.DefaultImages = [new ContainerImage("i1", "repo", "1", 1, Now)];
-        h.Volume.DefaultVolumes = [];
-        h.Container.DefaultContainers = [new Container("c1", "web", "img", ContainerState.Running, Now)];
-        h.Container.Stats = [new ContainerResourceUsage("c1", "web", 1.0, 1L, 2L)];
+        h.DashboardService.Snapshot = CreateSnapshot(
+            containers: [new Container("c1", "web", "img", ContainerState.Running, Now)],
+            images: [new ContainerImage("i1", "repo", "1", 1, Now)],
+            volumes: [],
+            networks: [],
+            stats: [new ContainerResourceUsage("c1", "web", 1.0, 1L, 2L)]);
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
@@ -354,12 +411,13 @@ public sealed class DashboardViewModelTests
     public async Task RefreshAsync_FailureThenSuccess_ClearsErrorMessage()
     {
         var h = CreateHarness();
-        h.Image.GetImagesException = new InvalidOperationException("img boom");
+        h.DashboardService.Snapshot = CreateSnapshot();
+        h.DashboardService.Snapshot!.Images.Exception = new InvalidOperationException("img boom");
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
-        h.Image.GetImagesException = null;
-        h.Image.DefaultImages =
+        h.DashboardService.Snapshot!.Images.Exception = null;
+        h.DashboardService.Snapshot.Images.Value =
         [
             new ContainerImage("i1", "repo", "1", 1, Now),
             new ContainerImage("i2", "repo", "2", 1, Now),
@@ -376,7 +434,8 @@ public sealed class DashboardViewModelTests
     public async Task RefreshAsync_SuccessThenFailure_ClearsStaleStats()
     {
         var h = CreateHarness();
-        h.Container.Stats =
+        h.DashboardService.Snapshot = CreateSnapshot();
+        h.DashboardService.Snapshot!.Stats.Value =
         [
             new ContainerResourceUsage("c1", "web", 1.0, 1L, 2L),
             new ContainerResourceUsage("c2", "api", 2.0, 1L, 2L),
@@ -384,7 +443,8 @@ public sealed class DashboardViewModelTests
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
-        h.Container.GetStatsException = new ContainerRuntimeException("stats", 1, "stats boom");
+        h.DashboardService.Snapshot!.Stats.Exception = new ContainerRuntimeException("stats", 1, "stats boom");
+        h.DashboardService.Snapshot.Stats.Value = [];
 
         await h.Sut.RefreshCommand.ExecuteAsync(null);
 
@@ -420,18 +480,20 @@ public sealed class DashboardViewModelTests
     {
         var h = CreateHarness();
         SeedAllSucceed(h);
-        var gate = new TaskCompletionSource<IReadOnlyList<Container>>();
-        h.Container.GetContainersResults.Enqueue(() => gate.Task);
+        var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.DashboardService.GetSnapshotAsyncFunc = async _ =>
+        {
+            await gate.Task;
+            return h.DashboardService.Snapshot!;
+        };
 
         var first = h.Sut.RefreshCommand.ExecuteAsync(null);
         var second = h.Sut.RefreshCommand.ExecuteAsync(null);
-        gate.SetResult(h.Container.DefaultContainers);
+        gate.SetResult(true);
         await first;
         await second;
 
-        Assert.AreEqual(1, h.Image.GetImagesCallCount);
-        Assert.AreEqual(1, h.Volume.GetVolumesCallCount);
-        Assert.AreEqual(1, h.Network.GetNetworksCallCount);
+        Assert.AreEqual(1, h.DashboardService.GetSnapshotCallCount);
     }
 
     [TestMethod]

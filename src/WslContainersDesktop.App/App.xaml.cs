@@ -55,6 +55,7 @@ public partial class App : Application
         services.AddSingleton<IImageManagementService, ImageManagementService>();
         services.AddSingleton<IVolumeManagementService, VolumeManagementService>();
         services.AddSingleton<INetworkManagementService, NetworkManagementService>();
+        services.AddSingleton<IDashboardService, DashboardService>();
         services.AddSingleton<IUiDispatcher>(_ => new DispatcherQueueUiDispatcher(DispatcherQueue.GetForCurrentThread()));
 
         // 設定画面（Issue #7）。WSL環境検出と .wslconfig 編集の低レベルseamと、
