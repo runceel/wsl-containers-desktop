@@ -84,6 +84,10 @@ flowchart TB
 - `IImageManagementService`はPresentation層向けのInboundポートであり、イメージ一覧取得、pull、
   削除を提供する。pull後の一覧更新や削除確認はPresentation層で扱い、Application層はランタイム操作の
   オーケストレーションと入力検証に留める。
+- `IDashboardService`はPresentation層向けのInboundポートであり、ダッシュボードのコンテナ、イメージ、
+  ボリューム、ネットワーク、リソース使用量を個別の成功・失敗状態を持つ`DashboardSnapshot`として提供する。
+  `DashboardService`は各一覧と統計を並列に取得し、コンテナ詳細を1回だけ取得してボリューム参照と
+  ネットワーク接続情報に共有する。
 - `IVolumeManagementService`はPresentation層向けのInboundポートであり、ボリューム一覧取得、作成、
   削除を提供する。`VolumeManagementService`は一覧取得時にコンテナ詳細のマウント情報から参照中
   コンテナ名を推定し、削除前にも再評価して参照中ボリュームの削除を拒否する。
@@ -116,11 +120,13 @@ flowchart TB
   任意のシェルコマンドを引数へ変換する。削除時は強制削除フラグを付けず、参照中イメージの拒否は
   `wslc`のエラーとしてApplication/Presentation層へ伝播する。
 - ボリューム一覧は`wslc volume list --format json`のJSONを基点に、各ボリュームの
-  `wslc volume inspect <name>`から作成日時を補完して`ContainerVolume`へ変換する。作成は
+  `wslc volume inspect <name>`から作成日時を補完して`ContainerVolume`へ変換する。詳細取得は最大4件を
+  並列に実行し、一覧順で結果を返す。作成は
   `wslc volume create <name>`、削除は`wslc volume remove <name>`を呼び出す。削除時は強制削除フラグを
   付けず、ランタイム側の拒否はApplication/Presentation層へ伝播する。
 - ネットワーク一覧は`wslc network list --format json`のJSONを基点に、各ネットワークの
-  `wslc network inspect <name>`から取得できる詳細を補完して`ContainerNetworkResource`へ変換する。
+  `wslc network inspect <name>`から取得できる詳細を補完して`ContainerNetworkResource`へ変換する。詳細取得は
+  最大4件を並列に実行し、一覧順で結果を返す。
   作成日時が取得できない場合は未設定値として扱い、Presentation層では`Unknown`として表示する。
   システムネットワーク判定は、ランタイムが返す種別情報とApplication層の予約済みネットワーク名
   （`bridge`, `host`, `none`）の判定を組み合わせる。作成は`wslc network create <name>`、削除は

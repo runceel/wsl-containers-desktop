@@ -115,6 +115,56 @@ public sealed class NetworkManagementInfrastructureTests
     }
 
     [TestMethod]
+    public async Task ListNetworksAsync_InspectsInBoundedParallelismAndPreservesListOrder()
+    {
+        // Arrange
+        const int maxDegree = 4;
+        var names = new[] { "net-1", "net-2", "net-3", "net-4", "net-5" };
+        var listJson = $"[{string.Join(",", names.Select(name => $"{{\"Driver\":\"bridge\",\"Name\":\"{name}\"}}"))}]";
+        var releaseGate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startedInspectCalls = 0;
+        var activeInspectCalls = 0;
+        var maxObservedConcurrentCalls = 0;
+        async Task<CliResult> WaitForReleaseAsync(string name, CancellationToken cancellationToken)
+        {
+            await releaseGate.Task.WaitAsync(cancellationToken);
+            Interlocked.Decrement(ref activeInspectCalls);
+            return new CliResult(0, $"[{{\"CreatedAt\":\"2026-07-02T09:00:00Z\",\"Driver\":\"bridge\",\"Name\":\"{name}\"}}]", string.Empty);
+        }
+        var runner = new FakeWslcCliRunner();
+        runner.RunAsyncFunc = (arguments, cancellationToken) =>
+        {
+            if (arguments.SequenceEqual(new[] { "network", "list", "--format", "json" }))
+            {
+                return Task.FromResult(new CliResult(0, listJson, string.Empty));
+            }
+
+            if (arguments.Count >= 3 && arguments[0] == "network" && arguments[1] == "inspect")
+            {
+                var name = arguments[2];
+                var current = Interlocked.Increment(ref activeInspectCalls);
+                var maxObserved = Math.Max(Volatile.Read(ref maxObservedConcurrentCalls), current);
+                Interlocked.Exchange(ref maxObservedConcurrentCalls, maxObserved);
+                Interlocked.Increment(ref startedInspectCalls);
+                return WaitForReleaseAsync(name, cancellationToken);
+            }
+
+            return Task.FromResult(new CliResult(0, string.Empty, string.Empty));
+        };
+        var sut = new WslcCliContainerRuntimeClient(runner);
+
+        // Act
+        var task = sut.ListNetworksAsync();
+        Assert.IsTrue(SpinWait.SpinUntil(() => Volatile.Read(ref startedInspectCalls) >= maxDegree, TimeSpan.FromSeconds(2)));
+        Assert.AreEqual(maxDegree, Volatile.Read(ref maxObservedConcurrentCalls));
+        releaseGate.SetResult(true);
+        var networks = await task;
+
+        // Assert
+        CollectionAssert.AreEqual(names, networks.Select(network => network.Name).ToList());
+    }
+
+    [TestMethod]
     public async Task CreateNetworkAsync_CliArguments_AreNetworkCreateWithName()
     {
         // Arrange

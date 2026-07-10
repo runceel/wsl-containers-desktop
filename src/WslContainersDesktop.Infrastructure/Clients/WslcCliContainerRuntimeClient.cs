@@ -20,6 +20,11 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
     private const int RunningStateValue = 2;
 
     /// <summary>
+    /// ボリューム/ネットワークの詳細取得時に同時に実行する最大並列数。
+    /// </summary>
+    private const int InspectionConcurrencyLimit = 4;
+
+    /// <summary>
     /// メモリ使用量文字列（例: <c>"128MiB"</c>）を解析する際に用いる単位とバイト換算係数の対応表。
     /// 長い単位（TiB, GiB…）から順に評価することで、部分一致による誤判定を防ぐ。
     /// </summary>
@@ -143,13 +148,11 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
             return [];
         }
 
-        var volumes = new List<ContainerVolume>();
-        foreach (var item in items)
-        {
-            volumes.Add(await InspectVolumeAsync(item, cancellationToken));
-        }
-
-        return volumes;
+        return await InspectItemsConcurrentlyAsync(
+            items,
+            (item, ct) => InspectVolumeAsync(item, ct),
+            InspectionConcurrencyLimit,
+            cancellationToken);
     }
 
     public Task CreateVolumeAsync(string name, CancellationToken cancellationToken = default)
@@ -175,13 +178,11 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
             return [];
         }
 
-        var networks = new List<ContainerNetworkResource>();
-        foreach (var item in items)
-        {
-            networks.Add(await InspectNetworkAsync(item, cancellationToken));
-        }
-
-        return networks;
+        return await InspectItemsConcurrentlyAsync(
+            items,
+            (item, ct) => InspectNetworkAsync(item, ct),
+            InspectionConcurrencyLimit,
+            cancellationToken);
     }
 
     public Task CreateNetworkAsync(string name, CancellationToken cancellationToken = default)
@@ -448,6 +449,43 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
             CreatedAt: ParseDateTimeOffsetOrDefault(item.CreatedAt),
             ConnectedContainerNames: [],
             IsSystem: listItem.IsSystem || item.IsSystem);
+    }
+
+    private static async Task<IReadOnlyList<TResult>> InspectItemsConcurrentlyAsync<TItem, TResult>(
+        IReadOnlyList<TItem> items,
+        Func<TItem, CancellationToken, Task<TResult>> inspectAsync,
+        int concurrencyLimit,
+        CancellationToken cancellationToken)
+    {
+        if (items.Count == 0)
+        {
+            return [];
+        }
+
+        var semaphore = new SemaphoreSlim(concurrencyLimit);
+        var results = new TResult[items.Count];
+        var tasks = items.Select((item, index) => InspectItemConcurrentlyAsync(item, index, results, inspectAsync, semaphore, cancellationToken));
+        await Task.WhenAll(tasks);
+        return results;
+    }
+
+    private static async Task InspectItemConcurrentlyAsync<TItem, TResult>(
+        TItem item,
+        int index,
+        TResult[] results,
+        Func<TItem, CancellationToken, Task<TResult>> inspectAsync,
+        SemaphoreSlim semaphore,
+        CancellationToken cancellationToken)
+    {
+        await semaphore.WaitAsync(cancellationToken);
+        try
+        {
+            results[index] = await inspectAsync(item, cancellationToken);
+        }
+        finally
+        {
+            semaphore.Release();
+        }
     }
 
     private static IReadOnlyList<string> SplitLogLines(string text)
