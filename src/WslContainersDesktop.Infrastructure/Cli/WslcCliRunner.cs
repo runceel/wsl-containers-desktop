@@ -80,11 +80,7 @@ public sealed class WslcCliRunner : IWslcCliRunner
         }
         finally
         {
-            if (cancellationToken.IsCancellationRequested)
-            {
-                process.Kill();
-            }
-
+            process.Kill();
             process.Dispose();
         }
     }

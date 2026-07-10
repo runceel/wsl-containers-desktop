@@ -10,6 +10,8 @@ namespace WslContainersDesktop.Infrastructure.Cli;
 /// </summary>
 public sealed class WslcProcess : IWslcProcess
 {
+    private const int OutputChannelCapacity = 5000;
+
     private readonly Process _process;
     private readonly string _command;
     private readonly StringBuilder _standardError = new();
@@ -45,15 +47,33 @@ public sealed class WslcProcess : IWslcProcess
 
     public async IAsyncEnumerable<string> ReadLinesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        var channel = Channel.CreateUnbounded<string>();
-        var stdoutTask = ReadStreamAsync(_process.StandardOutput, channel.Writer, captureError: false, cancellationToken);
-        var stderrTask = ReadStreamAsync(_process.StandardError, channel.Writer, captureError: true, cancellationToken);
-
-        _ = CompleteAfterProcessExitAsync(channel.Writer, stdoutTask, stderrTask, cancellationToken);
-
-        await foreach (var line in channel.Reader.ReadAllAsync(cancellationToken))
+        using var readerCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        var channel = Channel.CreateBounded<string>(new BoundedChannelOptions(OutputChannelCapacity)
         {
-            yield return line;
+            FullMode = BoundedChannelFullMode.Wait,
+        });
+        var stdoutTask = ReadStreamAsync(_process.StandardOutput, channel.Writer, captureError: false, readerCancellation.Token);
+        var stderrTask = ReadStreamAsync(_process.StandardError, channel.Writer, captureError: true, readerCancellation.Token);
+
+        _ = CompleteAfterProcessExitAsync(channel.Writer, stdoutTask, stderrTask, readerCancellation.Token);
+
+        try
+        {
+            await foreach (var line in channel.Reader.ReadAllAsync(cancellationToken))
+            {
+                yield return line;
+            }
+        }
+        finally
+        {
+            await readerCancellation.CancelAsync();
+            try
+            {
+                await Task.WhenAll(stdoutTask, stderrTask);
+            }
+            catch (OperationCanceledException) when (readerCancellation.IsCancellationRequested)
+            {
+            }
         }
     }
 

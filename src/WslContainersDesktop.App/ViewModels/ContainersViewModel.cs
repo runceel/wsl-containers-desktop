@@ -15,7 +15,10 @@ namespace WslContainersDesktop_App.ViewModels;
 /// <summary>
 /// コンテナ一覧の表示・操作を管理するViewModel。
 /// </summary>
-public sealed partial class ContainersViewModel(IContainerManagementService containerManagementService) : ObservableObject
+public sealed partial class ContainersViewModel(
+    IContainerManagementService containerManagementService,
+    IUiDispatcher? uiDispatcher = null,
+    int capacity = 5000) : ObservableObject
 {
     private const string StoppedLogStatusMessage = "This container is stopped. Existing logs are displayed, but no live log follow is active.";
     private const string MissingLogStatusMessage = "The selected container does not exist.";
@@ -23,7 +26,15 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     private const string ShellConnectedStatusMessage = "Shell connected.";
     private const string ShellDisconnectedStatusMessage = "Shell disconnected.";
 
-    private readonly IUiDispatcher _uiDispatcher = new ImmediateUiDispatcher();
+    private readonly IUiDispatcher _uiDispatcher = uiDispatcher ?? new ImmediateUiDispatcher();
+
+    /// <summary>
+    /// 表示・一時停止バッファに保持する要素数の上限。
+    /// 0以下は無制限ではなく設定ミスとみなし、コンストラクターで直ちに検出する。
+    /// </summary>
+    private readonly int _capacity = capacity > 0
+        ? capacity
+        : throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "capacity must be a positive number.");
 
     /// <summary>
     /// 実行中の操作が対象としているコンテナIDと、その操作種別の対応。
@@ -49,20 +60,23 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     private readonly HashSet<string> _pendingDeleteContainerIds = [];
 
     private readonly List<string> _pausedLogBuffer = [];
+    private readonly Queue<string> _pendingLogLines = [];
+    private readonly Queue<(ExecSessionState State, string Chunk)> _pendingShellChunks = [];
+    private readonly object _logQueueLock = new();
+    private readonly object _shellQueueLock = new();
 
     private readonly Dictionary<string, ExecSessionState> _execSessions = [];
+
+    private int _logDispatchGeneration;
+    private int _shellDispatchGeneration;
+    private int _logDispatchPendingToken;
+    private int _shellDispatchPendingToken;
 
     private CancellationTokenSource? _logFollowCancellation;
 
     private Task? _logFollowTask;
 
     private ExecSessionState? _currentExecSession;
-
-    public ContainersViewModel(IContainerManagementService containerManagementService, IUiDispatcher uiDispatcher)
-        : this(containerManagementService)
-    {
-        _uiDispatcher = uiDispatcher;
-    }
 
     /// <summary>
     /// 現在表示中のコンテナ一覧。
@@ -402,7 +416,11 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     [RelayCommand]
     public Task PauseLogsAsync()
     {
-        IsLogsPaused = true;
+        lock (_logQueueLock)
+        {
+            IsLogsPaused = true;
+        }
+
         return Task.CompletedTask;
     }
 
@@ -412,10 +430,25 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     [RelayCommand]
     public Task ResumeLogsAsync()
     {
-        IsLogsPaused = false;
-        AppendDisplayedLogLines(_pausedLogBuffer);
-        _pausedLogBuffer.Clear();
-        UpdateLogEmpty();
+        int dispatchToken;
+        bool hadBufferedLines;
+        lock (_logQueueLock)
+        {
+            IsLogsPaused = false;
+            hadBufferedLines = _pausedLogBuffer.Count > 0;
+            dispatchToken = EnqueuePendingLogLinesUnderLock(_pausedLogBuffer);
+            _pausedLogBuffer.Clear();
+        }
+
+        if (dispatchToken != 0)
+        {
+            _uiDispatcher.Invoke(() => FlushPendingLogLines(dispatchToken));
+        }
+        else if (!hadBufferedLines)
+        {
+            UpdateLogEmpty();
+        }
+
         return Task.CompletedTask;
     }
 
@@ -425,8 +458,9 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     [RelayCommand]
     public Task ClearLogsAsync()
     {
+        ResetPendingLogDisplayState();
         LogLines.Clear();
-        _pausedLogBuffer.Clear();
+        ClearPausedLogBuffer();
         UpdateLogEmpty();
         return Task.CompletedTask;
     }
@@ -438,6 +472,7 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     public async Task CloseLogsAsync()
     {
         await StopLogFollowAsync();
+        ResetPendingLogDisplayState();
         IsLogPanelVisible = false;
     }
 
@@ -447,17 +482,23 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
     /// <param name="line">ログ行。</param>
     public Task FollowLiveLine(string line)
     {
-        _uiDispatcher.Invoke(() =>
+        int dispatchToken = 0;
+        lock (_logQueueLock)
         {
             if (IsLogsPaused)
             {
-                _pausedLogBuffer.Add(line);
+                AppendBounded(_pausedLogBuffer, line, _capacity);
             }
             else
             {
-                AppendDisplayedLogLine(line);
+                dispatchToken = EnqueuePendingLogLineUnderLock(line);
             }
-        });
+        }
+
+        if (dispatchToken != 0)
+        {
+            _uiDispatcher.Invoke(() => FlushPendingLogLines(dispatchToken));
+        }
 
         return Task.CompletedTask;
     }
@@ -658,6 +699,7 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
 
     private void UseShellSession(ExecSessionState state)
     {
+        ResetPendingShellDisplayState();
         _currentExecSession = state;
         ShellOutput.Clear();
         IsShellConnected = true;
@@ -666,6 +708,7 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
 
     private async Task CloseShellSessionAsync(ExecSessionState state, bool showDisconnectedStatus)
     {
+        ResetPendingShellDisplayState();
         await state.Cancellation.CancelAsync();
         await state.Session.CloseAsync();
         if (state.OutputTask is not null)
@@ -699,13 +742,7 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
         {
             await foreach (var chunk in state.Session.ReadOutputAsync(state.Cancellation.Token))
             {
-                _uiDispatcher.Invoke(() =>
-                {
-                    if (_currentExecSession == state)
-                    {
-                        ShellOutput.Add(chunk);
-                    }
-                });
+                EnqueueShellChunk(state, chunk);
             }
 
             _uiDispatcher.Invoke(() =>
@@ -731,6 +768,236 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
                 }
             });
         }
+    }
+
+    private void EnqueueDisplayedLogLine(string line)
+    {
+        int dispatchToken;
+        lock (_logQueueLock)
+        {
+            dispatchToken = EnqueuePendingLogLineUnderLock(line);
+        }
+
+        if (dispatchToken != 0)
+        {
+            _uiDispatcher.Invoke(() => FlushPendingLogLines(dispatchToken));
+        }
+    }
+
+    private void EnqueueDisplayedLogLines(IEnumerable<string> lines)
+    {
+        var pendingLines = lines.ToList();
+        if (pendingLines.Count == 0)
+        {
+            return;
+        }
+
+        int dispatchToken;
+        lock (_logQueueLock)
+        {
+            dispatchToken = EnqueuePendingLogLinesUnderLock(pendingLines);
+        }
+
+        if (dispatchToken != 0)
+        {
+            _uiDispatcher.Invoke(() => FlushPendingLogLines(dispatchToken));
+        }
+    }
+
+    private int EnqueuePendingLogLineUnderLock(string line)
+    {
+        EnqueueBounded(_pendingLogLines, line, _capacity);
+        return ReservePendingLogDispatchTokenUnderLock();
+    }
+
+    private int EnqueuePendingLogLinesUnderLock(IEnumerable<string> lines)
+    {
+        foreach (var line in lines)
+        {
+            EnqueueBounded(_pendingLogLines, line, _capacity);
+        }
+
+        return ReservePendingLogDispatchTokenUnderLock();
+    }
+
+    /// <summary>
+    /// 呼び出し時点で <see cref="_pendingLogLines"/> にディスパッチ待ちのトークンが
+    /// 存在しなければ新規発行し、既に存在する場合は0（未発行）を返す。
+    /// <see cref="_logQueueLock"/> を保持した状態で呼び出すこと。
+    /// </summary>
+    private int ReservePendingLogDispatchTokenUnderLock()
+    {
+        if (_logDispatchPendingToken != 0)
+        {
+            return 0;
+        }
+
+        var dispatchToken = ++_logDispatchGeneration;
+        _logDispatchPendingToken = dispatchToken;
+        return dispatchToken;
+    }
+
+    private void FlushPendingLogLines(int dispatchToken)
+    {
+        List<string> lines;
+
+        lock (_logQueueLock)
+        {
+            if (_logDispatchPendingToken != dispatchToken)
+            {
+                // Clear/Close/OpenなどによりResetPendingLogDisplayStateが実行され、
+                // このディスパッチは既に無効化されている（トークンが不一致）。
+                // 古いキュー内容を反映して表示を復活させてはならない。
+                return;
+            }
+
+            if (IsLogsPaused)
+            {
+                while (_pendingLogLines.Count > 0)
+                {
+                    AppendBounded(_pausedLogBuffer, _pendingLogLines.Dequeue(), _capacity);
+                }
+
+                _logDispatchPendingToken = 0;
+                return;
+            }
+
+            lines = [];
+            while (_pendingLogLines.Count > 0)
+            {
+                lines.Add(_pendingLogLines.Dequeue());
+            }
+
+            _logDispatchPendingToken = 0;
+        }
+
+        if (lines.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var line in lines)
+        {
+            AppendDisplayedLogLine(line);
+        }
+    }
+
+    private void ResetPendingLogDisplayState()
+    {
+        lock (_logQueueLock)
+        {
+            _pendingLogLines.Clear();
+            _logDispatchPendingToken = 0;
+        }
+    }
+
+    private void ClearPausedLogBuffer()
+    {
+        lock (_logQueueLock)
+        {
+            _pausedLogBuffer.Clear();
+        }
+    }
+
+    private void EnqueueShellChunk(ExecSessionState state, string chunk)
+    {
+        int dispatchToken;
+        lock (_shellQueueLock)
+        {
+            dispatchToken = EnqueuePendingShellChunkUnderLock(state, chunk);
+        }
+
+        if (dispatchToken != 0)
+        {
+            _uiDispatcher.Invoke(() => FlushPendingShellChunks(dispatchToken));
+        }
+    }
+
+    private int EnqueuePendingShellChunkUnderLock(ExecSessionState state, string chunk)
+    {
+        EnqueueBounded(_pendingShellChunks, (state, chunk), _capacity);
+
+        if (_shellDispatchPendingToken != 0)
+        {
+            return 0;
+        }
+
+        var dispatchToken = ++_shellDispatchGeneration;
+        _shellDispatchPendingToken = dispatchToken;
+        return dispatchToken;
+    }
+
+    private void FlushPendingShellChunks(int dispatchToken)
+    {
+        List<(ExecSessionState State, string Chunk)> chunks;
+
+        lock (_shellQueueLock)
+        {
+            if (_shellDispatchPendingToken != dispatchToken)
+            {
+                // ResetPendingShellDisplayState（Close/Open）によって無効化された
+                // 古いディスパッチ。トークン不一致のため、破棄されたチャンクを
+                // 画面に復活させない。
+                return;
+            }
+
+            chunks = [];
+            while (_pendingShellChunks.Count > 0)
+            {
+                chunks.Add(_pendingShellChunks.Dequeue());
+            }
+
+            _shellDispatchPendingToken = 0;
+        }
+
+        if (chunks.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var (state, chunk) in chunks)
+        {
+            if (_currentExecSession == state && !state.Session.IsClosed)
+            {
+                AppendBounded(ShellOutput, chunk, _capacity);
+            }
+        }
+    }
+
+    private void ResetPendingShellDisplayState()
+    {
+        lock (_shellQueueLock)
+        {
+            _pendingShellChunks.Clear();
+            _shellDispatchPendingToken = 0;
+        }
+    }
+
+    /// <summary>
+    /// <paramref name="collection"/> の末尾に <paramref name="item"/> を追加する。
+    /// 追加前に要素数が <paramref name="capacity"/> に達している場合は先頭（最も古い要素）を
+    /// 取り除いてから追加することで、常に最新 <paramref name="capacity"/> 件を保つ。
+    /// <see cref="LogLines"/>・<see cref="ShellOutput"/>・一時停止バッファの3か所で
+    /// 同一のcapacity/eviction規則を使うための共通実装。
+    /// </summary>
+    private static void AppendBounded<T>(IList<T> collection, T item, int capacity)
+    {
+        if (collection.Count >= capacity)
+        {
+            collection.RemoveAt(0);
+        }
+
+        collection.Add(item);
+    }
+
+    private static void EnqueueBounded<T>(Queue<T> queue, T item, int capacity)
+    {
+        if (queue.Count >= capacity)
+        {
+            queue.Dequeue();
+        }
+
+        queue.Enqueue(item);
     }
 
     private void ShowShellStatus(string message, bool isError)
@@ -845,9 +1112,15 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
 
     private void ResetLogPanelForOpen()
     {
+        lock (_logQueueLock)
+        {
+            _pendingLogLines.Clear();
+            _pausedLogBuffer.Clear();
+            _logDispatchPendingToken = 0;
+            IsLogsPaused = false;
+        }
+
         LogLines.Clear();
-        _pausedLogBuffer.Clear();
-        IsLogsPaused = false;
         IsLogPanelVisible = true;
         ClearLogStatus();
         UpdateLogEmpty();
@@ -874,7 +1147,7 @@ public sealed partial class ContainersViewModel(IContainerManagementService cont
 
     private void AppendDisplayedLogLine(string line)
     {
-        LogLines.Add(line);
+        AppendBounded(LogLines, line, _capacity);
         UpdateLogEmpty();
     }
 

@@ -317,7 +317,9 @@ public sealed class WslcCliContainerRuntimeClientTests
         await sut.GetContainerLogsAsync("c1");
 
         // Assert
-        CollectionAssert.AreEqual(new[] { "container", "logs", "c1" }, runner.Calls[0].ToList());
+        // GetContainerLogsAsyncは単一のストリーミング呼び出しのみを行う（RunAsyncは呼ばれない）。
+        Assert.IsEmpty(runner.Calls);
+        CollectionAssert.AreEqual(new[] { "container", "logs", "c1" }, runner.StreamCalls[0].ToList());
     }
 
     [TestMethod]

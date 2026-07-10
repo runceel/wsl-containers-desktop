@@ -80,6 +80,25 @@ public sealed class WslcCliRunnerTests
     }
 
     [TestMethod]
+    public async Task StreamLinesAsync_DisposedWithoutCancellation_KillsProcessBeforeDisposing()
+    {
+        // Arrange
+        var process = new FakeWslcProcessWithEarlyDispose(stdOutLines: ["hello"]);
+        var sut = new WslcCliRunner(new FakeWslcProcessFactory(process));
+        await using var enumerator = sut.StreamLinesAsync(["container", "logs", "c1"]).GetAsyncEnumerator();
+
+        // Act
+        Assert.IsTrue(await enumerator.MoveNextAsync());
+        Assert.AreEqual("hello", enumerator.Current);
+        await enumerator.DisposeAsync();
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "kill", "dispose" }, process.Events);
+        Assert.IsTrue(process.KillCalled);
+        Assert.IsTrue(process.DisposeCalled);
+    }
+
+    [TestMethod]
     public async Task StreamLinesAsync_EnumerationIsCanceled_KillsProcessAndDisposesIt()
     {
         // Arrange
@@ -249,6 +268,40 @@ public sealed class WslcCliRunnerTests
         public void Kill() => KillCalled = true;
 
         public void Dispose() => DisposeCalled = true;
+    }
+
+    private sealed class FakeWslcProcessWithEarlyDispose(IReadOnlyList<string>? stdOutLines = null) : IWslcProcess
+    {
+        public bool KillCalled { get; private set; }
+
+        public bool DisposeCalled { get; private set; }
+
+        public List<string> Events { get; } = [];
+
+        public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+        public async IAsyncEnumerable<string> ReadLinesAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+        {
+            foreach (var line in stdOutLines ?? [])
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return line;
+            }
+
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+        }
+
+        public void Kill()
+        {
+            KillCalled = true;
+            Events.Add("kill");
+        }
+
+        public void Dispose()
+        {
+            DisposeCalled = true;
+            Events.Add("dispose");
+        }
     }
 
     private sealed class FakeWslcInteractiveProcess(IReadOnlyList<string>? outputChunks = null, int exitCode = 0) : IWslcInteractiveProcess

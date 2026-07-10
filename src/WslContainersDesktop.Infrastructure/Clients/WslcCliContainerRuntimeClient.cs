@@ -20,6 +20,11 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
     private const int RunningStateValue = 2;
 
     /// <summary>
+    /// 履歴ログとして保持する最大行数。
+    /// </summary>
+    private const int MaxHistoricalLogLines = 5000;
+
+    /// <summary>
     /// メモリ使用量文字列（例: <c>"128MiB"</c>）を解析する際に用いる単位とバイト換算係数の対応表。
     /// 長い単位（TiB, GiB…）から順に評価することで、部分一致による誤判定を防ぐ。
     /// </summary>
@@ -214,9 +219,30 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
 
     public async Task<IReadOnlyList<string>> GetContainerLogsAsync(string containerId, CancellationToken cancellationToken = default)
     {
-        var result = await RunAsync(["container", "logs", containerId], cancellationToken);
-        var lines = SplitLogResult(result);
-        return lines;
+        // 実行は一度きり: `container logs` はストリーミングAPIのみを呼び出す
+        // （stdout/stderrの両方が同じストリームから得られ、非ゼロ終了コードは
+        // CliStreamExceptionとして表面化するため、事前のRunAsync呼び出しは不要）。
+        IReadOnlyList<string> arguments = ["container", "logs", containerId];
+        var lines = new Queue<string>(MaxHistoricalLogLines);
+
+        try
+        {
+            await foreach (var streamLine in cliRunner.StreamLinesAsync(arguments, cancellationToken))
+            {
+                if (lines.Count >= MaxHistoricalLogLines)
+                {
+                    lines.Dequeue();
+                }
+
+                lines.Enqueue(streamLine.TrimEnd('\r'));
+            }
+        }
+        catch (CliStreamException ex)
+        {
+            throw new ContainerRuntimeException(ex.Command, ex.ExitCode, ex.Message, ex);
+        }
+
+        return lines.ToList();
     }
 
     public async Task<ContainerDetail> GetContainerDetailAsync(string containerId, CancellationToken cancellationToken = default)
@@ -448,30 +474,6 @@ public sealed class WslcCliContainerRuntimeClient(IWslcCliRunner cliRunner) : IC
             CreatedAt: ParseDateTimeOffsetOrDefault(item.CreatedAt),
             ConnectedContainerNames: [],
             IsSystem: listItem.IsSystem || item.IsSystem);
-    }
-
-    private static IReadOnlyList<string> SplitLogLines(string text)
-    {
-        if (string.IsNullOrEmpty(text))
-        {
-            return [];
-        }
-
-        var lines = text.Split('\n').Select(line => line.TrimEnd('\r')).ToList();
-        if (lines.Count > 0 && lines[^1].Length == 0)
-        {
-            lines.RemoveAt(lines.Count - 1);
-        }
-
-        return lines;
-    }
-
-    private static IReadOnlyList<string> SplitLogResult(CliResult result)
-    {
-        var lines = new List<string>();
-        lines.AddRange(SplitLogLines(result.StandardOutput));
-        lines.AddRange(SplitLogLines(result.StandardError));
-        return lines;
     }
 
     private static ContainerDetail MapInspectDetail(ContainerInspectDto item)
