@@ -174,9 +174,10 @@
 
 - 右側の補助ペインは小さいため、ログ・シェルパネルのヘッダーに「Open in window」ボタン
   （`BtnOpenLogsWindow`/`BtnOpenShellWindow`）を追加し、同じ内容を大きな個別ウィンドウ
-  （`Windows/LogsWindow.xaml`・`Windows/ShellWindow.xaml`）としても表示できる。小さい補助ペイン自体は
-  引き続き表示されたままで、どちらからでも同じ状態（`ContainersViewModel`の`LogLines`/`ShellOutput`
-  や各種コマンド）を操作できる。詳細パネルはこの導線の対象外。
+  （`Windows/LogsWindow.xaml`・`Windows/ShellWindow.xaml`）としても表示できる。個別ウィンドウを表示または
+  Activateした直後に、対応する小さい補助ペインを非表示にする。これは表示だけを切り替える処理であり、
+  `ContainersViewModel`の`LogLines`/`ShellOutput`やログ追跡・シェルセッションは維持され、個別ウィンドウから
+  引き続き操作できる。詳細パネルはこの導線の対象外。
 - 各ウィンドウは対象ごとに1つだけ開く。ボタンを押したとき既に開いていれば新規に開かず、既存の
   ウィンドウを`Activate()`するだけにとどめる。この生成/再利用/Closed後の再生成ロジックは
   `Windows/SingleInstanceWindowOpener.cs`（`SingleInstanceWindowOpener<TWindow>`）に切り出されている。
@@ -201,9 +202,10 @@
   ユーザーが`ContainersPage`から離れてポップアウトだけが残っている状態でもセッションを操作できる。
   各ウィンドウ内の`Close`ボタン（`BtnCloseLogs`/`BtnCloseShell`）およびタイトルバーの閉じるボタン
   （×）は、どちらも**このウィンドウを閉じるだけ**で、ログ追跡やシェル接続そのものは停止しない。
-  ログ追跡・シェル接続を終了するには、小さい補助ペイン側の`CloseLogsCommand`/`CloseShellCommand`
-  に配線されたCloseボタンを使う。ウィンドウを閉じる操作とセッションを終了する操作は意図的に
-  分離している（ポップアウトを閉じても小さい補助ペインは影響を受けず動作し続ける）。
+  ポップアウトを閉じても非表示にした小さい補助ペインは自動では再表示しない。ログ追跡・シェル接続を
+  終了するには、ログ/シェルを再度開いてインラインパネルを表示し、小さい補助ペイン側の
+  `CloseLogsCommand`/`CloseShellCommand`に配線されたCloseボタンを使う。ウィンドウを閉じる操作と
+  セッションを終了する操作は意図的に分離している。
 - `LogsWindow`/`ShellWindow`のタイトルバーは`MainWindow`と同じルック＆フィールにしている。
   `ExtendsContentIntoTitleBar = true`とアプリアイコン付きの`TitleBar`コントロール
   （`IsPaneToggleButtonVisible="False"`、`TitleBarHeightOption.Tall`）を各ウィンドウに配置し、

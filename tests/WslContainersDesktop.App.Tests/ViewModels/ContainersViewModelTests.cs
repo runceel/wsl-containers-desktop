@@ -1169,6 +1169,33 @@ public sealed class ContainersViewModelTests
     }
 
     [TestMethod]
+    public async Task HideLogPanel_RunningContainerFollowIsActive_HidesPanelWithoutStoppingFollow()
+    {
+        // Arrange
+        var service = new FakeContainerManagementService
+        {
+            DefaultContainers = [CreateContainer("c1", ContainerState.Running)],
+            DefaultLogs = ["old"],
+        };
+        var sut = new ContainersViewModel(service, new RecordingDispatcher());
+        var followChannel = Channel.CreateUnbounded<string>();
+        service.FollowLogsChannel = followChannel;
+        await sut.OpenLogsAsync("c1");
+        Assert.IsTrue(sut.IsLogPanelVisible);
+
+        // Act
+        sut.HideLogPanel();
+        await followChannel.Writer.WriteAsync("new");
+        await WaitForConditionAsync(() => sut.LogLines.Count == 2, TimeSpan.FromSeconds(1));
+
+        // Assert
+        Assert.IsFalse(sut.IsLogPanelVisible);
+        Assert.IsFalse(sut.IsSidePanelVisible);
+        Assert.AreEqual(0, service.FollowCancellationCount);
+        CollectionAssert.AreEqual(new[] { "old", "new" }, sut.LogLines.ToList());
+    }
+
+    [TestMethod]
     public async Task FollowStreamThrowsRuntimeException_SetsLogErrorMessageAndKeepsExistingLines()
     {
         // Arrange
@@ -1509,6 +1536,29 @@ public sealed class ContainersViewModelTests
         Assert.IsFalse(sut.IsShellPanelVisible);
         Assert.IsFalse(sut.IsShellConnected);
         Assert.IsFalse(sut.IsSidePanelVisible);
+    }
+
+    [TestMethod]
+    public async Task HideShellPanel_ConnectedSession_HidesPanelWithoutClosingSession()
+    {
+        // Arrange
+        var session = new FakeContainerExecSession();
+        var service = new FakeContainerManagementService { ExecSession = session };
+        var sut = new ContainersViewModel(service);
+        await sut.OpenShellAsync("c1");
+        sut.ShellCommandText = "pwd";
+        Assert.IsTrue(sut.IsShellPanelVisible);
+
+        // Act
+        sut.HideShellPanel();
+        await sut.SendShellCommandAsync();
+
+        // Assert
+        Assert.IsFalse(sut.IsShellPanelVisible);
+        Assert.IsFalse(sut.IsSidePanelVisible);
+        Assert.IsTrue(sut.IsShellConnected);
+        Assert.IsFalse(session.CloseCalled);
+        CollectionAssert.AreEqual(new[] { "pwd" }, session.Commands);
     }
 
     [TestMethod]
