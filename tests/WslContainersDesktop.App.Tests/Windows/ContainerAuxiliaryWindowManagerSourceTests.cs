@@ -29,8 +29,46 @@ public sealed class ContainerAuxiliaryWindowManagerSourceTests
         // それぞれのopenerを合成するだけであること。
         StringAssert.Contains(sourceText, "new SingleInstanceWindowOpener<LogsWindow>(");
         StringAssert.Contains(sourceText, "new SingleInstanceWindowOpener<ShellWindow>(");
-        StringAssert.Contains(sourceText, "public void ShowLogsWindow() => _logsWindowOpener.ShowOrActivate();");
-        StringAssert.Contains(sourceText, "public void ShowShellWindow() => _shellWindowOpener.ShowOrActivate();");
+    }
+
+    [TestMethod]
+    public void ContainerAuxiliaryWindowManager_ShowLogsAndShellWindows_HidesMatchingInlinePanelsAfterPopOutIsShown()
+    {
+        // Arrange
+        var sourceText = ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Windows\ContainerAuxiliaryWindowManager.cs");
+
+        // Assert: ポップアウトを表示またはActivateした後にだけ、対応するインラインパネルを隠す。
+        AssertShowCallPrecedesHideCall(
+            sourceText,
+            "_logsWindowOpener.ShowOrActivate();",
+            "_viewModel.HideLogPanel();");
+        AssertShowCallPrecedesHideCall(
+            sourceText,
+            "_shellWindowOpener.ShowOrActivate();",
+            "_viewModel.HideShellPanel();");
+    }
+
+    private static void AssertShowCallPrecedesHideCall(string sourceText, string showCall, string hideCall)
+    {
+        Assert.AreEqual(1, CountOccurrences(sourceText, showCall), $"Expected exactly one '{showCall}' call.");
+        Assert.AreEqual(1, CountOccurrences(sourceText, hideCall), $"Expected exactly one '{hideCall}' call.");
+
+        var showIndex = sourceText.IndexOf(showCall, StringComparison.Ordinal);
+        var hideIndex = sourceText.IndexOf(hideCall, StringComparison.Ordinal);
+        Assert.IsGreaterThan(showIndex, hideIndex, $"Expected '{showCall}' to precede '{hideCall}'.");
+    }
+
+    private static int CountOccurrences(string sourceText, string value)
+    {
+        var count = 0;
+        var searchStart = 0;
+        while ((searchStart = sourceText.IndexOf(value, searchStart, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            searchStart += value.Length;
+        }
+
+        return count;
     }
 
     private static string ReadRepositorySourceFile(string relativePath)

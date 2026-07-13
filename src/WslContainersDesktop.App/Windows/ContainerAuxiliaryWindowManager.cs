@@ -20,9 +20,11 @@ public sealed class ContainerAuxiliaryWindowManager
 {
     private readonly SingleInstanceWindowOpener<LogsWindow> _logsWindowOpener;
     private readonly SingleInstanceWindowOpener<ShellWindow> _shellWindowOpener;
+    private readonly ContainersViewModel _viewModel;
 
     public ContainerAuxiliaryWindowManager(ContainersViewModel viewModel)
     {
+        _viewModel = viewModel;
         _logsWindowOpener = new SingleInstanceWindowOpener<LogsWindow>(
             createWindow: () => new LogsWindow(viewModel),
             activateWindow: window => window.Activate(),
@@ -35,14 +37,22 @@ public sealed class ContainerAuxiliaryWindowManager
     }
 
     /// <summary>
-    /// ログのポップアウトウィンドウを開く。既に開いていれば新規に開かず、既存ウィンドウを
-    /// Activateするだけにとどめる。
+    /// ログのポップアウトウィンドウを開き、対応するインラインのログパネルを非表示にする。
+    /// 既に開いていれば新規に開かず、既存ウィンドウをActivateしてからパネルを非表示にする。
     /// </summary>
-    public void ShowLogsWindow() => _logsWindowOpener.ShowOrActivate();
+    public void ShowLogsWindow()
+    {
+        _logsWindowOpener.ShowOrActivate();
+        _viewModel.HideLogPanel();
+    }
 
     /// <summary>
-    /// シェルのポップアウトウィンドウを開く。既に開いていれば新規に開かず、既存ウィンドウを
-    /// Activateするだけにとどめる。
+    /// シェルのポップアウトウィンドウを開き、対応するインラインのシェルパネルを非表示にする。
+    /// 既に開いていれば新規に開かず、既存ウィンドウをActivateしてからパネルを非表示にする。
     /// </summary>
-    public void ShowShellWindow() => _shellWindowOpener.ShowOrActivate();
+    public void ShowShellWindow()
+    {
+        _shellWindowOpener.ShowOrActivate();
+        _viewModel.HideShellPanel();
+    }
 }

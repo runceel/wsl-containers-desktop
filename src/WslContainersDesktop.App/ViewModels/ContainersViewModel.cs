@@ -363,6 +363,14 @@ public sealed partial class ContainersViewModel(
     }
 
     /// <summary>
+    /// シェルパネルを非表示にする。
+    /// </summary>
+    public void HideShellPanel()
+    {
+        IsShellPanelVisible = false;
+    }
+
+    /// <summary>
     /// 現在のシェルへ入力欄のコマンドを送信する。
     /// </summary>
     [RelayCommand]
@@ -463,6 +471,14 @@ public sealed partial class ContainersViewModel(
         ClearPausedLogBuffer();
         UpdateLogEmpty();
         return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// ログパネルを非表示にする。
+    /// </summary>
+    public void HideLogPanel()
+    {
+        IsLogPanelVisible = false;
     }
 
     /// <summary>
