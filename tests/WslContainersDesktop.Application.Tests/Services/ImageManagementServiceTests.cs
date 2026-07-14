@@ -21,7 +21,7 @@ public sealed class ImageManagementServiceTests
     {
         // Arrange
         var expected = new[] { CreateImage("img-1"), CreateImage("img-2") };
-        var client = new FakeContainerRuntimeClient { Images = expected };
+        var client = new FakeRuntimeClients { Images = expected };
         var sut = new ImageManagementService(client);
 
         // Act
@@ -35,7 +35,7 @@ public sealed class ImageManagementServiceTests
     public async Task PullAsync_ImageReferenceHasWhitespace_TrimsAndCallsClientPull()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient();
+        var client = new FakeRuntimeClients();
         var sut = new ImageManagementService(client);
 
         // Act
@@ -49,7 +49,7 @@ public sealed class ImageManagementServiceTests
     public async Task PullAsync_ImageReferenceIsWhitespace_ThrowsArgumentExceptionAndDoesNotCallClient()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient();
+        var client = new FakeRuntimeClients();
         var sut = new ImageManagementService(client);
 
         // Act & Assert
@@ -62,7 +62,7 @@ public sealed class ImageManagementServiceTests
     {
         // Arrange
         var runtimeException = new ContainerRuntimeException("pull", 1, "pull failed");
-        var client = new FakeContainerRuntimeClient { PullException = runtimeException };
+        var client = new FakeRuntimeClients { PullException = runtimeException };
         var sut = new ImageManagementService(client);
 
         // Act & Assert
@@ -74,7 +74,7 @@ public sealed class ImageManagementServiceTests
     public async Task DeleteAsync_ImageIdProvided_CallsClientDeleteImage()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient();
+        var client = new FakeRuntimeClients();
         var sut = new ImageManagementService(client);
 
         // Act
@@ -89,7 +89,7 @@ public sealed class ImageManagementServiceTests
     {
         // Arrange
         var runtimeException = new ContainerRuntimeException("delete", 1, "delete failed");
-        var client = new FakeContainerRuntimeClient { DeleteImageException = runtimeException };
+        var client = new FakeRuntimeClients { DeleteImageException = runtimeException };
         var sut = new ImageManagementService(client);
 
         // Act & Assert

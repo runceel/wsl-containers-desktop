@@ -22,8 +22,8 @@ public sealed class ContainerManagementServiceTests
     {
         // Arrange
         var expected = new[] { CreateContainer("c1", ContainerState.Running), CreateContainer("c2", ContainerState.Stopped) };
-        var client = new FakeContainerRuntimeClient { Containers = expected };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = expected };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act
         var actual = await sut.GetContainersAsync();
@@ -38,8 +38,8 @@ public sealed class ContainerManagementServiceTests
         // Arrange
         var u1 = new ContainerResourceUsage("c1", "n1", 12.5, 1000, 2000);
         var u2 = new ContainerResourceUsage("c2", "n2", 0, 500, 0);
-        var client = new FakeContainerRuntimeClient { Stats = [u1, u2] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Stats = [u1, u2] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act
         var actual = await sut.GetStatsAsync();
@@ -55,8 +55,8 @@ public sealed class ContainerManagementServiceTests
     public async Task GetStatsAsync_RuntimeClientThrows_PropagatesException()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { GetContainerStatsException = new ContainerRuntimeException("stats", 1, "boom") };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { GetContainerStatsException = new ContainerRuntimeException("stats", 1, "boom") };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.GetStatsAsync());
@@ -66,8 +66,8 @@ public sealed class ContainerManagementServiceTests
     public async Task StartAsync_ContainerIsStopped_CallsClientStartAndReturnsRunningContainer()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [CreateContainer("c1", ContainerState.Stopped)] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [CreateContainer("c1", ContainerState.Stopped)] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act
         var result = await sut.StartAsync("c1");
@@ -82,8 +82,8 @@ public sealed class ContainerManagementServiceTests
     public async Task StartAsync_ContainerIsAlreadyRunning_ThrowsInvalidContainerOperationExceptionAndDoesNotCallClient()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [CreateContainer("c1", ContainerState.Running)] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [CreateContainer("c1", ContainerState.Running)] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<InvalidContainerOperationException>(() => sut.StartAsync("c1"));
@@ -94,8 +94,8 @@ public sealed class ContainerManagementServiceTests
     public async Task StartAsync_ContainerIdNotFound_ThrowsContainerNotFoundException()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<ContainerNotFoundException>(() => sut.StartAsync("missing"));
@@ -105,8 +105,8 @@ public sealed class ContainerManagementServiceTests
     public async Task StopAsync_ContainerIsRunning_CallsClientStopAndReturnsStoppedContainer()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [CreateContainer("c1", ContainerState.Running)] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [CreateContainer("c1", ContainerState.Running)] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act
         var result = await sut.StopAsync("c1");
@@ -120,8 +120,8 @@ public sealed class ContainerManagementServiceTests
     public async Task StopAsync_ContainerIsAlreadyStopped_ThrowsInvalidContainerOperationExceptionAndDoesNotCallClient()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [CreateContainer("c1", ContainerState.Stopped)] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [CreateContainer("c1", ContainerState.Stopped)] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<InvalidContainerOperationException>(() => sut.StopAsync("c1"));
@@ -132,8 +132,8 @@ public sealed class ContainerManagementServiceTests
     public async Task StopAsync_ContainerIdNotFound_ThrowsContainerNotFoundException()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<ContainerNotFoundException>(() => sut.StopAsync("missing"));
@@ -143,8 +143,8 @@ public sealed class ContainerManagementServiceTests
     public async Task RestartAsync_ContainerIsRunning_CallsClientStopThenStartAndReturnsRunningContainer()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [CreateContainer("c1", ContainerState.Running)] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [CreateContainer("c1", ContainerState.Running)] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act
         var result = await sut.RestartAsync("c1");
@@ -161,8 +161,8 @@ public sealed class ContainerManagementServiceTests
         // Arrange
         // 既に外部から停止済みのコンテナに再起動を要求した場合、Stop→Startへすり替わって
         // 「起動」として成功してしまうことを防ぐため、事前検証で必ず失敗させる。
-        var client = new FakeContainerRuntimeClient { Containers = [CreateContainer("c1", ContainerState.Stopped)] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [CreateContainer("c1", ContainerState.Stopped)] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<InvalidContainerOperationException>(() => sut.RestartAsync("c1"));
@@ -174,8 +174,8 @@ public sealed class ContainerManagementServiceTests
     public async Task RestartAsync_ContainerIdNotFound_ThrowsContainerNotFoundException()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<ContainerNotFoundException>(() => sut.RestartAsync("missing"));
@@ -185,8 +185,8 @@ public sealed class ContainerManagementServiceTests
     public async Task DeleteAsync_ContainerIsStopped_CallsClientDelete()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [CreateContainer("c1", ContainerState.Stopped)] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [CreateContainer("c1", ContainerState.Stopped)] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act
         await sut.DeleteAsync("c1");
@@ -199,8 +199,8 @@ public sealed class ContainerManagementServiceTests
     public async Task DeleteAsync_ContainerIsRunning_ThrowsInvalidContainerOperationExceptionAndDoesNotCallClient()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [CreateContainer("c1", ContainerState.Running)] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [CreateContainer("c1", ContainerState.Running)] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<InvalidContainerOperationException>(() => sut.DeleteAsync("c1"));
@@ -211,8 +211,8 @@ public sealed class ContainerManagementServiceTests
     public async Task DeleteAsync_ContainerIdNotFound_ThrowsContainerNotFoundException()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<ContainerNotFoundException>(() => sut.DeleteAsync("missing"));
@@ -224,12 +224,12 @@ public sealed class ContainerManagementServiceTests
         // Arrange
         var runtimeException = new ContainerRuntimeException("container start c1", 1, "起動に失敗しました。")
         ;
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1", ContainerState.Stopped)],
             ExceptionToThrow = runtimeException,
         };
-        var sut = new ContainerManagementService(client);
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         var actual = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.StartAsync("c1"));
@@ -241,12 +241,12 @@ public sealed class ContainerManagementServiceTests
     {
         // Arrange
         var expectedLogs = new[] { "line-1", "line-2" };
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1", ContainerState.Running)],
             ContainerLogs = expectedLogs,
         };
-        var sut = new ContainerManagementService(client);
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act
         var actual = await sut.GetContainerLogsAsync("c1");
@@ -260,8 +260,8 @@ public sealed class ContainerManagementServiceTests
     public async Task GetContainerLogsAsync_ContainerMissing_ThrowsContainerNotFoundExceptionAndDoesNotCallRuntimeLogs()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<ContainerNotFoundException>(() => sut.GetContainerLogsAsync("missing"));
@@ -272,12 +272,12 @@ public sealed class ContainerManagementServiceTests
     public async Task FollowContainerLogsAsync_ContainerExists_StreamsRuntimeLines()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1", ContainerState.Running)],
             FollowContainerLogsAsyncFunc = (containerId, cancellationToken) => CreateLinesAsync("line-1", "line-2"),
         };
-        var sut = new ContainerManagementService(client);
+        var sut = new ContainerManagementService(client, client, client, client, client);
         var actual = new List<string>();
 
         // Act
@@ -295,8 +295,8 @@ public sealed class ContainerManagementServiceTests
     public async Task FollowContainerLogsAsync_ContainerMissing_ThrowsContainerNotFoundExceptionWhenEnumeratedAndDoesNotCallRuntimeFollow()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<ContainerNotFoundException>(async () =>
@@ -312,8 +312,8 @@ public sealed class ContainerManagementServiceTests
     public async Task RunAsync_RequestHasImageReference_CallsRuntimeRunContainerWithNormalizedRequestAndDoesNotListContainers()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient();
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients();
+        var sut = new ContainerManagementService(client, client, client, client, client);
         var request = new ContainerRunRequest
         {
             ImageReference = " ubuntu:latest ",
@@ -343,8 +343,8 @@ public sealed class ContainerManagementServiceTests
     public async Task RunAsync_ImageReferenceIsWhiteSpace_ThrowsArgumentExceptionAndDoesNotCallRuntime()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient();
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients();
+        var sut = new ContainerManagementService(client, client, client, client, client);
         var request = new ContainerRunRequest { ImageReference = "   " };
 
         // Act & Assert
@@ -356,8 +356,8 @@ public sealed class ContainerManagementServiceTests
     public async Task RunAsync_CommandIsWhiteSpace_NormalizesCommandToEmpty()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient();
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients();
+        var sut = new ContainerManagementService(client, client, client, client, client);
         var request = new ContainerRunRequest { ImageReference = "hello-world", Command = "   " };
 
         // Act
@@ -372,8 +372,8 @@ public sealed class ContainerManagementServiceTests
     {
         // Arrange
         var runtimeException = new InvalidOperationException("boom");
-        var client = new FakeContainerRuntimeClient { RunContainerException = runtimeException };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { RunContainerException = runtimeException };
+        var sut = new ContainerManagementService(client, client, client, client, client);
         var request = new ContainerRunRequest { ImageReference = "hello-world" };
 
         // Act & Assert
@@ -386,12 +386,12 @@ public sealed class ContainerManagementServiceTests
     {
         // Arrange
         var expected = CreateDetail("c1", ContainerState.Running);
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1", ContainerState.Running)],
             ContainerDetail = expected,
         };
-        var sut = new ContainerManagementService(client);
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act
         var actual = await sut.GetContainerDetailAsync("c1");
@@ -405,8 +405,8 @@ public sealed class ContainerManagementServiceTests
     public async Task GetContainerDetailAsync_ContainerMissing_ThrowsContainerNotFoundExceptionAndDoesNotCallRuntimeDetail()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<ContainerNotFoundException>(() => sut.GetContainerDetailAsync("missing"));
@@ -418,12 +418,12 @@ public sealed class ContainerManagementServiceTests
     {
         // Arrange
         var expected = new FakeContainerExecSession();
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1", ContainerState.Running)],
             ExecSession = expected,
         };
-        var sut = new ContainerManagementService(client);
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act
         var actual = await sut.OpenExecSessionAsync("c1");
@@ -437,8 +437,8 @@ public sealed class ContainerManagementServiceTests
     public async Task OpenExecSessionAsync_StoppedContainer_ThrowsInvalidContainerOperationExceptionAndDoesNotCallRuntimeExec()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient { Containers = [CreateContainer("c1", ContainerState.Stopped)] };
-        var sut = new ContainerManagementService(client);
+        var client = new FakeRuntimeClients { Containers = [CreateContainer("c1", ContainerState.Stopped)] };
+        var sut = new ContainerManagementService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<InvalidContainerOperationException>(() => sut.OpenExecSessionAsync("c1"));

@@ -7,7 +7,7 @@ namespace WslContainersDesktop.Application.Services;
 /// <summary>
 /// <see cref="INetworkManagementService"/> の実装。
 /// </summary>
-public sealed class NetworkManagementService(IContainerRuntimeClient runtimeClient) : INetworkManagementService
+public sealed class NetworkManagementService : INetworkManagementService
 {
     private static readonly HashSet<string> ReservedSystemNetworkNames = new(StringComparer.Ordinal)
     {
@@ -16,10 +16,19 @@ public sealed class NetworkManagementService(IContainerRuntimeClient runtimeClie
         "none",
     };
 
+    private readonly INetworkRuntimeClient _networkClient;
+    private readonly IContainerQueryClient _queryClient;
+
+    public NetworkManagementService(INetworkRuntimeClient networkClient, IContainerQueryClient queryClient)
+    {
+        _networkClient = networkClient;
+        _queryClient = queryClient;
+    }
+
     /// <inheritdoc />
     public async Task<IReadOnlyList<ContainerNetworkResource>> GetNetworksAsync(CancellationToken cancellationToken = default)
     {
-        var networks = await runtimeClient.ListNetworksAsync(cancellationToken);
+        var networks = await _networkClient.ListNetworksAsync(cancellationToken);
         if (networks.Count == 0)
         {
             return networks;
@@ -44,7 +53,7 @@ public sealed class NetworkManagementService(IContainerRuntimeClient runtimeClie
     public async Task<ContainerNetworkResource> CreateAsync(string name, CancellationToken cancellationToken = default)
     {
         var trimmed = ValidateNotWhiteSpace(name, nameof(name));
-        await runtimeClient.CreateNetworkAsync(trimmed, cancellationToken);
+        await _networkClient.CreateNetworkAsync(trimmed, cancellationToken);
 
         var networks = await GetNetworksAsync(cancellationToken);
         return networks.FirstOrDefault(network => network.Name == trimmed)
@@ -70,7 +79,7 @@ public sealed class NetworkManagementService(IContainerRuntimeClient runtimeClie
             }
         }
 
-        await runtimeClient.DeleteNetworkAsync(trimmed, cancellationToken);
+        await _networkClient.DeleteNetworkAsync(trimmed, cancellationToken);
     }
 
     private async Task<Dictionary<string, IReadOnlyList<string>>> GetConnectedContainersByNetworkAsync(
@@ -91,13 +100,13 @@ public sealed class NetworkManagementService(IContainerRuntimeClient runtimeClie
             return ToConnectionMap(connectionSets);
         }
 
-        var containers = await runtimeClient.ListContainersAsync(cancellationToken);
+        var containers = await _queryClient.ListContainersAsync(cancellationToken);
         foreach (var container in containers)
         {
             ContainerDetail detail;
             try
             {
-                detail = await runtimeClient.GetContainerDetailAsync(container.Id, cancellationToken);
+                detail = await _queryClient.GetContainerDetailAsync(container.Id, cancellationToken);
             }
             catch (ContainerManagementException)
             {

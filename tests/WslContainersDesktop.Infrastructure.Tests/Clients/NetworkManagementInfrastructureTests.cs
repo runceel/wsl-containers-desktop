@@ -29,7 +29,7 @@ public sealed class NetworkManagementInfrastructureTests
 
             return Task.FromResult(new CliResult(0, string.Empty, string.Empty));
         };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliNetworkRuntimeClient(runner);
 
         // Act
         var networks = await sut.ListNetworksAsync();
@@ -47,7 +47,7 @@ public sealed class NetworkManagementInfrastructureTests
     {
         // Arrange
         var runner = new FakeWslcCliRunner { Result = new(0, "[]", string.Empty) };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliNetworkRuntimeClient(runner);
 
         // Act
         await sut.ListNetworksAsync();
@@ -61,7 +61,7 @@ public sealed class NetworkManagementInfrastructureTests
     {
         // Arrange
         var runner = new FakeWslcCliRunner { Result = new(0, "not-json", string.Empty) };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliNetworkRuntimeClient(runner);
 
         // Act & Assert
         var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListNetworksAsync());
@@ -82,7 +82,7 @@ public sealed class NetworkManagementInfrastructureTests
 
             return Task.FromResult(new CliResult(0, "not-json", string.Empty));
         };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliNetworkRuntimeClient(runner);
 
         // Act & Assert
         var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListNetworksAsync());
@@ -103,7 +103,7 @@ public sealed class NetworkManagementInfrastructureTests
 
             return Task.FromResult(new CliResult(0, "[]", string.Empty));
         };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliNetworkRuntimeClient(runner);
 
         // Act
         var networks = await sut.ListNetworksAsync();
@@ -151,7 +151,7 @@ public sealed class NetworkManagementInfrastructureTests
 
             return Task.FromResult(new CliResult(0, string.Empty, string.Empty));
         };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliNetworkRuntimeClient(runner);
 
         // Act
         var task = sut.ListNetworksAsync();
@@ -169,7 +169,7 @@ public sealed class NetworkManagementInfrastructureTests
     {
         // Arrange
         var runner = new FakeWslcCliRunner { Result = new(0, string.Empty, string.Empty) };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliNetworkRuntimeClient(runner);
 
         // Act
         await sut.CreateNetworkAsync("app-net");
@@ -183,7 +183,7 @@ public sealed class NetworkManagementInfrastructureTests
     {
         // Arrange
         var runner = new FakeWslcCliRunner { Result = new(0, string.Empty, string.Empty) };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliNetworkRuntimeClient(runner);
 
         // Act
         await sut.DeleteNetworkAsync("app-net");

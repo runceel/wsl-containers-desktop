@@ -7,18 +7,37 @@ namespace WslContainersDesktop.Application.Services;
 /// <summary>
 /// ダッシュボード表示用の情報をまとめて取得するユースケース。
 /// </summary>
-public sealed class DashboardService(IContainerRuntimeClient runtimeClient) : IDashboardService
+public sealed class DashboardService : IDashboardService
 {
     private const int ContainerDetailInspectionConcurrencyLimit = 4;
+    private readonly IContainerQueryClient _queryClient;
+    private readonly IImageRuntimeClient _imageClient;
+    private readonly IVolumeRuntimeClient _volumeClient;
+    private readonly INetworkRuntimeClient _networkClient;
+    private readonly IContainerStatsClient _statsClient;
+
+    public DashboardService(
+        IContainerQueryClient queryClient,
+        IImageRuntimeClient imageClient,
+        IVolumeRuntimeClient volumeClient,
+        INetworkRuntimeClient networkClient,
+        IContainerStatsClient statsClient)
+    {
+        _queryClient = queryClient;
+        _imageClient = imageClient;
+        _volumeClient = volumeClient;
+        _networkClient = networkClient;
+        _statsClient = statsClient;
+    }
 
     /// <inheritdoc />
     public async Task<DashboardSnapshot> GetSnapshotAsync(CancellationToken cancellationToken = default)
     {
-        var containersTask = RunRootOperationAsync(runtimeClient.ListContainersAsync, cancellationToken);
-        var imagesTask = RunRootOperationAsync(runtimeClient.ListImagesAsync, cancellationToken);
-        var volumesTask = RunRootOperationAsync(runtimeClient.ListVolumesAsync, cancellationToken);
-        var networksTask = RunRootOperationAsync(runtimeClient.ListNetworksAsync, cancellationToken);
-        var statsTask = RunRootOperationAsync(runtimeClient.GetContainerStatsAsync, cancellationToken);
+        var containersTask = RunRootOperationAsync(_queryClient.ListContainersAsync, cancellationToken);
+        var imagesTask = RunRootOperationAsync(_imageClient.ListImagesAsync, cancellationToken);
+        var volumesTask = RunRootOperationAsync(_volumeClient.ListVolumesAsync, cancellationToken);
+        var networksTask = RunRootOperationAsync(_networkClient.ListNetworksAsync, cancellationToken);
+        var statsTask = RunRootOperationAsync(_statsClient.GetContainerStatsAsync, cancellationToken);
 
         var containersSection = await containersTask;
         var imagesSection = await imagesTask;
@@ -115,7 +134,7 @@ public sealed class DashboardService(IContainerRuntimeClient runtimeClient) : ID
             ContainerDetail detail;
             try
             {
-                detail = await runtimeClient.GetContainerDetailAsync(container.Id, cancellationToken);
+                detail = await _queryClient.GetContainerDetailAsync(container.Id, cancellationToken);
             }
             catch (OperationCanceledException)
             {

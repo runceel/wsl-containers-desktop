@@ -35,7 +35,7 @@ public sealed class VolumeManagementServiceTests
     {
         // Arrange
         var createdAt = new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero);
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1")],
             ContainerDetailsById = new Dictionary<string, ContainerDetail>
@@ -44,7 +44,7 @@ public sealed class VolumeManagementServiceTests
             },
             Volumes = [new ContainerVolume("vol-demo", "guest", createdAt, [])],
         };
-        var sut = new VolumeManagementService(client);
+        var sut = new VolumeManagementService(client, client);
 
         // Act
         var volumes = await sut.GetVolumesAsync();
@@ -60,13 +60,13 @@ public sealed class VolumeManagementServiceTests
     {
         // Arrange
         var createdAt = new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero);
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1")],
             GetContainerDetailException = new ContainerRuntimeException("detail", 1, "detail failed"),
             Volumes = [new ContainerVolume("vol-demo", "guest", createdAt, [])],
         };
-        var sut = new VolumeManagementService(client);
+        var sut = new VolumeManagementService(client, client);
 
         // Act
         var volumes = await sut.GetVolumesAsync();
@@ -81,7 +81,7 @@ public sealed class VolumeManagementServiceTests
     {
         // Arrange
         var createdAt = new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero);
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1")],
             ContainerDetailsById = new Dictionary<string, ContainerDetail>
@@ -94,7 +94,7 @@ public sealed class VolumeManagementServiceTests
             },
             Volumes = [new ContainerVolume("vol-demo", "guest", createdAt, [])],
         };
-        var sut = new VolumeManagementService(client);
+        var sut = new VolumeManagementService(client, client);
 
         // Act
         var volumes = await sut.GetVolumesAsync();
@@ -108,7 +108,7 @@ public sealed class VolumeManagementServiceTests
     {
         // Arrange
         var createdAt = new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero);
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1"), CreateContainer("c2")],
             ContainerDetailsById = new Dictionary<string, ContainerDetail>
@@ -118,7 +118,7 @@ public sealed class VolumeManagementServiceTests
             },
             Volumes = [new ContainerVolume("vol-demo", "guest", createdAt, [])],
         };
-        var sut = new VolumeManagementService(client);
+        var sut = new VolumeManagementService(client, client);
 
         // Act
         var volumes = await sut.GetVolumesAsync();
@@ -131,8 +131,8 @@ public sealed class VolumeManagementServiceTests
     public async Task CreateAsync_NameHasWhitespace_TrimsAndCallsClientCreateVolume()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient();
-        var sut = new VolumeManagementService(client);
+        var client = new FakeRuntimeClients();
+        var sut = new VolumeManagementService(client, client);
 
         // Act
         await sut.CreateAsync("  vol-demo  ");
@@ -145,8 +145,8 @@ public sealed class VolumeManagementServiceTests
     public async Task CreateAsync_NameIsWhitespace_ThrowsArgumentExceptionAndDoesNotCallClient()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient();
-        var sut = new VolumeManagementService(client);
+        var client = new FakeRuntimeClients();
+        var sut = new VolumeManagementService(client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<ArgumentException>(() => sut.CreateAsync("   "));
@@ -157,8 +157,8 @@ public sealed class VolumeManagementServiceTests
     public async Task DeleteAsync_UnusedVolume_CallsClientDeleteVolume()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient();
-        var sut = new VolumeManagementService(client);
+        var client = new FakeRuntimeClients();
+        var sut = new VolumeManagementService(client, client);
 
         // Act
         await sut.DeleteAsync("vol-demo");
@@ -171,7 +171,7 @@ public sealed class VolumeManagementServiceTests
     public async Task DeleteAsync_InUseVolume_ThrowsVolumeInUseExceptionAndDoesNotCallClient()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1")],
             ContainerDetailsById = new Dictionary<string, ContainerDetail>
@@ -179,7 +179,7 @@ public sealed class VolumeManagementServiceTests
                 ["c1"] = CreateDetail("c1", "web", new ContainerMount("bind", "/var/lib/docker/volumes/vol-demo/_data", "/data", false)),
             },
         };
-        var sut = new VolumeManagementService(client);
+        var sut = new VolumeManagementService(client, client);
 
         // Act & Assert
         var ex = await Assert.ThrowsExactlyAsync<VolumeInUseException>(() => sut.DeleteAsync("vol-demo"));
@@ -193,11 +193,11 @@ public sealed class VolumeManagementServiceTests
     {
         // Arrange
         var runtimeException = new ContainerRuntimeException("delete", 1, "volume is in use");
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             DeleteVolumeException = runtimeException,
         };
-        var sut = new VolumeManagementService(client);
+        var sut = new VolumeManagementService(client, client);
 
         // Act & Assert
         var actual = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.DeleteAsync("vol-demo"));

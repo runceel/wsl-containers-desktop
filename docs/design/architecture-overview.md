@@ -6,7 +6,7 @@
 ## 状態
 
 `WslContainersDesktop.slnx`（[ADR-0006](../adr/0006-adopt-slnx-solution-file-format.md)）に、
-以下の7プロジェクトが存在する。
+以下の8プロジェクトが存在する。
 
 | プロジェクト | 種別 | 内容 |
 |---|---|---|
@@ -17,7 +17,7 @@
 | `tests/WslContainersDesktop.Domain.Tests` | MSTest | Domain層の単体テスト |
 | `tests/WslContainersDesktop.Application.Tests` | MSTest | Application層の単体テスト |
 | `tests/WslContainersDesktop.Infrastructure.Tests` | MSTest | Infrastructure層のCLIクライアント/ランナー単体テスト |
-| `tests/WslContainersDesktop.App.Tests` | MSTest | Presentation層（ナビゲーション制御・コンテナ/イメージ/ボリューム/ネットワーク一覧ViewModel）の単体テスト |
+| `tests/WslContainersDesktop.App.Tests` | MSTest | Presentation層（ナビゲーション制御・コンテナ管理コンポーネント・イメージ/ボリューム/ネットワーク一覧ViewModel）の単体テスト |
 
 現在の主要な振る舞いは、コンテナ一覧取得、起動・停止・再起動・削除、詳細情報表示、ログの
 スナップショット表示とライブ追跡、稼働中コンテナへの対話的execシェル、イメージ一覧取得、
@@ -67,18 +67,24 @@ flowchart TB
 
 - ユースケース（例: 「コンテナを起動する」「イメージ一覧を取得する」）をアプリケーションサービスとして実装。
 - Infrastructureが実装すべき抽象（インターフェース）をこの層で定義する
-  （例: `IContainerRuntimeClient`）。
+  （例: `IContainerQueryClient`、`IContainerLifecycleClient`）。
 - Domainのみに依存する。
 - `IContainerManagementService`はPresentation層向けのInboundポートであり、一覧取得、イメージからの
   新規起動、既存コンテナの起動・停止・再起動・削除、詳細取得、既存ログ取得、ライブログ追跡、
   対話的execセッション開始を提供する。
-- `ContainerManagementService`は既存コンテナ操作の前に`IContainerRuntimeClient.ListContainersAsync`で対象コンテナの
-  存在と状態を検証する。イメージからの新規起動では`ContainerRunRequest`を正規化してランタイムへ委譲し、
-  起動直後の一覧照合には依存しない。再起動は`wslc`のサブコマンドではなく停止→起動として扱うが、
-  停止中コンテナを起動にすり替えない。execセッション開始は実行中コンテナにだけ許可する。
-- `IContainerRuntimeClient`はInfrastructure層向けのOutboundポートであり、CLI/SDKなど具体的な
-  ランタイム連携方式をApplication層から隠蔽する。コンテナ操作に加えて、詳細取得、execセッション開始、
-  イメージ一覧取得、pull、削除、イメージからの起動のランタイム呼び出しもこのポートに集約する。
+- `ContainerManagementService`は`IContainerQueryClient`、`IContainerLifecycleClient`、
+  `IContainerLogClient`、`IContainerExecClient`、`IContainerStatsClient`を組み合わせる。既存コンテナ
+  操作の前に`IContainerQueryClient.ListContainersAsync`で対象コンテナの存在と状態を検証する。
+  イメージからの新規起動では`ContainerRunRequest`を正規化して`IContainerLifecycleClient`へ委譲し、
+  起動直後の一覧照合には依存しない。再起動は`wslc`のサブコマンドではなくApplication層で停止→起動として
+  扱うが、停止中コンテナを起動にすり替えない。execセッション開始は実行中コンテナにだけ許可する。
+- Infrastructure層向けのOutboundポートは機能単位に分かれる。コンテナは
+  `IContainerQueryClient`（一覧・詳細）、`IContainerLifecycleClient`（run・起動・停止・削除）、
+  `IContainerLogClient`（ログのスナップショット・追跡）、`IContainerExecClient`（対話exec）、
+  `IContainerStatsClient`（リソース使用量）を使用する。イメージ、ボリューム、ネットワークは
+  `IImageRuntimeClient`、`IVolumeRuntimeClient`、`INetworkRuntimeClient`を使用する。いずれもCLI/SDKなど
+  具体的なランタイム連携方式をApplication層から隠蔽する
+  （[ADR-0017](../adr/0017-split-containersviewmodel-and-runtime-client-into-focused-components.md)）。
 - `IContainerExecSession`は対話的execセッションの抽象であり、出力チャンクの読み取り、コマンド送信、
   明示的な切断、切断状態を提供する。
 - `IImageManagementService`はPresentation層向けのInboundポートであり、イメージ一覧取得、pull、
@@ -112,8 +118,14 @@ flowchart TB
     仕様サマリは [`docs/reference/wsl-containers-platform.md`](../reference/wsl-containers-platform.md) を参照。
 - 設定やキャッシュの永続化（ファイルI/O、レジストリ等）。
 - Applicationで定義された抽象を実装する。
-- 現在は [ADR-0009](../adr/0009-wrap-wslc-cli-for-infrastructure-layer.md) に基づき、
-  `WslcCliContainerRuntimeClient`が`wslc` CLIを呼び出して`IContainerRuntimeClient`を実装する。
+- 現在は [ADR-0009](../adr/0009-wrap-wslc-cli-for-infrastructure-layer.md) /
+  [ADR-0017](../adr/0017-split-containersviewmodel-and-runtime-client-into-focused-components.md) に基づき、
+  `WslcCliContainerQueryClient`、`WslcCliContainerLifecycleClient`、`WslcCliContainerLogClient`、
+  `WslcCliContainerExecClient`、`WslcCliContainerStatsClient`、`WslcCliImageRuntimeClient`、
+  `WslcCliVolumeRuntimeClient`、`WslcCliNetworkRuntimeClient`が対応するOutboundポートを1つずつ実装する。
+  各クライアントが共通利用する内部`WslcCliCommandExecutor`は、CLI実行、終了コード・ストリーム例外の変換、
+  JSON配列のデシリアライズ、対話プロセスのオープンだけを担う。リソース固有のマッピングとパースは
+  各クライアントまたは専用ヘルパーに置く。
 - イメージ一覧は`wslc image list --format json --no-trunc`のJSONを`ContainerImage`へ変換する。
   pullは`wslc pull <image>`、イメージからの起動は`wslc run -d ... <image>`、削除は
   `wslc image remove <image>`を呼び出す。起動時は停止時自動削除、コンテナ名、ポート公開、環境変数、
@@ -162,6 +174,11 @@ flowchart TB
   [`docs/design/dashboard-view.md`](dashboard-view.md) を参照。
 - コンテナ一覧ViewModelの状態管理とログ表示の詳細は
   [`docs/design/containers-view.md`](containers-view.md) を参照。
+- `ContainersViewModel`は`ContainersPage`・`LogsWindow`・`ShellWindow`が共有するDIシングルトンの
+  XAML/コマンドファサードであり、一覧、詳細、ログ、シェルの状態とライフタイムはそれぞれ
+  `ContainerListViewModel`、`ContainerDetailsViewModel`、`ContainerLogsViewModel`、
+  `ContainerShellViewModel`が保持する。子コンポーネントはファサードが所有し、個別にはDI登録しない
+  （[ADR-0017](../adr/0017-split-containersviewmodel-and-runtime-client-into-focused-components.md)）。
 - イメージ一覧ViewModelの状態管理の詳細は [`docs/design/images-view.md`](images-view.md) を参照。
 - ボリューム一覧ViewModelの状態管理の詳細は [`docs/design/volumes-view.md`](volumes-view.md) を参照。
 - ネットワーク一覧ViewModelの状態管理の詳細は [`docs/design/networks-view.md`](networks-view.md) を参照。

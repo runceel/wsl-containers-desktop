@@ -1,13 +1,31 @@
-# Presentation層: コンテナ一覧ViewModelの状態管理
+# Presentation層: コンテナ管理ViewModelの状態管理
 
 > このドキュメントは現時点のスナップショットです。経緯・検討過程は書きません。
 
 ## 概要
 
-`ContainersViewModel`（`ViewModels/ContainersViewModel.cs`）は、コンテナ一覧の取得・起動・停止・
-再起動・削除・詳細表示・ログ表示・対話的シェル表示を担うViewModel。各操作は非同期に実行され、
-`await` 中に一覧が差分更新されるケース（ユーザーによる手動更新、他操作完了に伴う
-バックグラウンド再同期）を考慮した設計になっている。
+`ContainersViewModel`（`ViewModels/ContainersViewModel.cs`）は、`ContainersPage`・`LogsWindow`・
+`ShellWindow`が共有するDIシングルトンの公開XAML/コマンドファサード
+（[ADR-0017](../adr/0017-split-containersviewmodel-and-runtime-client-into-focused-components.md)）。
+ファサードは次の4コンポーネントを所有する。各コンポーネントは個別にはDI登録せず、
+`ContainersViewModel`のコンストラクタで同じ`IContainerManagementService`と必要なUI抽象を渡して生成する。
+
+| ファサードプロパティ | コンポーネント | 所有する状態・ライフタイム |
+|---|---|---|
+| `List` | `ContainerListViewModel` | 一覧取得、差分更新、起動・停止・再起動・削除、行のbusy状態 |
+| `Details` | `ContainerDetailsViewModel` | 詳細取得、表示行の整形、詳細エラー、詳細パネル表示 |
+| `Logs` | `ContainerLogsViewModel` | ログスナップショット、ライブ追跡、一時停止バッファ、ログパネル表示 |
+| `Shell` | `ContainerShellViewModel` | execセッション、入出力、接続状態、シェルパネル表示 |
+
+- `ContainersViewModel`の公開コレクション・状態プロパティは、対応するコンポーネントへの手書きの
+  委譲プロパティである。`Containers`、`DetailLines`、`LogLines`、`ShellOutput`は子が保持する
+  コレクションインスタンスそのものを返す。`ShellCommandText`は`Shell`へ読み書きの両方を委譲する。
+- `RelayPropertyChanges`は各子の`PropertyChanging`/`PropertyChanged`をファサード上の同名プロパティ
+  変更として再発行する。`IsDetailPanelVisible`、`IsLogPanelVisible`、`IsShellPanelVisible`の変更時は、
+  算出プロパティ`IsSidePanelVisible`の変更も再発行する。これにより、`ContainersPage`・`LogsWindow`・
+  `ShellWindow`は既存のファサードプロパティ名を継続してバインドできる。
+- `RelayCommand`由来の公開コマンド名はファサードに維持し、各メソッドは対応する子コンポーネントの
+  公開メソッドへ委譲する。XAMLと`DashboardViewModel`は子コンポーネントを直接参照しない。
 
 ## 一覧UI
 
@@ -25,6 +43,12 @@
   維持し、補助ペイン側だけを縦スクロールさせる。
 
 ## 一覧の差分更新と行インスタンスの維持
+
+一覧の状態・ロジックは`ContainersViewModel`ではなく構成要素`ContainerListViewModel`
+（`ContainersViewModel.List`）が保持する。以下の`ReplaceContainers`等はすべて
+`ContainerListViewModel`のメンバーであり、`ContainersViewModel`は`Containers`/`ErrorMessage`/
+`IsEmpty`を転送し、`RefreshCommand`等から対応する`List`の公開メソッドへ委譲するのみ
+（「概要」参照）。
 
 - `Containers`（`ObservableCollection<ContainerRowViewModel>`）は `ReplaceContainers` によって
   **差分更新**される。汎用ヘルパー `ObservableCollectionReconciler.Reconcile`（`Collections/`）が、
@@ -49,7 +73,7 @@
 - 行の `IsBusy`・`PendingOperation`（進行中の操作種別。`ContainerRowOperation`の`None`/`Starting`/
   `Stopping`/`Restarting`/`Deleting`のいずれか）は `ContainerRowViewModel` インスタンスに紐づく
   プロパティだが、差分更新で行が作り直されたり、一覧から一時的に消えて再出現したりする場合がある。
-- `ContainersViewModel` はコンテナID単位で `_pendingOperations`（`Dictionary<string, ContainerRowOperation>`）
+- `ContainerListViewModel` はコンテナID単位で `_pendingOperations`（`Dictionary<string, ContainerRowOperation>`）
   に進行中操作を保持する。キーが存在すること自体がbusy中を表し、値がその操作種別を表す
   （busy状態と操作種別は必ず一致するため単一の辞書で一元管理する）。`BeginBusy(id, operation)`/
   `EndBusy(id)` で追加・削除する。`ReplaceContainers` は差分更新の際、行を新規生成するときも
@@ -76,9 +100,9 @@
   一覧の再構築から除外するため、削除中に他操作完了に伴うベストエフォート再同期やユーザーの
   手動更新が走っても、サーバーからまだ削除完了前の状態が返り、削除中の行が一覧に再度現れる
   ことを防ぐ。
-- `_busyContainerIds` と `_pendingDeleteContainerIds` は役割が異なる別々の集合として管理する。
-  前者はボタンの有効/無効制御・途中状態表示、後者は一覧からの除外制御であり、削除操作中は
-  両方に同じIDが同時に含まれ得る（前者は実体としては `_pendingOperations` のキー集合）。
+- `_pendingOperations` と `_pendingDeleteContainerIds` は役割が異なる別々の状態として管理する。
+  前者はボタンの有効/無効制御・途中状態表示（キー集合がbusy中のIDを表す）、後者は一覧からの
+  除外制御であり、削除操作中は両方に同じIDが同時に含まれ得る。
 
 ## 操作失敗時の復旧
 
@@ -104,52 +128,72 @@
 
 ## 詳細パネルの状態管理
 
-- `OpenDetailAsync`は`IContainerManagementService.GetContainerDetailAsync`で対象コンテナの詳細を取得し、
-  `SelectedContainerDetail`と`DetailLines`へ反映して詳細パネルを開く。
+- 詳細の状態・ロジックは`ContainerDetailsViewModel`（`ContainersViewModel.Details`）が保持する。
+  ファサードの`OpenDetailsCommand`/`CloseDetailsCommand`は`Details.OpenAsync`/`CloseAsync`へ委譲する。
+- `OpenAsync`は詳細パネルを開いて以前のエラーと表示行をクリアしてから、
+  `IContainerManagementService.GetContainerDetailAsync`で対象コンテナの詳細を取得し、
+  `SelectedContainerDetail`と`DetailLines`へ反映する。
 - `DetailLines`はXAML側でそのまま表示できる行単位の文字列であり、ID、名前、イメージ、状態、作成日時、
   コマンド、エントリポイント、ポート、環境変数、マウント、ネットワーク、開始/終了時刻、終了コードを
   現在取得できる範囲で整形する。
-- 詳細取得に失敗した場合は詳細パネルを開いたまま`DetailErrorMessage`を設定し、以前の
-  `SelectedContainerDetail`と`DetailLines`はクリアする。
-- `CloseDetailsAsync`は詳細パネルだけを閉じる。ログやシェルなど他の補助パネルが開いている場合、
+- 詳細取得に失敗した場合は詳細パネルを開いたまま`DetailErrorMessage`を設定する。
+- `CloseAsync`は詳細パネルだけを閉じる。ログやシェルなど他の補助パネルが開いている場合、
   右側の補助ペイン自体は表示したままにする。
 
 ## ログパネルの状態管理
 
-- `OpenLogsAsync`は既存の追跡を停止し、`LogLines`、一時停止バッファ、エラー状態、ステータスメッセージを
-  初期化してから対象コンテナの既存ログを取得する。
+- ログの状態・ロジックは`ContainerLogsViewModel`（`ContainersViewModel.Logs`）が保持する。
+  ファサードのログ関連コマンドは`Logs.OpenAsync`/`PauseAsync`/`ResumeAsync`/`ClearAsync`/`CloseAsync`
+  へ委譲する。
+- `OpenAsync`は既存の追跡を停止し、`LogLines`、一時停止バッファ、ディスパッチ待ちキュー、
+  エラー状態、ステータスメッセージを初期化してから対象コンテナの既存ログを取得する。
 - 既存ログ取得前に対象コンテナの存在を確認する。存在しない、または取得中に
   `ContainerNotFoundException`が発生した場合は、ログパネルを開いたまま「選択中コンテナが存在しない」
   ステータスを表示する。
 - 実行中コンテナの場合は既存ログ表示後に`FollowContainerLogsAsync`を開始し、新規ログだけを追跡する。
   停止中コンテナの場合は既存ログのみ表示し、ライブ追跡は開始しない。
-- ライブ追跡から到着した行は`IUiDispatcher`経由でUIスレッドへ反映する。実アプリでは
-  `DispatcherQueueUiDispatcher`、単体テストでは即時実行または記録用ディスパッチャを使う。
-- `PauseLogsAsync`中に到着した行は`_pausedLogBuffer`に保持し、`ResumeLogsAsync`で受信順に
-  `LogLines`へ反映する。`ClearLogsAsync`は表示中の行と一時停止バッファを両方クリアするが、
-  追跡自体は継続する。
-- `CloseLogsAsync`は追跡用`CancellationTokenSource`をキャンセルしてからログパネルを閉じる。
+- ライブ追跡から到着した行は`_pendingLines`へ追加し、未処理のディスパッチがない場合だけ
+  `IUiDispatcher`へ1回の反映処理を予約する。反映時にキューをまとめて`LogLines`へ追加するため、
+  行ごとにUIスレッドへディスパッチしない。実アプリでは`DispatcherQueueUiDispatcher`、単体テストでは
+  即時実行または記録用ディスパッチャを使う。
+- `PauseAsync`中に到着した行は`_pausedBuffer`に保持し、`ResumeAsync`で受信順にディスパッチ待ちキューへ
+  戻す。`ClearAsync`は表示中の行、一時停止バッファ、ディスパッチ待ちキューをクリアするが、追跡自体は
+  継続する。Open/Clear/Closeでディスパッチトークンを無効化し、既に予約済みの古い反映処理が表示を
+  復活させないようにする。
+- `LogLines`、`_pausedBuffer`、`_pendingLines`は`BoundedCollection`を使って既定5000要素を上限とし、
+  上限超過時は最古の要素から取り除く。
+- `CloseAsync`は追跡用`CancellationTokenSource`をキャンセルし、追跡タスクの終了を待ってから
+  ディスパッチ待ち状態を破棄してログパネルを閉じる。
 
 ## シェルパネルの状態管理
 
-- `OpenShellAsync`はシェルパネルを開き、対象コンテナの既存セッションが接続中であればそれを再利用する。
-  接続中セッションがない場合は`IContainerManagementService.OpenExecSessionAsync`で新しい
+- シェルの状態・ロジックは`ContainerShellViewModel`（`ContainersViewModel.Shell`）が保持する。
+  ファサードの`OpenShellCommand`/`SendShellCommandCommand`/`CloseShellCommand`は
+  `Shell.OpenAsync`/`SendAsync`/`CloseAsync`へ委譲する。
+- `OpenAsync`はシェルパネルを開き、呼び出し時点の`SelectedContainerDetail`が対象IDと一致して停止中なら、
+  Application層へ問い合わせず停止状態を表示する。対象コンテナの既存セッションが接続中であれば
+  それを再利用し、接続中セッションがない場合は`IContainerManagementService.OpenExecSessionAsync`で新しい
   `IContainerExecSession`を開始する。
 - シェルセッションはコンテナID単位で`_execSessions`にキャッシュする。閉じたセッションは再利用せず、
   次回オープン時に削除して作り直す。別コンテナのシェルを開く場合は、現在表示中のセッションを閉じてから
   新しい対象へ切り替える。
 - 停止中コンテナなどApplication層がexec開始を拒否した場合は、シェルパネルを開いたまま
   `ShellStatusMessage`へ接続不可状態を表示し、`IsShellError`でエラー状態にする。
-- `SendShellCommandAsync`は現在のセッションへ入力文字列を送信し、送信後に`ShellCommandText`を空にする。
+- `SendAsync`は現在のセッションへ入力文字列を送信し、送信後に`ShellCommandText`を空にする。
   送信前に末尾のCR/LFだけを取り除くため、Windows側の入力で`ls\r`のような文字列になっても
   シェルへは`ls`として渡る。空白だけの入力、または未接続状態では送信しない。送信に失敗した場合は
   入力欄の内容を保持し、シェルエラーとして表示する。
 - `ReadShellOutputAsync`は`IContainerExecSession.ReadOutputAsync`から出力チャンクを受け取り、
-  `IUiDispatcher`経由で`ShellOutput`へ追加する。行単位ではなくチャンク単位で表示するため、
-  改行で終わらないプロンプトやコマンド出力もUIへ反映できる。
+  セッション参照付きの`_pendingShellChunks`へ追加する。未処理のディスパッチがない場合だけ
+  `IUiDispatcher`へ1回の反映処理を予約し、対象が現在の接続セッションであるチャンクだけをまとめて
+  `ShellOutput`へ追加する。行単位ではなくチャンク単位で表示するため、改行で終わらないプロンプトや
+  コマンド出力もUIへ反映できる。Open/Close時はディスパッチトークンを無効化し、古いセッションの
+  予約済みチャンクが新しい表示へ混入しないようにする。
+- `ShellOutput`と`_pendingShellChunks`は`BoundedCollection`を使って既定5000要素を上限とし、
+  上限超過時は最古の要素から取り除く。
 - 出力ストリームが終了した場合は通常の切断として`IsShellConnected=false`にし、
   `ShellStatusMessage`へ切断状態を表示する。読み取り中の例外はシェルエラーとして表示する。
-- `CloseShellAsync`はシェルパネルを閉じる。接続中セッションがある場合はセッションを閉じ、読み取りタスクの
+- `CloseAsync`はシェルパネルを閉じる。接続中セッションがある場合はセッションを閉じ、読み取りタスクの
   終了を待ってから接続状態を解除する。停止中コンテナのようにセッションが作成されていないエラー表示状態でも
   パネルを閉じられる。閉じる操作はコマンド入力行の`Close shell`ボタンから実行できる。
 
@@ -160,15 +204,9 @@
   `ItemsUpdatingScrollMode="KeepLastItemInView"`を設定する。これにより「末尾を表示している間は
   新しい行が追加されると自動的に末尾までスクロールする」「途中までスクロールして読んでいる間は
   自動スクロールしない」という受け入れ基準をWinUI自身が保証する。
-- 自前で`ScrollViewer`を探索・監視し、スクロール位置から末尾判定を行うコード（旧
-  `Scrolling/ScrollPositionEvaluator`、`ContainersPage`側の`ViewChanged`購読・`ChangeView`呼び出し）は
-  不要となり削除した。`ContainersPage`のコードビハインドはログ表示に関して状態を持たない。
-- 検証の過程で、自前実装には次のような未文書化の挙動への依存があったため、公式パターンへの
-  置き換えに踏み切った: `ScrollViewer.ChangeView`のverticalOffsetは公式ドキュメント上
-  「0から`ScrollableHeight`までの値」が契約であり、範囲外の値（`ExtentHeight`そのものや
-  `double.MaxValue`）が常にクランプされる保証はない。また、新規追加行のレイアウトが
-  `ExtentHeight`に反映されるタイミングとの競合により、自前実装では追従が途中で解除される
-  不具合が発生していた。
+- `ContainersPage`のコードビハインドはログ表示に関する`ScrollViewer`探索・`ViewChanged`購読・
+  `ChangeView`呼び出しやスクロール状態を持たない。末尾追従の判定とスクロール位置の維持は
+  `ItemsUpdatingScrollMode`に委ねる。
 
 ## ログ/シェルパネルの個別ウィンドウ表示（ポップアウト）
 
@@ -176,8 +214,9 @@
   （`BtnOpenLogsWindow`/`BtnOpenShellWindow`）を追加し、同じ内容を大きな個別ウィンドウ
   （`Windows/LogsWindow.xaml`・`Windows/ShellWindow.xaml`）としても表示できる。個別ウィンドウを表示または
   Activateした直後に、対応する小さい補助ペインを非表示にする。これは表示だけを切り替える処理であり、
-  `ContainersViewModel`の`LogLines`/`ShellOutput`やログ追跡・シェルセッションは維持され、個別ウィンドウから
-  引き続き操作できる。詳細パネルはこの導線の対象外。
+  `ContainersViewModel.HideLogPanel`/`HideShellPanel`から対応する`Logs`/`Shell`へ委譲する。`LogLines`/
+  `ShellOutput`等の状態、ログ追跡、シェルセッションは維持され、個別ウィンドウから引き続き操作できる。
+  詳細パネルはこの導線の対象外。
 - 各ウィンドウは対象ごとに1つだけ開く。ボタンを押したとき既に開いていれば新規に開かず、既存の
   ウィンドウを`Activate()`するだけにとどめる。この生成/再利用/Closed後の再生成ロジックは
   `Windows/SingleInstanceWindowOpener.cs`（`SingleInstanceWindowOpener<TWindow>`）に切り出されている。
@@ -190,13 +229,12 @@
   `_windowManager.ShowLogsWindow()`/`ShowShellWindow()`を呼ぶだけで、ウィンドウの生成・再利用判断には
   関与しない。
 - `LogsWindow`/`ShellWindow`は小さい補助ペインと同じ`ContainersViewModel`インスタンスを共有する
-  （コンストラクタで受け取り、`ViewModel`プロパティとして公開）。そのため以下は既存の設計制約に
-  起因する既知の挙動であり、今回のスコープでは対応しない:
-  - `ContainersViewModel`は単一コンテナの状態のみを保持するため、ポップアウトを開いたまま
-    別コンテナのログ/シェルを開くと、ポップアウト側の表示内容も暗黙に切り替わる。
+  （コンストラクタで受け取り、`ViewModel`プロパティとして公開）。`Logs`と`Shell`はそれぞれ
+  1つの選択中コンテナ状態を保持するため、次の制約がある:
+  - ポップアウトを開いたまま別コンテナのログ/シェルを開くと、ポップアウト側の表示内容も暗黙に切り替わる。
   - `ShellCommandText`は小さいシェルパネルとポップアウト`ShellWindow`の間でTwoWay共有されるため、
     両方を同時に表示して入力すると干渉し得る。
-  - ウィンドウサイズは`Activated`イベント時に取得した`XamlRoot.RasterizationScale`を用いた近似的な
+  - ウィンドウサイズは`RootGrid.Loaded`時に取得した`XamlRoot.RasterizationScale`を用いた近似的な
     DPI考慮のみ（1000x700 DIPs相当）で、モニター間移動時のDPI変化への追従までは行わない。
 - ポップアウト側にもログ用のPause/Resume/Clear、シェル用のコマンド入力・Sendを再配置しており、
   ユーザーが`ContainersPage`から離れてポップアウトだけが残っている状態でもセッションを操作できる。
