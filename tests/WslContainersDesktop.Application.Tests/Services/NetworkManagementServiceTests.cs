@@ -43,7 +43,7 @@ public sealed class NetworkManagementServiceTests
     public async Task GetNetworksAsync_RuntimeReturnsNetworksAndContainersReferenceNetwork_ReturnsNetworkWithConnectedContainerNamesAndUserNetworkIsNotSystem()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1"), CreateContainer("c2")],
             ContainerDetailsById = new Dictionary<string, ContainerDetail>
@@ -53,7 +53,7 @@ public sealed class NetworkManagementServiceTests
             },
             Networks = [CreateNetwork("app-net")],
         };
-        var sut = new NetworkManagementService(client);
+        var sut = new NetworkManagementService(client, client);
 
         // Act
         var networks = await sut.GetNetworksAsync();
@@ -71,13 +71,13 @@ public sealed class NetworkManagementServiceTests
     public async Task GetNetworksAsync_ContainerDetailFails_ReturnsNetworksWithoutThrowing()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1")],
             GetContainerDetailException = new ContainerRuntimeException("detail", 1, "detail failed"),
             Networks = [CreateNetwork("app-net")],
         };
-        var sut = new NetworkManagementService(client);
+        var sut = new NetworkManagementService(client, client);
 
         // Act
         var networks = await sut.GetNetworksAsync();
@@ -91,7 +91,7 @@ public sealed class NetworkManagementServiceTests
     public async Task GetNetworksAsync_SameContainerReferencesNetworkTwice_ReferencesContainerOnce()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1")],
             ContainerDetailsById = new Dictionary<string, ContainerDetail>
@@ -100,7 +100,7 @@ public sealed class NetworkManagementServiceTests
             },
             Networks = [CreateNetwork("app-net")],
         };
-        var sut = new NetworkManagementService(client);
+        var sut = new NetworkManagementService(client, client);
 
         // Act
         var networks = await sut.GetNetworksAsync();
@@ -116,11 +116,11 @@ public sealed class NetworkManagementServiceTests
     public async Task GetNetworksAsync_RuntimeReturnsReservedNames_MarksSystemNetworks(string reservedName)
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Networks = [CreateNetwork(reservedName)],
         };
-        var sut = new NetworkManagementService(client);
+        var sut = new NetworkManagementService(client, client);
 
         // Act
         var networks = await sut.GetNetworksAsync();
@@ -135,8 +135,8 @@ public sealed class NetworkManagementServiceTests
     public async Task CreateAsync_NameHasWhitespace_TrimsAndCallsClientCreateNetwork()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient();
-        var sut = new NetworkManagementService(client);
+        var client = new FakeRuntimeClients();
+        var sut = new NetworkManagementService(client, client);
 
         // Act
         await sut.CreateAsync("  app-net  ");
@@ -149,8 +149,8 @@ public sealed class NetworkManagementServiceTests
     public async Task CreateAsync_NameIsWhitespace_ThrowsArgumentExceptionAndDoesNotCallClient()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient();
-        var sut = new NetworkManagementService(client);
+        var client = new FakeRuntimeClients();
+        var sut = new NetworkManagementService(client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<ArgumentException>(() => sut.CreateAsync("   "));
@@ -161,11 +161,11 @@ public sealed class NetworkManagementServiceTests
     public async Task DeleteAsync_UnusedUserNetwork_CallsClientDeleteNetwork()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Networks = [CreateNetwork("app-net")],
         };
-        var sut = new NetworkManagementService(client);
+        var sut = new NetworkManagementService(client, client);
 
         // Act
         await sut.DeleteAsync("app-net");
@@ -178,7 +178,7 @@ public sealed class NetworkManagementServiceTests
     public async Task DeleteAsync_ConnectedNetwork_ThrowsNetworkInUseExceptionAndDoesNotCallClient()
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Containers = [CreateContainer("c1")],
             ContainerDetailsById = new Dictionary<string, ContainerDetail>
@@ -187,7 +187,7 @@ public sealed class NetworkManagementServiceTests
             },
             Networks = [CreateNetwork("app-net")],
         };
-        var sut = new NetworkManagementService(client);
+        var sut = new NetworkManagementService(client, client);
 
         // Act & Assert
         var ex = await Assert.ThrowsExactlyAsync<NetworkInUseException>(() => sut.DeleteAsync("app-net"));
@@ -203,11 +203,11 @@ public sealed class NetworkManagementServiceTests
     public async Task DeleteAsync_SystemNetwork_ThrowsSystemNetworkDeletionExceptionAndDoesNotCallClient(string reservedName)
     {
         // Arrange
-        var client = new FakeContainerRuntimeClient
+        var client = new FakeRuntimeClients
         {
             Networks = [CreateNetwork(reservedName, isSystem: true)],
         };
-        var sut = new NetworkManagementService(client);
+        var sut = new NetworkManagementService(client, client);
 
         // Act & Assert
         var ex = await Assert.ThrowsExactlyAsync<SystemNetworkDeletionException>(() => sut.DeleteAsync(reservedName));

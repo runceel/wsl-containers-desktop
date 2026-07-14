@@ -50,7 +50,14 @@ public partial class App : Application
         var services = new ServiceCollection();
 
         services.AddSingleton<IWslcCliRunner, WslcCliRunner>();
-        services.AddSingleton<IContainerRuntimeClient, WslcCliContainerRuntimeClient>();
+        services.AddSingleton<IContainerQueryClient, WslcCliContainerQueryClient>();
+        services.AddSingleton<IContainerLifecycleClient, WslcCliContainerLifecycleClient>();
+        services.AddSingleton<IContainerLogClient, WslcCliContainerLogClient>();
+        services.AddSingleton<IContainerExecClient, WslcCliContainerExecClient>();
+        services.AddSingleton<IContainerStatsClient, WslcCliContainerStatsClient>();
+        services.AddSingleton<IImageRuntimeClient, WslcCliImageRuntimeClient>();
+        services.AddSingleton<IVolumeRuntimeClient, WslcCliVolumeRuntimeClient>();
+        services.AddSingleton<INetworkRuntimeClient, WslcCliNetworkRuntimeClient>();
         services.AddSingleton<IContainerManagementService, ContainerManagementService>();
         services.AddSingleton<IImageManagementService, ImageManagementService>();
         services.AddSingleton<IVolumeManagementService, VolumeManagementService>();

@@ -7,12 +7,21 @@ namespace WslContainersDesktop.Application.Services;
 /// <summary>
 /// <see cref="IVolumeManagementService"/> の実装。
 /// </summary>
-public sealed class VolumeManagementService(IContainerRuntimeClient runtimeClient) : IVolumeManagementService
+public sealed class VolumeManagementService : IVolumeManagementService
 {
+    private readonly IVolumeRuntimeClient _volumeClient;
+    private readonly IContainerQueryClient _queryClient;
+
+    public VolumeManagementService(IVolumeRuntimeClient volumeClient, IContainerQueryClient queryClient)
+    {
+        _volumeClient = volumeClient;
+        _queryClient = queryClient;
+    }
+
     /// <inheritdoc />
     public async Task<IReadOnlyList<ContainerVolume>> GetVolumesAsync(CancellationToken cancellationToken = default)
     {
-        var volumes = await runtimeClient.ListVolumesAsync(cancellationToken);
+        var volumes = await _volumeClient.ListVolumesAsync(cancellationToken);
         if (volumes.Count == 0)
         {
             return volumes;
@@ -33,7 +42,7 @@ public sealed class VolumeManagementService(IContainerRuntimeClient runtimeClien
     public async Task<ContainerVolume> CreateAsync(string name, CancellationToken cancellationToken = default)
     {
         var trimmed = ValidateNotWhiteSpace(name, nameof(name));
-        await runtimeClient.CreateVolumeAsync(trimmed, cancellationToken);
+        await _volumeClient.CreateVolumeAsync(trimmed, cancellationToken);
 
         var volumes = await GetVolumesAsync(cancellationToken);
         return volumes.FirstOrDefault(volume => volume.Name == trimmed)
@@ -50,7 +59,7 @@ public sealed class VolumeManagementService(IContainerRuntimeClient runtimeClien
             throw new VolumeInUseException(trimmed, references);
         }
 
-        await runtimeClient.DeleteVolumeAsync(trimmed, cancellationToken);
+        await _volumeClient.DeleteVolumeAsync(trimmed, cancellationToken);
     }
 
     private async Task<IReadOnlyList<string>> GetReferencesForVolumeAsync(string volumeName, CancellationToken cancellationToken)
@@ -74,13 +83,13 @@ public sealed class VolumeManagementService(IContainerRuntimeClient runtimeClien
             return ToReferenceMap(referenceSets);
         }
 
-        var containers = await runtimeClient.ListContainersAsync(cancellationToken);
+        var containers = await _queryClient.ListContainersAsync(cancellationToken);
         foreach (var container in containers)
         {
             ContainerDetail detail;
             try
             {
-                detail = await runtimeClient.GetContainerDetailAsync(container.Id, cancellationToken);
+                detail = await _queryClient.GetContainerDetailAsync(container.Id, cancellationToken);
             }
             catch (ContainerManagementException)
             {

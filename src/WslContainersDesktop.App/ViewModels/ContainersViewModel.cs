@@ -2,208 +2,208 @@
 // Licensed under the MIT License.
 
 using System.Collections.ObjectModel;
-using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Domain;
-using WslContainersDesktop_App.Collections;
 
 namespace WslContainersDesktop_App.ViewModels;
 
 /// <summary>
-/// コンテナ一覧の表示・操作を管理するViewModel。
+/// コンテナ一覧・詳細・ログ・シェルの各構成要素をまとめる、XAMLバインディング・コマンド用の
+/// ファサードViewModel（<see href="../../docs/adr/0017-split-containersviewmodel-and-runtime-client-into-focused-components.md">ADR-0017</see>）。
+/// 一覧の状態・ロジックは <see cref="List"/>（<see cref="ContainerListViewModel"/>）が担い、このクラスは
+/// 手書きの委譲プロパティと生成済みコマンドで転送するだけにする。
 /// </summary>
-public sealed partial class ContainersViewModel(
-    IContainerManagementService containerManagementService,
-    IUiDispatcher? uiDispatcher = null,
-    int capacity = 5000) : ObservableObject
+public sealed partial class ContainersViewModel : ObservableObject
 {
-    private const string StoppedLogStatusMessage = "This container is stopped. Existing logs are displayed, but no live log follow is active.";
-    private const string MissingLogStatusMessage = "The selected container does not exist.";
-    private const string StoppedShellStatusMessage = "This container is stopped. Start it before opening a shell.";
-    private const string ShellConnectedStatusMessage = "Shell connected.";
-    private const string ShellDisconnectedStatusMessage = "Shell disconnected.";
-
-    private readonly IUiDispatcher _uiDispatcher = uiDispatcher ?? new ImmediateUiDispatcher();
+    /// <summary>
+    /// フォーカス対象のコンテナ一覧構成要素を表すViewModel。
+    /// </summary>
+    public ContainerListViewModel List { get; }
 
     /// <summary>
-    /// 表示・一時停止バッファに保持する要素数の上限。
-    /// 0以下は無制限ではなく設定ミスとみなし、コンストラクターで直ちに検出する。
+    /// フォーカス対象のコンテナ詳細構成要素を表すViewModel。
     /// </summary>
-    private readonly int _capacity = capacity > 0
-        ? capacity
-        : throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "capacity must be a positive number.");
+    public ContainerDetailsViewModel Details { get; }
 
     /// <summary>
-    /// 実行中の操作が対象としているコンテナIDと、その操作種別の対応。
-    /// busy状態・進行中の操作種別は本来 <see cref="ContainerRowViewModel.IsBusy"/>／
-    /// <see cref="ContainerRowViewModel.PendingOperation"/> だけで表現できるが、
-    /// <see cref="RefreshAsync"/> や操作成功後のベストエフォート再同期（<see cref="TryRefreshSilentlyAsync"/>）
-    /// では <see cref="ReplaceContainers"/> によって行インスタンスそのものが作り直されるため、
-    /// 行インスタンスに紐付くプロパティだけでは再構築後に状態が失われてしまう。
-    /// そこでコンテナID単位で永続する記録をこの辞書に持ち、再構築後の新しい行インスタンスへ
-    /// busy状態と操作種別を復元できるようにしている（busy状態と操作種別は必ず一致するため、
-    /// 単一の情報源として1つの辞書にまとめている。コンテナIDがキーに存在すること自体がbusy中を表す）。
+    /// フォーカス対象のコンテナログ構成要素を表すViewModel。
     /// </summary>
-    private readonly Dictionary<string, ContainerRowOperation> _pendingOperations = [];
+    public ContainerLogsViewModel Logs { get; }
 
     /// <summary>
-    /// 削除操作が進行中（実行開始からサーバー側の応答待ちの間）のコンテナIDの集合。
-    /// 削除はUI上「すでに消えたもの」として楽観的に扱うため、この集合に含まれるコンテナIDは
-    /// <see cref="ReplaceContainers"/> による再構築時に一覧へ含めない
-    /// （<see cref="RefreshAsync"/> によるユーザー手動更新や、他の行の操作完了に伴う
-    /// ベストエフォート再同期でサーバーからまだ削除完了前の状態が返ってきても、
-    /// 削除中の行が一覧に再度現れて見えるのを防ぐため）。
+    /// フォーカス対象のコンテナシェル構成要素を表すViewModel。
     /// </summary>
-    private readonly HashSet<string> _pendingDeleteContainerIds = [];
-
-    private readonly List<string> _pausedLogBuffer = [];
-    private readonly Queue<string> _pendingLogLines = [];
-    private readonly Queue<(ExecSessionState State, string Chunk)> _pendingShellChunks = [];
-    private readonly object _logQueueLock = new();
-    private readonly object _shellQueueLock = new();
-
-    private readonly Dictionary<string, ExecSessionState> _execSessions = [];
-
-    private int _logDispatchGeneration;
-    private int _shellDispatchGeneration;
-    private int _logDispatchPendingToken;
-    private int _shellDispatchPendingToken;
-
-    private CancellationTokenSource? _logFollowCancellation;
-
-    private Task? _logFollowTask;
-
-    private ExecSessionState? _currentExecSession;
+    public ContainerShellViewModel Shell { get; }
 
     /// <summary>
-    /// 現在表示中のコンテナ一覧。
+    /// <see cref="ContainersViewModel"/> の新しいインスタンスを初期化する。
     /// </summary>
-    public ObservableCollection<ContainerRowViewModel> Containers { get; } = [];
+    /// <param name="containerManagementService">コンテナ操作を行うApplication層のサービス。</param>
+    /// <param name="uiDispatcher">UIスレッドへディスパッチする実装。省略時は即時実行する。</param>
+    /// <param name="capacity">シェル出力・一時停止バッファに保持する要素数の上限。ログ側の同じ上限は<see cref="Logs"/>に渡す。</param>
+    public ContainersViewModel(
+        IContainerManagementService containerManagementService,
+        IUiDispatcher? uiDispatcher = null,
+        int capacity = 5000)
+    {
+        if (capacity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(capacity), capacity, "capacity must be a positive number.");
+        }
+
+        var resolvedUiDispatcher = uiDispatcher ?? new ImmediateUiDispatcher();
+
+        List = new ContainerListViewModel(containerManagementService);
+        Details = new ContainerDetailsViewModel(containerManagementService);
+        Logs = new ContainerLogsViewModel(containerManagementService, resolvedUiDispatcher, capacity);
+        Shell = new ContainerShellViewModel(containerManagementService, resolvedUiDispatcher, capacity);
+
+        // Listの状態変化をこのファサードの同名プロパティ変更として再発行し、x:Bind/INotifyPropertyChanged
+        // が既存のプロパティ名（ErrorMessage/IsEmpty）でListの状態を観測できるようにする。
+        RelayPropertyChanges(List, nameof(List.ErrorMessage), nameof(List.IsEmpty));
+
+        // Detailsの状態変化をこのファサードの同名プロパティ変更として再発行する。IsDetailPanelVisible
+        // はIsSidePanelVisibleの算出にも使われるため、あわせてIsSidePanelVisibleの変更も再発行する。
+        RelayPropertyChanges(
+            Details,
+            [nameof(Details.SelectedContainerDetail), nameof(Details.DetailErrorMessage), nameof(Details.IsDetailPanelVisible)],
+            additionalPropertyNames: new Dictionary<string, string[]>
+            {
+                [nameof(Details.IsDetailPanelVisible)] = [nameof(IsSidePanelVisible)],
+            });
+
+        // Logsの状態変化をこのファサードの同名プロパティ変更として再発行する。IsLogPanelVisible
+        // はIsSidePanelVisibleの算出にも使われるため、あわせてIsSidePanelVisibleの変更も再発行する。
+        RelayPropertyChanges(
+            Logs,
+            [nameof(Logs.IsLogPanelVisible), nameof(Logs.IsLogEmpty), nameof(Logs.IsLogError), nameof(Logs.IsLogsPaused), nameof(Logs.LogStatusMessage), nameof(Logs.IsLogStatusVisible)],
+            additionalPropertyNames: new Dictionary<string, string[]>
+            {
+                [nameof(Logs.IsLogPanelVisible)] = [nameof(IsSidePanelVisible)],
+            });
+
+        // Shellの状態変化をこのファサードの同名プロパティ変更として再発行する。IsShellPanelVisible
+        // はIsSidePanelVisibleの算出にも使われるため、あわせてIsSidePanelVisibleの変更も再発行する。
+        RelayPropertyChanges(
+            Shell,
+            [nameof(Shell.ShellStatusMessage), nameof(Shell.ShellCommandText), nameof(Shell.IsShellPanelVisible), nameof(Shell.IsShellConnected), nameof(Shell.IsShellError), nameof(Shell.IsShellStatusVisible)],
+            additionalPropertyNames: new Dictionary<string, string[]>
+            {
+                [nameof(Shell.IsShellPanelVisible)] = [nameof(IsSidePanelVisible)],
+            });
+    }
 
     /// <summary>
-    /// 選択中コンテナのログ行。
+    /// 現在表示中のコンテナ一覧。<see cref="List"/> が保持するコレクションそのものを返す。
     /// </summary>
-    public ObservableCollection<string> LogLines { get; } = [];
+    public ObservableCollection<ContainerRowViewModel> Containers => List.Containers;
 
     /// <summary>
-    /// 現在表示中のシェル出力。
+    /// 選択中コンテナのログ行。<see cref="Logs"/> が保持するコレクションそのものを返す。
     /// </summary>
-    public ObservableCollection<string> ShellOutput { get; } = [];
+    public ObservableCollection<string> LogLines => Logs.LogLines;
 
     /// <summary>
-    /// 現在表示中のコンテナ詳細行。
+    /// 現在表示中のシェル出力。<see cref="Shell"/> が保持するコレクションそのものを返す。
     /// </summary>
-    public ObservableCollection<string> DetailLines { get; } = [];
+    public ObservableCollection<string> ShellOutput => Shell.ShellOutput;
 
     /// <summary>
-    /// 直近の操作で発生したエラーメッセージ。エラーがない場合は <see langword="null"/>。
+    /// 現在表示中のコンテナ詳細行。<see cref="Details"/> が保持するコレクションそのものを返す。
     /// </summary>
-    [ObservableProperty]
-    public partial string? ErrorMessage { get; private set; }
+    public ObservableCollection<string> DetailLines => Details.DetailLines;
 
     /// <summary>
-    /// 現在表示中のコンテナ詳細。
+    /// 直近の一覧操作で発生したエラーメッセージ。エラーがない場合は <see langword="null"/>。
+    /// <see cref="List"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    public partial ContainerDetail? SelectedContainerDetail { get; private set; }
+    public string? ErrorMessage => List.ErrorMessage;
 
     /// <summary>
-    /// 詳細取得で発生したエラーメッセージ。
+    /// 現在表示中のコンテナ詳細。<see cref="Details"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    public partial string? DetailErrorMessage { get; private set; }
+    public ContainerDetail? SelectedContainerDetail => Details.SelectedContainerDetail;
 
     /// <summary>
-    /// シェル状態メッセージ。
+    /// 詳細取得で発生したエラーメッセージ。<see cref="Details"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsShellStatusVisible))]
-    public partial string? ShellStatusMessage { get; private set; }
+    public string? DetailErrorMessage => Details.DetailErrorMessage;
 
     /// <summary>
-    /// シェル入力欄のテキスト。
+    /// シェル状態メッセージ。<see cref="Shell"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    public partial string ShellCommandText { get; set; } = string.Empty;
+    public string? ShellStatusMessage => Shell.ShellStatusMessage;
 
     /// <summary>
-    /// <see cref="Containers"/> が空かどうか。
+    /// シェル入力欄のテキスト。<see cref="Shell"/> の同名プロパティへ読み書きを委譲する。
     /// </summary>
-    [ObservableProperty]
-    public partial bool IsEmpty { get; private set; } = true;
+    public string ShellCommandText
+    {
+        get => Shell.ShellCommandText;
+        set => Shell.ShellCommandText = value;
+    }
 
     /// <summary>
-    /// コンテナ詳細パネルが表示されているかどうか。
+    /// <see cref="Containers"/> が空かどうか。<see cref="List"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSidePanelVisible))]
-    public partial bool IsDetailPanelVisible { get; private set; }
+    public bool IsEmpty => List.IsEmpty;
 
     /// <summary>
-    /// ログパネルが表示されているかどうか。
+    /// コンテナ詳細パネルが表示されているかどうか。<see cref="Details"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSidePanelVisible))]
-    public partial bool IsLogPanelVisible { get; private set; }
+    public bool IsDetailPanelVisible => Details.IsDetailPanelVisible;
 
     /// <summary>
-    /// シェルパネルが表示されているかどうか。
+    /// ログパネルが表示されているかどうか。<see cref="Logs"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsSidePanelVisible))]
-    public partial bool IsShellPanelVisible { get; private set; }
+    public bool IsLogPanelVisible => Logs.IsLogPanelVisible;
 
     /// <summary>
-    /// 現在のシェルが接続中かどうか。
+    /// シェルパネルが表示されているかどうか。<see cref="Shell"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    public partial bool IsShellConnected { get; private set; }
+    public bool IsShellPanelVisible => Shell.IsShellPanelVisible;
 
     /// <summary>
-    /// シェル接続または入出力がエラー状態かどうか。
+    /// 現在のシェルが接続中かどうか。<see cref="Shell"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsShellStatusVisible))]
-    public partial bool IsShellError { get; private set; }
+    public bool IsShellConnected => Shell.IsShellConnected;
 
     /// <summary>
-    /// 表示可能なログが空かどうか。
+    /// シェル接続または入出力がエラー状態かどうか。<see cref="Shell"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    public partial bool IsLogEmpty { get; private set; } = true;
+    public bool IsShellError => Shell.IsShellError;
 
     /// <summary>
-    /// ログ取得または追跡がエラー状態かどうか。
+    /// 表示可能なログが空かどうか。<see cref="Logs"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsLogStatusVisible))]
-    public partial bool IsLogError { get; private set; }
+    public bool IsLogEmpty => Logs.IsLogEmpty;
 
     /// <summary>
-    /// ログの画面反映を一時停止しているかどうか。
+    /// ログ取得または追跡がエラー状態かどうか。<see cref="Logs"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    public partial bool IsLogsPaused { get; private set; }
+    public bool IsLogError => Logs.IsLogError;
 
     /// <summary>
-    /// ログ表示領域に表示する状態メッセージ。
+    /// ログの画面反映を一時停止しているかどうか。<see cref="Logs"/> の同名プロパティをそのまま返す。
     /// </summary>
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsLogStatusVisible))]
-    public partial string? LogStatusMessage { get; private set; }
+    public bool IsLogsPaused => Logs.IsLogsPaused;
 
     /// <summary>
-    /// エラーではないログ状態メッセージを表示するかどうか。
+    /// ログ表示領域に表示する状態メッセージ。<see cref="Logs"/> の同名プロパティをそのまま返す。
     /// </summary>
-    public bool IsLogStatusVisible => !IsLogError && !string.IsNullOrEmpty(LogStatusMessage);
+    public string? LogStatusMessage => Logs.LogStatusMessage;
 
     /// <summary>
-    /// シェル状態メッセージを表示するかどうか。
+    /// エラーではないログ状態メッセージを表示するかどうか。<see cref="Logs"/> の同名プロパティをそのまま返す。
     /// </summary>
-    public bool IsShellStatusVisible => !IsShellError && !string.IsNullOrEmpty(ShellStatusMessage);
+    public bool IsLogStatusVisible => Logs.IsLogStatusVisible;
+
+    /// <summary>
+    /// シェル状態メッセージを表示するかどうか。<see cref="Shell"/> の同名プロパティをそのまま返す。
+    /// </summary>
+    public bool IsShellStatusVisible => Shell.IsShellStatusVisible;
 
     /// <summary>
     /// 右側の補助パネル領域を表示するかどうか。
@@ -211,1097 +211,180 @@ public sealed partial class ContainersViewModel(
     public bool IsSidePanelVisible => IsDetailPanelVisible || IsShellPanelVisible || IsLogPanelVisible;
 
     /// <summary>
-    /// コンテナ一覧を手動で再取得する。
+    /// コンテナ一覧を手動で再取得する。<see cref="List"/> へ委譲する。
     /// </summary>
     [RelayCommand]
-    private async Task RefreshAsync()
-    {
-        try
-        {
-            var containers = await containerManagementService.GetContainersAsync();
-            ReplaceContainers(containers);
-            ErrorMessage = null;
-        }
-        catch (Exception ex)
-        {
-            // 失敗時は直前に表示していた一覧を保持したまま、エラーメッセージのみを表示する。
-            ErrorMessage = ex.Message;
-        }
-    }
+    private Task RefreshAsync() => List.RefreshAsync();
 
     /// <summary>
-    /// 指定したコンテナのログを開く。
+    /// 指定したコンテナのログを開く。<see cref="Logs"/> へ委譲する。
     /// </summary>
     /// <param name="containerId">対象コンテナID。</param>
     [RelayCommand]
-    public async Task OpenLogsAsync(string containerId)
-    {
-        await StopLogFollowAsync();
-        ResetLogPanelForOpen();
-
-        Container? container;
-        try
-        {
-            var containers = await containerManagementService.GetContainersAsync();
-            container = containers.FirstOrDefault(c => c.Id == containerId);
-            if (container is null)
-            {
-                ShowMissingLogStatus();
-                return;
-            }
-
-            var logs = await containerManagementService.GetContainerLogsAsync(containerId);
-            AppendDisplayedLogLines(logs);
-
-            ClearLogStatus();
-            UpdateLogEmpty();
-        }
-        catch (ContainerNotFoundException)
-        {
-            ShowMissingLogStatus();
-            return;
-        }
-        catch (Exception ex)
-        {
-            ShowLogError(ex.Message);
-            return;
-        }
-
-        if (container.State == ContainerState.Running)
-        {
-            StartLogFollow(containerId);
-            await Task.Yield();
-        }
-        else
-        {
-            LogStatusMessage = StoppedLogStatusMessage;
-        }
-    }
+    public Task OpenLogsAsync(string containerId) => Logs.OpenAsync(containerId);
 
     /// <summary>
-    /// 指定したコンテナの詳細情報を開く。
+    /// 指定したコンテナの詳細情報を開く。<see cref="Details"/> へ委譲する。
     /// </summary>
     /// <param name="containerId">対象コンテナID。</param>
     [RelayCommand]
-    public async Task OpenDetailsAsync(string containerId)
-    {
-        IsDetailPanelVisible = true;
-        DetailErrorMessage = null;
-        DetailLines.Clear();
-        try
-        {
-            SelectedContainerDetail = await containerManagementService.GetContainerDetailAsync(containerId);
-            PopulateDetailLines(SelectedContainerDetail);
-        }
-        catch (Exception ex)
-        {
-            DetailErrorMessage = ex.Message;
-        }
-    }
+    public Task OpenDetailsAsync(string containerId) => Details.OpenAsync(containerId);
 
     /// <summary>
-    /// 詳細パネルを閉じる。
+    /// 詳細パネルを閉じる。<see cref="Details"/> へ委譲する。
     /// </summary>
     [RelayCommand]
-    public Task CloseDetailsAsync()
-    {
-        IsDetailPanelVisible = false;
-        return Task.CompletedTask;
-    }
+    public Task CloseDetailsAsync() => Details.CloseAsync();
 
     /// <summary>
-    /// 指定したコンテナ内にシェルを開く。
+    /// 指定したコンテナ内にシェルを開く。<see cref="Shell"/> へ委譲する。呼び出し時点の
+    /// <see cref="SelectedContainerDetail"/> を渡し、停止中コンテナの判定に使わせる。
     /// </summary>
     /// <param name="containerId">対象コンテナID。</param>
     [RelayCommand]
-    public async Task OpenShellAsync(string containerId)
-    {
-        IsShellPanelVisible = true;
-
-        if (_currentExecSession is not null && _currentExecSession.ContainerId != containerId)
-        {
-            await CloseShellSessionAsync(_currentExecSession, showDisconnectedStatus: false);
-        }
-
-        if (SelectedContainerDetail?.Id == containerId && SelectedContainerDetail.State != ContainerState.Running)
-        {
-            ShowShellStatus(StoppedShellStatusMessage, isError: true);
-            return;
-        }
-
-        if (_execSessions.TryGetValue(containerId, out var existing) && !existing.Session.IsClosed)
-        {
-            UseShellSession(existing);
-            return;
-        }
-
-        if (existing is not null)
-        {
-            _execSessions.Remove(containerId);
-            await existing.Session.CloseAsync();
-            existing.Dispose();
-        }
-
-        try
-        {
-            var session = await containerManagementService.OpenExecSessionAsync(containerId);
-            var state = new ExecSessionState(containerId, session);
-            _execSessions[containerId] = state;
-            UseShellSession(state);
-            state.OutputTask = ReadShellOutputAsync(state);
-        }
-        catch (InvalidContainerOperationException)
-        {
-            ShowShellStatus(StoppedShellStatusMessage, isError: true);
-            IsShellConnected = false;
-        }
-        catch (Exception ex)
-        {
-            ShowShellStatus(ex.Message, isError: true);
-            IsShellConnected = false;
-        }
-    }
+    public Task OpenShellAsync(string containerId) => Shell.OpenAsync(containerId, SelectedContainerDetail);
 
     /// <summary>
-    /// シェルパネルを非表示にする。
+    /// シェルセッションを維持したままシェルパネルを非表示にする。<see cref="Shell"/> へ委譲する。
     /// </summary>
-    public void HideShellPanel()
-    {
-        IsShellPanelVisible = false;
-    }
+    public void HideShellPanel() => Shell.HidePanel();
 
     /// <summary>
-    /// 現在のシェルへ入力欄のコマンドを送信する。
+    /// 現在のシェルへ入力欄のコマンドを送信する。<see cref="Shell"/> へ委譲する。
     /// </summary>
     [RelayCommand]
-    public async Task SendShellCommandAsync()
-    {
-        if (_currentExecSession is null || _currentExecSession.Session.IsClosed)
-        {
-            ShowShellStatus(ShellDisconnectedStatusMessage, isError: true);
-            IsShellConnected = false;
-            return;
-        }
-
-        var command = ShellCommandText.TrimEnd('\r', '\n');
-        if (string.IsNullOrWhiteSpace(command))
-        {
-            return;
-        }
-
-        try
-        {
-            await _currentExecSession.Session.SendCommandAsync(command);
-            ShellCommandText = string.Empty;
-        }
-        catch (Exception ex)
-        {
-            IsShellConnected = false;
-            ShowShellStatus(ex.Message, isError: true);
-        }
-    }
+    public Task SendShellCommandAsync() => Shell.SendAsync();
 
     /// <summary>
-    /// 現在のシェルセッションを閉じる。
+    /// 現在のシェルセッションを閉じる。<see cref="Shell"/> へ委譲する。
     /// </summary>
     [RelayCommand]
-    public async Task CloseShellAsync()
-    {
-        if (_currentExecSession is null)
-        {
-            IsShellPanelVisible = false;
-            IsShellConnected = false;
-            return;
-        }
-
-        await CloseShellSessionAsync(_currentExecSession, showDisconnectedStatus: true);
-        IsShellPanelVisible = false;
-    }
+    public Task CloseShellAsync() => Shell.CloseAsync();
 
     /// <summary>
-    /// ログの画面反映を一時停止する。
+    /// ログの画面反映を一時停止する。<see cref="Logs"/> へ委譲する。
     /// </summary>
     [RelayCommand]
-    public Task PauseLogsAsync()
-    {
-        lock (_logQueueLock)
-        {
-            IsLogsPaused = true;
-        }
-
-        return Task.CompletedTask;
-    }
+    public Task PauseLogsAsync() => Logs.PauseAsync();
 
     /// <summary>
-    /// 一時停止中に受信したログを順序通りに反映し、画面反映を再開する。
+    /// 一時停止中に受信したログを順序通りに反映し、画面反映を再開する。<see cref="Logs"/> へ委譲する。
     /// </summary>
     [RelayCommand]
-    public Task ResumeLogsAsync()
-    {
-        int dispatchToken;
-        bool hadBufferedLines;
-        lock (_logQueueLock)
-        {
-            IsLogsPaused = false;
-            hadBufferedLines = _pausedLogBuffer.Count > 0;
-            dispatchToken = EnqueuePendingLogLinesUnderLock(_pausedLogBuffer);
-            _pausedLogBuffer.Clear();
-        }
-
-        if (dispatchToken != 0)
-        {
-            _uiDispatcher.Invoke(() => FlushPendingLogLines(dispatchToken));
-        }
-        else if (!hadBufferedLines)
-        {
-            UpdateLogEmpty();
-        }
-
-        return Task.CompletedTask;
-    }
+    public Task ResumeLogsAsync() => Logs.ResumeAsync();
 
     /// <summary>
-    /// 表示中のログだけをクリアする。
+    /// 表示中のログだけをクリアする。<see cref="Logs"/> へ委譲する。
     /// </summary>
     [RelayCommand]
-    public Task ClearLogsAsync()
-    {
-        ResetPendingLogDisplayState();
-        LogLines.Clear();
-        ClearPausedLogBuffer();
-        UpdateLogEmpty();
-        return Task.CompletedTask;
-    }
+    public Task ClearLogsAsync() => Logs.ClearAsync();
 
     /// <summary>
-    /// ログパネルを非表示にする。
+    /// ログ追跡を維持したままログパネルを非表示にする。<see cref="Logs"/> へ委譲する。
     /// </summary>
-    public void HideLogPanel()
-    {
-        IsLogPanelVisible = false;
-    }
+    public void HideLogPanel() => Logs.HidePanel();
 
     /// <summary>
-    /// ログパネルを閉じ、追跡中のログ取得を停止する。
+    /// ログパネルを閉じ、追跡中のログ取得を停止する。<see cref="Logs"/> へ委譲する。
     /// </summary>
     [RelayCommand]
-    public async Task CloseLogsAsync()
-    {
-        await StopLogFollowAsync();
-        ResetPendingLogDisplayState();
-        IsLogPanelVisible = false;
-    }
+    public Task CloseLogsAsync() => Logs.CloseAsync();
 
     /// <summary>
-    /// 受信したライブログ行を現在の一時停止状態に応じて反映する。
+    /// 受信したライブログ行を現在の一時停止状態に応じて反映する。<see cref="Logs"/> へ委譲する。
     /// </summary>
     /// <param name="line">ログ行。</param>
-    public Task FollowLiveLine(string line)
-    {
-        int dispatchToken = 0;
-        lock (_logQueueLock)
-        {
-            if (IsLogsPaused)
-            {
-                AppendBounded(_pausedLogBuffer, line, _capacity);
-            }
-            else
-            {
-                dispatchToken = EnqueuePendingLogLineUnderLock(line);
-            }
-        }
-
-        if (dispatchToken != 0)
-        {
-            _uiDispatcher.Invoke(() => FlushPendingLogLines(dispatchToken));
-        }
-
-        return Task.CompletedTask;
-    }
+    public Task FollowLiveLine(string line) => Logs.FollowLiveLine(line);
 
     /// <summary>
-    /// 指定したコンテナを起動する。
+    /// 指定したコンテナを起動する。<see cref="List"/> へ委譲する。
     /// </summary>
     /// <param name="row">対象の行。</param>
     [RelayCommand]
-    private Task StartAsync(ContainerRowViewModel row)
-    {
-        return ExecuteRowOperationAsync(row, ContainerRowOperation.Starting, () => containerManagementService.StartAsync(row.Id));
-    }
+    private Task StartAsync(ContainerRowViewModel row) => List.StartAsync(row);
 
     /// <summary>
-    /// 指定したコンテナを停止する。
+    /// 指定したコンテナを停止する。<see cref="List"/> へ委譲する。
     /// </summary>
     /// <param name="row">対象の行。</param>
     [RelayCommand]
-    private Task StopAsync(ContainerRowViewModel row)
-    {
-        return ExecuteRowOperationAsync(row, ContainerRowOperation.Stopping, () => containerManagementService.StopAsync(row.Id));
-    }
+    private Task StopAsync(ContainerRowViewModel row) => List.StopAsync(row);
 
     /// <summary>
-    /// 指定したコンテナを再起動する。
+    /// 指定したコンテナを再起動する。<see cref="List"/> へ委譲する。
     /// </summary>
     /// <param name="row">対象の行。</param>
     [RelayCommand]
-    private Task RestartAsync(ContainerRowViewModel row)
-    {
-        return ExecuteRowOperationAsync(row, ContainerRowOperation.Restarting, () => containerManagementService.RestartAsync(row.Id));
-    }
+    private Task RestartAsync(ContainerRowViewModel row) => List.RestartAsync(row);
 
     /// <summary>
-    /// 指定したコンテナを削除する。呼び出し前に削除確認はView側で完了している前提。
-    /// 実行中は二重操作を防ぐため <see cref="BeginBusy"/> でコンテナIDをbusy状態にし、
-    /// 成功・失敗いずれの分岐でも <see cref="EndBusy"/> を呼んでbusy状態を解除する
-    /// （呼び出し位置の制約は <see cref="EndBusy"/> のドキュメントを参照）。
-    /// 失敗時は、削除自体は例外で終わったにもかかわらず行が一覧から消えたままになる状況
-    /// （復旧用リフレッシュも失敗し、かつ他の経路でも行が復元されていない場合）に限り、
-    /// 削除開始時に受け取った行を一覧へ戻す（詳細は <see cref="RestoreRowIfDeleteFailedAndMissing"/>
-    /// のドキュメントを参照）。
+    /// 指定したコンテナを削除する。呼び出し前に削除確認はView側で完了している前提。<see cref="List"/> へ委譲する。
     /// </summary>
     /// <param name="row">対象の行。</param>
     [RelayCommand]
-    private async Task DeleteAsync(ContainerRowViewModel row)
-    {
-        var id = row.Id;
-        BeginBusy(id, ContainerRowOperation.Deleting);
-        _pendingDeleteContainerIds.Add(id);
-        try
-        {
-            await containerManagementService.DeleteAsync(id);
-            EndBusy(id);
-            _pendingDeleteContainerIds.Remove(id);
-
-            // 削除は一覧から行を取り除くだけで完結する操作のため、Start/Stop/Restartと異なり
-            // バックグラウンドでの全件再同期は行わない（削除後の対象コンテナはサーバー側の
-            // 一覧からも消えている前提であり、再同期の必要性が薄いため）。
-            // 取り除く行は FindLiveRow で再検索したものを使う（理由は同メソッドのドキュメントを参照）。
-            var liveRow = FindLiveRow(id);
-            if (liveRow is not null)
-            {
-                Containers.Remove(liveRow);
-            }
-
-            IsEmpty = Containers.Count == 0;
-            ErrorMessage = null;
-        }
-        catch (Exception ex)
-        {
-            // 削除処理自体は例外で失敗しているが、行が実際には削除されている等の
-            // 可能性もあるため、ベストエフォートで実際のサーバー状態にUIを合わせ直す。
-            _pendingDeleteContainerIds.Remove(id);
-            var refreshSucceeded = await HandleOperationFailureAsync(id, ex);
-            RestoreRowIfDeleteFailedAndMissing(row, refreshSucceeded);
-        }
-    }
+    private Task DeleteAsync(ContainerRowViewModel row) => List.DeleteAsync(row);
 
     /// <summary>
-    /// 削除失敗後、行が一覧から消えたままになっている場合に、削除開始時の行を一覧へ戻す。
+    /// 子コンポーネント（<paramref name="source"/>）が発行する<paramref name="propertyNames"/>の
+    /// <see cref="ObservableObject.PropertyChanging"/>/<see cref="ObservableObject.PropertyChanged"/>を、
+    /// このファサードの同名プロパティの変更として再発行する。ファサードは子コンポーネントの状態を
+    /// 手書きの読み取り専用プロパティで転送するだけで自身のバッキングフィールドを持たないため、
+    /// x:Bind/INotifyPropertyChangedへ通知するにはこの再発行が必要になる（<see href="../../docs/adr/0017-split-containersviewmodel-and-runtime-client-into-focused-components.md">ADR-0017</see>）。
+    /// 一覧・詳細以外の構成要素（ログ・シェル）を同様にファサード直下のプロパティへ転送する場合にも
+    /// 再利用できるよう、汎用的な引数を取る。
     /// </summary>
-    /// <remarks>
-    /// 復旧用リフレッシュ（<see cref="TryRefreshSilentlyAsync"/>）が成功していれば、その時点の
-    /// サーバー側の実際の状態が既に <see cref="Containers"/> へ反映されており、対象コンテナが
-    /// まだ存在するなら一覧にも含まれているはずなので、このメソッドは何もしない。
-    /// 復旧用リフレッシュが失敗した場合のみ、削除中に <see cref="_pendingDeleteContainerIds"/>
-    /// によって <see cref="ReplaceContainers"/> から除外され続けていた行が一覧から消えたまま
-    /// になっている可能性があるため、<see cref="FindLiveRow"/> で確認したうえで、実際にはサーバー
-    /// 側にまだ存在するコンテナとして、削除開始時に捕まえていた行インスタンス（<paramref name="row"/>）
-    /// をそのまま一覧へ戻す。
-    /// </remarks>
-    /// <param name="row">削除開始時に受け取った行インスタンス。</param>
-    /// <param name="refreshSucceeded">削除失敗後の復旧用リフレッシュが成功したかどうか。</param>
-    private void RestoreRowIfDeleteFailedAndMissing(ContainerRowViewModel row, bool refreshSucceeded)
-    {
-        if (refreshSucceeded || FindLiveRow(row.Id) is not null)
-        {
-            return;
-        }
-
-        row.IsBusy = false;
-        row.PendingOperation = ContainerRowOperation.None;
-        Containers.Add(row);
-        IsEmpty = false;
-    }
+    /// <param name="source">転送元となる子コンポーネント。</param>
+    /// <param name="propertyNames">再発行対象のプロパティ名。ファサード側も同名のプロパティを公開している前提。</param>
+    private void RelayPropertyChanges(ObservableObject source, params string[] propertyNames)
+        => RelayPropertyChanges(source, propertyNames, additionalPropertyNames: null);
 
     /// <summary>
-    /// 指定した行に対する単一コンテナ操作（起動・停止・再起動）を実行する。
-    /// 実行中は二重操作を防ぐため <see cref="BeginBusy"/> でコンテナIDをbusy状態にし、
-    /// 成功・失敗いずれの分岐でも <see cref="EndBusy"/> を呼んでbusy状態を解除する
-    /// （呼び出し位置の制約は <see cref="EndBusy"/> のドキュメントを参照）。
+    /// <see cref="RelayPropertyChanges(ObservableObject, string[])"/> に加え、再発行対象のプロパティに
+    /// 依存してこのファサードだけで算出されるプロパティ（例: <see cref="IsSidePanelVisible"/>）も
+    /// あわせて変更通知する。子コンポーネント側は自身の算出プロパティの依存関係までは知らないため、
+    /// その依存関係はファサード側のこの呼び出しで表現する。
     /// </summary>
-    /// <param name="row">対象の行。</param>
-    /// <param name="operationKind">State列に表示する進行中の操作種別。</param>
-    /// <param name="operation">実行する操作。成功時は更新後の <see cref="Container"/> を返す。</param>
-    private async Task ExecuteRowOperationAsync(ContainerRowViewModel row, ContainerRowOperation operationKind, Func<Task<Container>> operation)
+    /// <param name="source">転送元となる子コンポーネント。</param>
+    /// <param name="propertyNames">再発行対象のプロパティ名。ファサード側も同名のプロパティを公開している前提。</param>
+    /// <param name="additionalPropertyNames">
+    /// <paramref name="propertyNames"/> の要素をキーとして、その変更時にあわせて再発行するファサード側の
+    /// 算出プロパティ名を値に持つマップ。該当するキーがなければ追加の再発行は行わない。
+    /// </param>
+    private void RelayPropertyChanges(
+        ObservableObject source,
+        string[] propertyNames,
+        IReadOnlyDictionary<string, string[]>? additionalPropertyNames)
     {
-        var id = row.Id;
-        BeginBusy(id, operationKind);
-        try
+        var relayedPropertyNames = new HashSet<string>(propertyNames, StringComparer.Ordinal);
+
+        source.PropertyChanging += (_, e) =>
         {
-            var updated = await operation();
-            EndBusy(id);
-
-            // 操作成功後は、後続のバックグラウンド再同期を待たずに即座にUIへ反映する
-            // （楽観的更新）。詳細設計フェーズのラバーダックレビューで、再同期が失敗した
-            // 場合に古い状態へ巻き戻さないための対策として導入した。
-            // 反映先は FindLiveRow で再検索した行を使う（理由は同メソッドのドキュメントを参照）。
-            var liveRow = FindLiveRow(id);
-            liveRow?.ApplyFrom(updated);
-            ErrorMessage = null;
-
-            // 楽観的更新の直後にも、他クライアントによる変更等を取り込むためベストエフォートで
-            // 一覧全体を再同期する。
-            await TryRefreshSilentlyAsync();
-        }
-        catch (Exception ex)
-        {
-            // 操作自体は例外で失敗しているが、実際にはサーバー側の状態が変化している
-            // 可能性もあるため、ベストエフォートで実際のサーバー状態にUIを合わせ直す。
-            // 戻り値（再同期の成否）は使わない。DeleteAsyncと異なり、Start/Stop/Restartの
-            // 失敗時には「一覧から消えたままの行を復元する」といった復旧処理が不要なため。
-            await HandleOperationFailureAsync(id, ex);
-        }
-    }
-
-    /// <summary>
-    /// 行操作（起動・停止・再起動・削除）が例外で失敗した場合の共通後処理。
-    /// <see cref="EndBusy"/> で対象行のbusy状態を解除し、エラーメッセージを設定したうえで、
-    /// ベストエフォートの再同期（<see cref="TryRefreshSilentlyAsync"/>）を行う。
-    /// <see cref="EndBusy"/> を再同期より前に呼ぶ理由は <see cref="EndBusy"/> 自体のドキュメントを参照。
-    /// </summary>
-    /// <param name="containerId">対象のコンテナID。</param>
-    /// <param name="exception">発生した例外。</param>
-    /// <returns>
-    /// <see cref="TryRefreshSilentlyAsync"/> の戻り値をそのまま返す。すなわち再同期が成功し
-    /// <see cref="Containers"/> がサーバー側の実際の状態に合わせ直された場合は
-    /// <see langword="true"/>、再同期にも失敗し何も変更されなかった場合は <see langword="false"/>。
-    /// </returns>
-    private async Task<bool> HandleOperationFailureAsync(string containerId, Exception exception)
-    {
-        EndBusy(containerId);
-        ErrorMessage = exception.Message;
-        return await TryRefreshSilentlyAsync();
-    }
-
-    /// <summary>
-    /// 直前の操作成功後、ベストエフォートで一覧全体を再同期する。
-    /// 失敗した場合は直前に適用した楽観的更新を維持するため、例外を握りつぶす。
-    /// </summary>
-    /// <returns>
-    /// 再同期に成功し <see cref="Containers"/> をサーバー側の実際の状態に置き換えられた場合は
-    /// <see langword="true"/>。例外を捕捉した場合は <see langword="false"/> を返し、この場合
-    /// <see cref="Containers"/> や <see cref="_busyContainerIds"/> 等の状態は一切変更しない。
-    /// </returns>
-    private async Task<bool> TryRefreshSilentlyAsync()
-    {
-        try
-        {
-            var containers = await containerManagementService.GetContainersAsync();
-            ReplaceContainers(containers);
-            return true;
-        }
-        catch
-        {
-            // ベストエフォートの再同期。失敗してもUIには何も表示しない。
-            return false;
-        }
-    }
-
-    private void StartLogFollow(string containerId)
-    {
-        _logFollowCancellation = new CancellationTokenSource();
-        _logFollowTask = FollowLogStreamAsync(containerId, _logFollowCancellation.Token);
-    }
-
-    private void UseShellSession(ExecSessionState state)
-    {
-        ResetPendingShellDisplayState();
-        _currentExecSession = state;
-        ShellOutput.Clear();
-        IsShellConnected = true;
-        ShowShellStatus(ShellConnectedStatusMessage, isError: false);
-    }
-
-    private async Task CloseShellSessionAsync(ExecSessionState state, bool showDisconnectedStatus)
-    {
-        ResetPendingShellDisplayState();
-        await state.Cancellation.CancelAsync();
-        await state.Session.CloseAsync();
-        if (state.OutputTask is not null)
-        {
-            try
+            if (e.PropertyName is { } propertyName && relayedPropertyNames.Contains(propertyName))
             {
-                await state.OutputTask;
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }
-
-        state.Dispose();
-        _execSessions.Remove(state.ContainerId);
-        if (_currentExecSession == state)
-        {
-            _currentExecSession = null;
-        }
-
-        IsShellConnected = false;
-        if (showDisconnectedStatus)
-        {
-            ShowShellStatus(ShellDisconnectedStatusMessage, isError: false);
-        }
-    }
-
-    private async Task ReadShellOutputAsync(ExecSessionState state)
-    {
-        try
-        {
-            await foreach (var chunk in state.Session.ReadOutputAsync(state.Cancellation.Token))
-            {
-                EnqueueShellChunk(state, chunk);
-            }
-
-            _uiDispatcher.Invoke(() =>
-            {
-                if (_currentExecSession == state)
+                OnPropertyChanging(propertyName);
+                if (additionalPropertyNames?.TryGetValue(propertyName, out var alsoNotify) == true)
                 {
-                    IsShellConnected = false;
-                    ShowShellStatus(ShellDisconnectedStatusMessage, isError: false);
+                    foreach (var extraPropertyName in alsoNotify)
+                    {
+                        OnPropertyChanging(extraPropertyName);
+                    }
                 }
-            });
-        }
-        catch (OperationCanceledException) when (state.Cancellation.IsCancellationRequested)
+            }
+        };
+
+        source.PropertyChanged += (_, e) =>
         {
-        }
-        catch (Exception ex)
-        {
-            _uiDispatcher.Invoke(() =>
+            if (e.PropertyName is { } propertyName && relayedPropertyNames.Contains(propertyName))
             {
-                if (_currentExecSession == state)
+                OnPropertyChanged(propertyName);
+                if (additionalPropertyNames?.TryGetValue(propertyName, out var alsoNotify) == true)
                 {
-                    IsShellConnected = false;
-                    ShowShellStatus(ex.Message, isError: true);
+                    foreach (var extraPropertyName in alsoNotify)
+                    {
+                        OnPropertyChanged(extraPropertyName);
+                    }
                 }
-            });
-        }
-    }
-
-    private void EnqueueDisplayedLogLine(string line)
-    {
-        int dispatchToken;
-        lock (_logQueueLock)
-        {
-            dispatchToken = EnqueuePendingLogLineUnderLock(line);
-        }
-
-        if (dispatchToken != 0)
-        {
-            _uiDispatcher.Invoke(() => FlushPendingLogLines(dispatchToken));
-        }
-    }
-
-    private void EnqueueDisplayedLogLines(IEnumerable<string> lines)
-    {
-        var pendingLines = lines.ToList();
-        if (pendingLines.Count == 0)
-        {
-            return;
-        }
-
-        int dispatchToken;
-        lock (_logQueueLock)
-        {
-            dispatchToken = EnqueuePendingLogLinesUnderLock(pendingLines);
-        }
-
-        if (dispatchToken != 0)
-        {
-            _uiDispatcher.Invoke(() => FlushPendingLogLines(dispatchToken));
-        }
-    }
-
-    private int EnqueuePendingLogLineUnderLock(string line)
-    {
-        EnqueueBounded(_pendingLogLines, line, _capacity);
-        return ReservePendingLogDispatchTokenUnderLock();
-    }
-
-    private int EnqueuePendingLogLinesUnderLock(IEnumerable<string> lines)
-    {
-        foreach (var line in lines)
-        {
-            EnqueueBounded(_pendingLogLines, line, _capacity);
-        }
-
-        return ReservePendingLogDispatchTokenUnderLock();
-    }
-
-    /// <summary>
-    /// 呼び出し時点で <see cref="_pendingLogLines"/> にディスパッチ待ちのトークンが
-    /// 存在しなければ新規発行し、既に存在する場合は0（未発行）を返す。
-    /// <see cref="_logQueueLock"/> を保持した状態で呼び出すこと。
-    /// </summary>
-    private int ReservePendingLogDispatchTokenUnderLock()
-    {
-        if (_logDispatchPendingToken != 0)
-        {
-            return 0;
-        }
-
-        var dispatchToken = ++_logDispatchGeneration;
-        _logDispatchPendingToken = dispatchToken;
-        return dispatchToken;
-    }
-
-    private void FlushPendingLogLines(int dispatchToken)
-    {
-        List<string> lines;
-
-        lock (_logQueueLock)
-        {
-            if (_logDispatchPendingToken != dispatchToken)
-            {
-                // Clear/Close/OpenなどによりResetPendingLogDisplayStateが実行され、
-                // このディスパッチは既に無効化されている（トークンが不一致）。
-                // 古いキュー内容を反映して表示を復活させてはならない。
-                return;
             }
-
-            if (IsLogsPaused)
-            {
-                while (_pendingLogLines.Count > 0)
-                {
-                    AppendBounded(_pausedLogBuffer, _pendingLogLines.Dequeue(), _capacity);
-                }
-
-                _logDispatchPendingToken = 0;
-                return;
-            }
-
-            lines = [];
-            while (_pendingLogLines.Count > 0)
-            {
-                lines.Add(_pendingLogLines.Dequeue());
-            }
-
-            _logDispatchPendingToken = 0;
-        }
-
-        if (lines.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var line in lines)
-        {
-            AppendDisplayedLogLine(line);
-        }
-    }
-
-    private void ResetPendingLogDisplayState()
-    {
-        lock (_logQueueLock)
-        {
-            _pendingLogLines.Clear();
-            _logDispatchPendingToken = 0;
-        }
-    }
-
-    private void ClearPausedLogBuffer()
-    {
-        lock (_logQueueLock)
-        {
-            _pausedLogBuffer.Clear();
-        }
-    }
-
-    private void EnqueueShellChunk(ExecSessionState state, string chunk)
-    {
-        int dispatchToken;
-        lock (_shellQueueLock)
-        {
-            dispatchToken = EnqueuePendingShellChunkUnderLock(state, chunk);
-        }
-
-        if (dispatchToken != 0)
-        {
-            _uiDispatcher.Invoke(() => FlushPendingShellChunks(dispatchToken));
-        }
-    }
-
-    private int EnqueuePendingShellChunkUnderLock(ExecSessionState state, string chunk)
-    {
-        EnqueueBounded(_pendingShellChunks, (state, chunk), _capacity);
-
-        if (_shellDispatchPendingToken != 0)
-        {
-            return 0;
-        }
-
-        var dispatchToken = ++_shellDispatchGeneration;
-        _shellDispatchPendingToken = dispatchToken;
-        return dispatchToken;
-    }
-
-    private void FlushPendingShellChunks(int dispatchToken)
-    {
-        List<(ExecSessionState State, string Chunk)> chunks;
-
-        lock (_shellQueueLock)
-        {
-            if (_shellDispatchPendingToken != dispatchToken)
-            {
-                // ResetPendingShellDisplayState（Close/Open）によって無効化された
-                // 古いディスパッチ。トークン不一致のため、破棄されたチャンクを
-                // 画面に復活させない。
-                return;
-            }
-
-            chunks = [];
-            while (_pendingShellChunks.Count > 0)
-            {
-                chunks.Add(_pendingShellChunks.Dequeue());
-            }
-
-            _shellDispatchPendingToken = 0;
-        }
-
-        if (chunks.Count == 0)
-        {
-            return;
-        }
-
-        foreach (var (state, chunk) in chunks)
-        {
-            if (_currentExecSession == state && !state.Session.IsClosed)
-            {
-                AppendBounded(ShellOutput, chunk, _capacity);
-            }
-        }
-    }
-
-    private void ResetPendingShellDisplayState()
-    {
-        lock (_shellQueueLock)
-        {
-            _pendingShellChunks.Clear();
-            _shellDispatchPendingToken = 0;
-        }
-    }
-
-    /// <summary>
-    /// <paramref name="collection"/> の末尾に <paramref name="item"/> を追加する。
-    /// 追加前に要素数が <paramref name="capacity"/> に達している場合は先頭（最も古い要素）を
-    /// 取り除いてから追加することで、常に最新 <paramref name="capacity"/> 件を保つ。
-    /// <see cref="LogLines"/>・<see cref="ShellOutput"/>・一時停止バッファの3か所で
-    /// 同一のcapacity/eviction規則を使うための共通実装。
-    /// </summary>
-    private static void AppendBounded<T>(IList<T> collection, T item, int capacity)
-    {
-        if (collection.Count >= capacity)
-        {
-            collection.RemoveAt(0);
-        }
-
-        collection.Add(item);
-    }
-
-    private static void EnqueueBounded<T>(Queue<T> queue, T item, int capacity)
-    {
-        if (queue.Count >= capacity)
-        {
-            queue.Dequeue();
-        }
-
-        queue.Enqueue(item);
-    }
-
-    private void ShowShellStatus(string message, bool isError)
-    {
-        IsShellError = isError;
-        ShellStatusMessage = message;
-    }
-
-    private void PopulateDetailLines(ContainerDetail detail)
-    {
-        DetailLines.Add($"ID: {detail.Id}");
-        DetailLines.Add($"Name: {detail.Name}");
-        DetailLines.Add($"Image: {detail.Image}");
-        DetailLines.Add($"State: {detail.State}");
-        DetailLines.Add($"Created: {detail.CreatedAt:u}");
-        DetailLines.Add($"Command: {detail.Command ?? "(none)"}");
-        DetailLines.Add($"Entrypoint: {detail.Entrypoint ?? "(none)"}");
-        DetailLines.Add($"Exit code: {detail.RunState.ExitCode?.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? "(none)"}");
-        DetailLines.Add($"Started: {FormatOptionalDateTime(detail.RunState.StartedAt)}");
-        DetailLines.Add($"Finished: {FormatOptionalDateTime(detail.RunState.FinishedAt)}");
-        DetailLines.Add("Ports:");
-        AddIndentedLines(detail.Ports.Select(port =>
-        {
-            var host = port.HostPort is null ? "(not published)" : $"{port.HostAddress ?? "0.0.0.0"}:{port.HostPort}";
-            return $"{host} -> {port.ContainerPort}/{port.Protocol}";
-        }));
-        DetailLines.Add("Environment:");
-        AddIndentedLines(detail.Environment.Select(variable => $"{variable.Name}={variable.Value}"));
-        DetailLines.Add("Mounts:");
-        AddIndentedLines(detail.Mounts.Select(mount => $"{mount.Type}: {mount.Source} -> {mount.Target} ({(mount.IsReadOnly ? "ro" : "rw")})"));
-        DetailLines.Add("Networks:");
-        AddIndentedLines(detail.Networks.Select(network => $"{network.Name}: {network.IpAddress ?? "(no IP)"}"));
-    }
-
-    private void AddIndentedLines(IEnumerable<string> lines)
-    {
-        var added = false;
-        foreach (var line in lines)
-        {
-            DetailLines.Add($"  {line}");
-            added = true;
-        }
-
-        if (!added)
-        {
-            DetailLines.Add("  (none)");
-        }
-    }
-
-    private static string FormatOptionalDateTime(DateTimeOffset? value)
-    {
-        return value?.ToString("u", System.Globalization.CultureInfo.InvariantCulture) ?? "(none)";
-    }
-
-    private async Task StopLogFollowAsync()
-    {
-        if (_logFollowCancellation is null)
-        {
-            return;
-        }
-
-        await _logFollowCancellation.CancelAsync();
-        if (_logFollowTask is not null)
-        {
-            try
-            {
-                await _logFollowTask;
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }
-
-        _logFollowCancellation.Dispose();
-        _logFollowCancellation = null;
-        _logFollowTask = null;
-    }
-
-    private async Task FollowLogStreamAsync(string containerId, CancellationToken cancellationToken)
-    {
-        try
-        {
-            await foreach (var line in containerManagementService.FollowContainerLogsAsync(containerId, cancellationToken))
-            {
-                await FollowLiveLine(line);
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-        }
-        catch (ContainerNotFoundException)
-        {
-            _uiDispatcher.Invoke(ShowMissingLogStatus);
-        }
-        catch (Exception ex)
-        {
-            _uiDispatcher.Invoke(() => ShowLogError(ex.Message));
-        }
-    }
-
-    private void ShowMissingLogStatus()
-    {
-        SetLogStatus(MissingLogStatusMessage, isError: false);
-        UpdateLogEmpty();
-    }
-
-    private void ShowLogError(string message)
-    {
-        SetLogStatus(message, isError: true);
-        UpdateLogEmpty();
-    }
-
-    private void ResetLogPanelForOpen()
-    {
-        lock (_logQueueLock)
-        {
-            _pendingLogLines.Clear();
-            _pausedLogBuffer.Clear();
-            _logDispatchPendingToken = 0;
-            IsLogsPaused = false;
-        }
-
-        LogLines.Clear();
-        IsLogPanelVisible = true;
-        ClearLogStatus();
-        UpdateLogEmpty();
-    }
-
-    private void ClearLogStatus()
-    {
-        SetLogStatus(message: null, isError: false);
-    }
-
-    private void SetLogStatus(string? message, bool isError)
-    {
-        IsLogError = isError;
-        LogStatusMessage = message;
-    }
-
-    private void AppendDisplayedLogLines(IEnumerable<string> lines)
-    {
-        foreach (var line in lines)
-        {
-            AppendDisplayedLogLine(line);
-        }
-    }
-
-    private void AppendDisplayedLogLine(string line)
-    {
-        AppendBounded(LogLines, line, _capacity);
-        UpdateLogEmpty();
-    }
-
-    private void UpdateLogEmpty()
-    {
-        IsLogEmpty = LogLines.Count == 0;
-    }
-
-    /// <summary>
-    /// 指定したコンテナIDをbusy状態にし、進行中の操作種別を記録する。
-    /// <see cref="_pendingOperations"/> にID→操作種別を記録することで、操作の完了前に
-    /// <see cref="ReplaceContainers"/> が呼ばれても busy状態と操作種別を復元できるようにする
-    /// （差分更新では行インスタンスは基本的に維持されるが、表示フィールドの変化でキーが変われば
-    /// 該当行が作り直されたり、一覧から一時的に消えて再出現したりする場合があるため）。
-    /// あわせて、その時点でのライブの <see cref="Containers"/> に該当行が存在すれば、その行の
-    /// <see cref="ContainerRowViewModel.IsBusy"/> と <see cref="ContainerRowViewModel.PendingOperation"/>
-    /// も直接設定する。
-    /// </summary>
-    /// <param name="containerId">busy状態にするコンテナID。</param>
-    /// <param name="operation">進行中の操作種別。</param>
-    private void BeginBusy(string containerId, ContainerRowOperation operation)
-    {
-        _pendingOperations[containerId] = operation;
-        var liveRow = FindLiveRow(containerId);
-        if (liveRow is not null)
-        {
-            liveRow.IsBusy = true;
-            liveRow.PendingOperation = operation;
-        }
-    }
-
-    /// <summary>
-    /// <see cref="BeginBusy"/> で立てたbusy状態と操作種別を解除する。
-    /// </summary>
-    /// <remarks>
-    /// 呼び出し側は、成功・失敗どちらの分岐であっても、この呼び出しを <c>finally</c> 節ではなく
-    /// 各分岐の中で <see cref="TryRefreshSilentlyAsync"/>（内部で <see cref="ReplaceContainers"/> を
-    /// 呼び、維持・新規どちらの行にも <see cref="ApplyPendingOperation"/> で
-    /// <see cref="_pendingOperations"/> の内容を反映する）より前に行う必要がある。もし <c>finally</c> で
-    /// （＝再同期の後で）解除すると、再同期時に <see cref="_pendingOperations"/> に残ったままの古い記録を
-    /// 見てbusy状態・操作種別が再適用されてしまい、実際には完了した操作の途中状態表示が
-    /// 解除されなくなる。
-    /// </remarks>
-    /// <param name="containerId">busy状態を解除するコンテナID。</param>
-    private void EndBusy(string containerId)
-    {
-        _pendingOperations.Remove(containerId);
-        var liveRow = FindLiveRow(containerId);
-        if (liveRow is not null)
-        {
-            liveRow.IsBusy = false;
-            liveRow.PendingOperation = ContainerRowOperation.None;
-        }
-    }
-
-    /// <summary>
-    /// その時点でのライブの <see cref="Containers"/> から、コンテナIDに一致する行インスタンスを探す。
-    /// 差分更新（<see cref="ReplaceContainers"/>）では行インスタンスはキー一致で基本的に維持されるが、
-    /// 操作開始時に捕まえていた行が await をまたいだ後には（キー変化による作り直しや、
-    /// 一覧からの一時的な消失などで）ライブのコレクションに存在しない場合があるため、
-    /// await をまたいだ後の行操作は必ずこのメソッドで再検索した行に対して行う。
-    /// </summary>
-    /// <param name="containerId">検索するコンテナID。</param>
-    /// <returns>見つかった行。存在しない場合は <see langword="null"/>。</returns>
-    private ContainerRowViewModel? FindLiveRow(string containerId) => Containers.FirstOrDefault(r => r.Id == containerId);
-
-    private void ReplaceContainers(IReadOnlyList<Container> containers)
-    {
-        var source = containers
-            .Where(container => !_pendingDeleteContainerIds.Contains(container.Id))
-            .ToList();
-
-        ObservableCollectionReconciler.Reconcile(
-            Containers,
-            source,
-            targetKeySelector: static row => BuildContainerKey(row.Id, row.Name, row.Image, row.CreatedAt),
-            sourceKeySelector: static container => BuildContainerKey(container.Id, container.Name, container.Image, container.CreatedAt),
-            create: CreateContainerRow,
-            update: UpdateContainerRow);
-
-        IsEmpty = Containers.Count == 0;
-    }
-
-    /// <summary>
-    /// 差分更新用の行キーを組み立てる。<see cref="ContainerRowViewModel"/> がインプレース更新する
-    /// <see cref="ContainerState"/> は含めず、行が保持する読み取り専用の表示フィールド
-    /// （Id / Name / Image / CreatedAt）をすべて含める。State 以外の表示フィールドが変われば
-    /// キーが変わり該当行だけが作り直されるため、外部での改名などによる表示の陳腐化を防ぐ。
-    /// </summary>
-    private static string BuildContainerKey(string id, string name, string image, DateTimeOffset createdAt)
-        => string.Join('\u001f', id, name, image, createdAt.UtcTicks.ToString(CultureInfo.InvariantCulture));
-
-    private ContainerRowViewModel CreateContainerRow(Container container)
-    {
-        var row = new ContainerRowViewModel(container);
-        ApplyPendingOperation(row);
-        return row;
-    }
-
-    private void UpdateContainerRow(ContainerRowViewModel row, Container container)
-    {
-        row.ApplyFrom(container);
-        ApplyPendingOperation(row);
-    }
-
-    /// <summary>
-    /// <see cref="_pendingOperations"/> を単一の情報源として、行の busy 状態・進行中の操作種別を反映する。
-    /// 差分更新（<see cref="ReplaceContainers"/>）で行インスタンスが維持されても新規生成されても、
-    /// 進行中の操作があれば復元し、なければ解除することで一貫した表示を保つ。
-    /// </summary>
-    /// <param name="row">反映先の行。</param>
-    private void ApplyPendingOperation(ContainerRowViewModel row)
-    {
-        if (_pendingOperations.TryGetValue(row.Id, out var operation))
-        {
-            row.IsBusy = true;
-            row.PendingOperation = operation;
-        }
-        else
-        {
-            row.IsBusy = false;
-            row.PendingOperation = ContainerRowOperation.None;
-        }
-    }
-
-    private sealed class ExecSessionState(string containerId, IContainerExecSession session) : IDisposable
-    {
-        public string ContainerId { get; } = containerId;
-
-        public IContainerExecSession Session { get; } = session;
-
-        public CancellationTokenSource Cancellation { get; } = new();
-
-        public Task? OutputTask { get; set; }
-
-        public void Dispose()
-        {
-            Cancellation.Dispose();
-        }
+        };
     }
 }

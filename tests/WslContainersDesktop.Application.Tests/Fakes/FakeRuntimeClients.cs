@@ -5,10 +5,18 @@ using WslContainersDesktop.Domain;
 namespace WslContainersDesktop.Application.Tests.Fakes;
 
 /// <summary>
-/// <see cref="IContainerRuntimeClient"/> のテスト用フェイク実装。
+/// フォーカスドなランタイムポート（<see cref="IContainerQueryClient"/> ほか）のテスト用フェイク実装。
 /// 呼び出された引数を記録し、任意の例外をスローできる。
 /// </summary>
-internal sealed class FakeContainerRuntimeClient : IContainerRuntimeClient
+internal sealed class FakeRuntimeClients :
+    IContainerQueryClient,
+    IContainerLifecycleClient,
+    IContainerLogClient,
+    IContainerExecClient,
+    IContainerStatsClient,
+    IImageRuntimeClient,
+    IVolumeRuntimeClient,
+    INetworkRuntimeClient
 {
     public IReadOnlyList<Container> Containers { get; set; } = [];
 

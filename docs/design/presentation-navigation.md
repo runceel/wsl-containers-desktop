@@ -41,11 +41,19 @@ UI文字列はすべて `.resw` リソースに外出しされ、コードやXAM
 ### DIコンテナ
 
 Composition Rootは`App.xaml.cs`に置く。`Microsoft.Extensions.DependencyInjection`で
-`IContainerRuntimeClient`→`WslcCliContainerRuntimeClient`、
+`IContainerQueryClient`→`WslcCliContainerQueryClient`、
+`IContainerLifecycleClient`→`WslcCliContainerLifecycleClient`、
+`IContainerLogClient`→`WslcCliContainerLogClient`、
+`IContainerExecClient`→`WslcCliContainerExecClient`、
+`IContainerStatsClient`→`WslcCliContainerStatsClient`、
+`IImageRuntimeClient`→`WslcCliImageRuntimeClient`、
+`IVolumeRuntimeClient`→`WslcCliVolumeRuntimeClient`、
+`INetworkRuntimeClient`→`WslcCliNetworkRuntimeClient`、
 `IContainerManagementService`→`ContainerManagementService`、
 `IImageManagementService`→`ImageManagementService`、
 `IVolumeManagementService`→`VolumeManagementService`、
-`INetworkManagementService`→`NetworkManagementService`、`IWslcCliRunner`→`WslcCliRunner`、
+`INetworkManagementService`→`NetworkManagementService`、`IDashboardService`→`DashboardService`、
+`IWslcCliRunner`→`WslcCliRunner`、
 `IUiDispatcher`→`DispatcherQueueUiDispatcher`を登録する。
 
 トップレベルページは`Frame.Navigate(Type)`から生成されるためパラメーターレスコンストラクタを持つ。
@@ -57,6 +65,9 @@ Application層のInboundポートと必要なUI抽象だけに依存する。
 画面状態とナビゲーション状態が分裂しない（`DashboardViewModel` が `NavigationViewModel` と
 `ContainersViewModel` を共有して遷移導線を実現する点は
 [ADR-0015](../adr/0015-promote-navigation-viewmodel-to-di-singleton.md) を参照）。
+`ContainersViewModel`が所有する一覧・詳細・ログ・シェルの4コンポーネントは個別にはDI登録せず、
+共有ファサードのコンストラクタで生成する
+（[ADR-0017](../adr/0017-split-containersviewmodel-and-runtime-client-into-focused-components.md)）。
 詳細は [ADR-0010](../adr/0010-adopt-di-container-for-presentation.md) を参照。
 
 ## ローカライズ

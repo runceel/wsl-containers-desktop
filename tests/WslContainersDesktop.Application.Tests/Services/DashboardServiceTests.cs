@@ -17,7 +17,12 @@ public sealed class DashboardServiceTests
         State: ContainerState.Running,
         CreatedAt: Now);
 
-    private sealed class FakeDashboardRuntimeClient : IContainerRuntimeClient
+    private sealed class FakeDashboardRuntimeClients :
+        IContainerQueryClient,
+        IImageRuntimeClient,
+        IVolumeRuntimeClient,
+        INetworkRuntimeClient,
+        IContainerStatsClient
     {
         public IReadOnlyList<Container> Containers { get; set; } = [];
 
@@ -115,14 +120,6 @@ public sealed class DashboardServiceTests
 
         public Task DeleteNetworkAsync(string name, CancellationToken cancellationToken = default) => throw new NotImplementedException();
 
-        public Task StartAsync(string containerId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
-
-        public Task StopAsync(string containerId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
-
-        public Task DeleteAsync(string containerId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
-
-        public Task<IReadOnlyList<string>> GetContainerLogsAsync(string containerId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
-
         public Task<ContainerDetail> GetContainerDetailAsync(string containerId, CancellationToken cancellationToken = default)
         {
             GetContainerDetailCallCount++;
@@ -150,19 +147,13 @@ public sealed class DashboardServiceTests
 
             return Task.FromResult(Stats);
         }
-
-        public Task<IContainerExecSession> OpenExecSessionAsync(string containerId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
-
-        public IAsyncEnumerable<string> FollowContainerLogsAsync(string containerId, CancellationToken cancellationToken = default) => throw new NotImplementedException();
-
-        public Task RunContainerAsync(ContainerRunRequest request, CancellationToken cancellationToken = default) => throw new NotImplementedException();
     }
 
     [TestMethod]
     public async Task GetSnapshotAsync_ContainerDetailsAreSharedForVolumeAndNetworkEnrichment_ReturnsEnrichedSnapshot()
     {
         // Arrange
-        var client = new FakeDashboardRuntimeClient
+        var client = new FakeDashboardRuntimeClients
         {
             Containers = [CreateContainer("c1"), CreateContainer("c2")],
             Images = [new ContainerImage("i1", "repo", "latest", 1, Now)],
@@ -199,7 +190,7 @@ public sealed class DashboardServiceTests
                     RunState: new ContainerRunState(null, null, null, null)),
             },
         };
-        var sut = new DashboardService(client);
+        var sut = new DashboardService(client, client, client, client, client);
 
         // Act
         var snapshot = await sut.GetSnapshotAsync();
@@ -219,7 +210,7 @@ public sealed class DashboardServiceTests
     public async Task GetSnapshotAsync_RootPartialFailure_StoresSectionExceptionAndKeepsOtherSections()
     {
         // Arrange
-        var client = new FakeDashboardRuntimeClient
+        var client = new FakeDashboardRuntimeClients
         {
             Containers = [],
             Images = [],
@@ -228,7 +219,7 @@ public sealed class DashboardServiceTests
             Stats = [],
             ListImagesException = new ContainerRuntimeException("images", 1, "images boom"),
         };
-        var sut = new DashboardService(client);
+        var sut = new DashboardService(client, client, client, client, client);
 
         // Act
         var snapshot = await sut.GetSnapshotAsync();
@@ -249,13 +240,13 @@ public sealed class DashboardServiceTests
     public async Task GetSnapshotAsync_ContainerListFails_DoesNotInspectDetailsAndKeepsVolumeAndNetworkResults()
     {
         // Arrange
-        var client = new FakeDashboardRuntimeClient
+        var client = new FakeDashboardRuntimeClients
         {
             Volumes = [new ContainerVolume("vol-1", "local", Now, [])],
             Networks = [new ContainerNetworkResource("net-1", "bridge", Now, [], false)],
             ListContainersException = new InvalidOperationException("containers boom"),
         };
-        var sut = new DashboardService(client);
+        var sut = new DashboardService(client, client, client, client, client);
 
         // Act
         var snapshot = await sut.GetSnapshotAsync();
@@ -271,7 +262,7 @@ public sealed class DashboardServiceTests
     public async Task GetSnapshotAsync_PartialContainerDetailFailure_SkipsTheFailureAndKeepsOtherData()
     {
         // Arrange
-        var client = new FakeDashboardRuntimeClient
+        var client = new FakeDashboardRuntimeClients
         {
             Containers = [CreateContainer("c1"), CreateContainer("c2")],
             Images = [],
@@ -300,7 +291,7 @@ public sealed class DashboardServiceTests
                     RunState: new ContainerRunState(null, null, null, null)));
             },
         };
-        var sut = new DashboardService(client);
+        var sut = new DashboardService(client, client, client, client, client);
 
         // Act
         var snapshot = await sut.GetSnapshotAsync();
@@ -317,7 +308,7 @@ public sealed class DashboardServiceTests
     public async Task GetSnapshotAsync_GenericContainerDetailFailure_DoesNotThrowAndReturnsRawVolumeAndNetworkValues()
     {
         // Arrange
-        var client = new FakeDashboardRuntimeClient
+        var client = new FakeDashboardRuntimeClients
         {
             Containers = [CreateContainer("c1")],
             Images = [new ContainerImage("i1", "repo", "latest", 1, Now)],
@@ -326,7 +317,7 @@ public sealed class DashboardServiceTests
             Stats = [new ContainerResourceUsage("c1", "app", 1.0, 1024, 2048)],
             GetContainerDetailAsyncFunc = (_, _) => throw new InvalidOperationException("detail boom"),
         };
-        var sut = new DashboardService(client);
+        var sut = new DashboardService(client, client, client, client, client);
 
         // Act
         var snapshot = await sut.GetSnapshotAsync();
@@ -347,7 +338,7 @@ public sealed class DashboardServiceTests
     public async Task GetSnapshotAsync_NetworkListFailure_StillEnrichesVolumesFromSharedDetails()
     {
         // Arrange
-        var client = new FakeDashboardRuntimeClient
+        var client = new FakeDashboardRuntimeClients
         {
             Containers = [CreateContainer("c1")],
             Images = [],
@@ -372,7 +363,7 @@ public sealed class DashboardServiceTests
                     RunState: new ContainerRunState(null, null, null, null)),
             },
         };
-        var sut = new DashboardService(client);
+        var sut = new DashboardService(client, client, client, client, client);
 
         // Act
         var snapshot = await sut.GetSnapshotAsync();
@@ -390,7 +381,7 @@ public sealed class DashboardServiceTests
     public async Task GetSnapshotAsync_VolumeListFailure_StillEnrichesNetworksFromSharedDetails()
     {
         // Arrange
-        var client = new FakeDashboardRuntimeClient
+        var client = new FakeDashboardRuntimeClients
         {
             Containers = [CreateContainer("c1")],
             Images = [],
@@ -415,7 +406,7 @@ public sealed class DashboardServiceTests
                     RunState: new ContainerRunState(null, null, null, null)),
             },
         };
-        var sut = new DashboardService(client);
+        var sut = new DashboardService(client, client, client, client, client);
 
         // Act
         var snapshot = await sut.GetSnapshotAsync();
@@ -433,7 +424,7 @@ public sealed class DashboardServiceTests
     public async Task GetSnapshotAsync_OperationCanceledExceptionIsPropagated()
     {
         // Arrange
-        var client = new FakeDashboardRuntimeClient
+        var client = new FakeDashboardRuntimeClients
         {
             Containers = [CreateContainer("c1")],
             Images = [],
@@ -442,7 +433,7 @@ public sealed class DashboardServiceTests
             Stats = [],
             GetContainerDetailAsyncFunc = (_, _) => throw new OperationCanceledException("cancelled"),
         };
-        var sut = new DashboardService(client);
+        var sut = new DashboardService(client, client, client, client, client);
 
         // Act & Assert
         await Assert.ThrowsExactlyAsync<OperationCanceledException>(() => sut.GetSnapshotAsync());

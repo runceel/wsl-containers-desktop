@@ -29,7 +29,7 @@ public sealed class VolumeManagementInfrastructureTests
 
             return Task.FromResult(new CliResult(0, string.Empty, string.Empty));
         };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliVolumeRuntimeClient(runner);
 
         // Act
         var volumes = await sut.ListVolumesAsync();
@@ -46,7 +46,7 @@ public sealed class VolumeManagementInfrastructureTests
     {
         // Arrange
         var runner = new FakeWslcCliRunner { Result = new(0, "[]", string.Empty) };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliVolumeRuntimeClient(runner);
 
         // Act
         await sut.ListVolumesAsync();
@@ -69,7 +69,7 @@ public sealed class VolumeManagementInfrastructureTests
 
             return Task.FromResult(new CliResult(0, "[]", string.Empty));
         };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliVolumeRuntimeClient(runner);
 
         // Act
         var volumes = await sut.ListVolumesAsync();
@@ -85,7 +85,7 @@ public sealed class VolumeManagementInfrastructureTests
     {
         // Arrange
         var runner = new FakeWslcCliRunner { Result = new(0, "not-json", string.Empty) };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliVolumeRuntimeClient(runner);
 
         // Act & Assert
         var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListVolumesAsync());
@@ -106,7 +106,7 @@ public sealed class VolumeManagementInfrastructureTests
 
             return Task.FromResult(new CliResult(0, "not-json", string.Empty));
         };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliVolumeRuntimeClient(runner);
 
         // Act & Assert
         var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListVolumesAsync());
@@ -127,7 +127,7 @@ public sealed class VolumeManagementInfrastructureTests
 
             return Task.FromResult(new CliResult(0, "[{\"CreatedAt\":\"\",\"Driver\":\"guest\",\"Name\":\"vol-demo\"}]", string.Empty));
         };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliVolumeRuntimeClient(runner);
 
         // Act
         var volumes = await sut.ListVolumesAsync();
@@ -173,7 +173,7 @@ public sealed class VolumeManagementInfrastructureTests
 
             return Task.FromResult(new CliResult(0, string.Empty, string.Empty));
         };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliVolumeRuntimeClient(runner);
 
         // Act
         var task = sut.ListVolumesAsync();
@@ -191,7 +191,7 @@ public sealed class VolumeManagementInfrastructureTests
     {
         // Arrange
         var runner = new FakeWslcCliRunner { Result = new(0, string.Empty, string.Empty) };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliVolumeRuntimeClient(runner);
 
         // Act
         await sut.CreateVolumeAsync("vol-demo");
@@ -205,7 +205,7 @@ public sealed class VolumeManagementInfrastructureTests
     {
         // Arrange
         var runner = new FakeWslcCliRunner { Result = new(0, string.Empty, string.Empty) };
-        var sut = new WslcCliContainerRuntimeClient(runner);
+        var sut = new WslcCliVolumeRuntimeClient(runner);
 
         // Act
         await sut.DeleteVolumeAsync("vol-demo");

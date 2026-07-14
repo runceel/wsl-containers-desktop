@@ -6,26 +6,33 @@ namespace WslContainersDesktop.Application.Services;
 /// <summary>
 /// <see cref="IImageManagementService"/> の実装。
 /// </summary>
-public sealed class ImageManagementService(IContainerRuntimeClient runtimeClient) : IImageManagementService
+public sealed class ImageManagementService : IImageManagementService
 {
+    private readonly IImageRuntimeClient _runtimeClient;
+
+    public ImageManagementService(IImageRuntimeClient runtimeClient)
+    {
+        _runtimeClient = runtimeClient;
+    }
+
     /// <inheritdoc />
     public Task<IReadOnlyList<ContainerImage>> GetImagesAsync(CancellationToken cancellationToken = default)
     {
-        return runtimeClient.ListImagesAsync(cancellationToken);
+        return _runtimeClient.ListImagesAsync(cancellationToken);
     }
 
     /// <inheritdoc />
     public Task PullAsync(string imageReference, CancellationToken cancellationToken = default)
     {
         var trimmed = ValidateNotWhiteSpace(imageReference, nameof(imageReference));
-        return runtimeClient.PullImageAsync(trimmed, cancellationToken);
+        return _runtimeClient.PullImageAsync(trimmed, cancellationToken);
     }
 
     /// <inheritdoc />
     public Task DeleteAsync(string imageId, CancellationToken cancellationToken = default)
     {
         var trimmed = ValidateNotWhiteSpace(imageId, nameof(imageId));
-        return runtimeClient.DeleteImageAsync(trimmed, cancellationToken);
+        return _runtimeClient.DeleteImageAsync(trimmed, cancellationToken);
     }
 
     private static string ValidateNotWhiteSpace(string value, string parameterName)

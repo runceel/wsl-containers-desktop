@@ -1,25 +1,45 @@
+using System.Runtime.CompilerServices;
 using WslContainersDesktop.Application.Exceptions;
 using WslContainersDesktop.Application.Ports;
 using WslContainersDesktop.Domain;
-using System.Runtime.CompilerServices;
 
 namespace WslContainersDesktop.Application.Services;
 
 /// <summary>
 /// <see cref="IContainerManagementService"/> の実装。
 /// 各操作の前に最新の一覧を取得してコンテナの現在状態を検証してから
-/// <see cref="IContainerRuntimeClient"/> を呼び出す。
+/// フォーカスドなランタイムポートを呼び出す。
 /// </summary>
-public sealed class ContainerManagementService(IContainerRuntimeClient runtimeClient) : IContainerManagementService
+public sealed class ContainerManagementService : IContainerManagementService
 {
+    private readonly IContainerQueryClient _queryClient;
+    private readonly IContainerLifecycleClient _lifecycleClient;
+    private readonly IContainerLogClient _logClient;
+    private readonly IContainerExecClient _execClient;
+    private readonly IContainerStatsClient _statsClient;
+
+    public ContainerManagementService(
+        IContainerQueryClient queryClient,
+        IContainerLifecycleClient lifecycleClient,
+        IContainerLogClient logClient,
+        IContainerExecClient execClient,
+        IContainerStatsClient statsClient)
+    {
+        _queryClient = queryClient;
+        _lifecycleClient = lifecycleClient;
+        _logClient = logClient;
+        _execClient = execClient;
+        _statsClient = statsClient;
+    }
+
     public Task<IReadOnlyList<ContainerResourceUsage>> GetStatsAsync(CancellationToken cancellationToken = default)
     {
-        return runtimeClient.GetContainerStatsAsync(cancellationToken);
+        return _statsClient.GetContainerStatsAsync(cancellationToken);
     }
 
     public Task<IReadOnlyList<Container>> GetContainersAsync(CancellationToken cancellationToken = default)
     {
-        return runtimeClient.ListContainersAsync(cancellationToken);
+        return _queryClient.ListContainersAsync(cancellationToken);
     }
 
     public Task RunAsync(ContainerRunRequest request, CancellationToken cancellationToken = default)
@@ -40,7 +60,7 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
             Command = request.Command.Trim(),
         };
 
-        return runtimeClient.RunContainerAsync(normalizedRequest, cancellationToken);
+        return _lifecycleClient.RunContainerAsync(normalizedRequest, cancellationToken);
     }
 
     public async Task<Container> StartAsync(string containerId, CancellationToken cancellationToken = default)
@@ -51,7 +71,7 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
             throw new InvalidContainerOperationException(containerId, nameof(StartAsync));
         }
 
-        await runtimeClient.StartAsync(containerId, cancellationToken);
+        await _lifecycleClient.StartAsync(containerId, cancellationToken);
         return container with { State = ContainerState.Running };
     }
 
@@ -63,7 +83,7 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
             throw new InvalidContainerOperationException(containerId, nameof(StopAsync));
         }
 
-        await runtimeClient.StopAsync(containerId, cancellationToken);
+        await _lifecycleClient.StopAsync(containerId, cancellationToken);
         return container with { State = ContainerState.Stopped };
     }
 
@@ -78,8 +98,8 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
             throw new InvalidContainerOperationException(containerId, nameof(RestartAsync));
         }
 
-        await runtimeClient.StopAsync(containerId, cancellationToken);
-        await runtimeClient.StartAsync(containerId, cancellationToken);
+        await _lifecycleClient.StopAsync(containerId, cancellationToken);
+        await _lifecycleClient.StartAsync(containerId, cancellationToken);
         return container with { State = ContainerState.Running };
     }
 
@@ -91,19 +111,19 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
             throw new InvalidContainerOperationException(containerId, nameof(DeleteAsync));
         }
 
-        await runtimeClient.DeleteAsync(containerId, cancellationToken);
+        await _lifecycleClient.DeleteAsync(containerId, cancellationToken);
     }
 
     public async Task<IReadOnlyList<string>> GetContainerLogsAsync(string containerId, CancellationToken cancellationToken = default)
     {
         await EnsureContainerExistsAsync(containerId, cancellationToken);
-        return await runtimeClient.GetContainerLogsAsync(containerId, cancellationToken);
+        return await _logClient.GetContainerLogsAsync(containerId, cancellationToken);
     }
 
     public async Task<ContainerDetail> GetContainerDetailAsync(string containerId, CancellationToken cancellationToken = default)
     {
         await EnsureContainerExistsAsync(containerId, cancellationToken);
-        return await runtimeClient.GetContainerDetailAsync(containerId, cancellationToken);
+        return await _queryClient.GetContainerDetailAsync(containerId, cancellationToken);
     }
 
     public async Task<IContainerExecSession> OpenExecSessionAsync(string containerId, CancellationToken cancellationToken = default)
@@ -114,7 +134,7 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
             throw new InvalidContainerOperationException(containerId, nameof(OpenExecSessionAsync));
         }
 
-        return await runtimeClient.OpenExecSessionAsync(containerId, cancellationToken);
+        return await _execClient.OpenExecSessionAsync(containerId, cancellationToken);
     }
 
     public async IAsyncEnumerable<string> FollowContainerLogsAsync(
@@ -122,7 +142,7 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await EnsureContainerExistsAsync(containerId, cancellationToken);
-        await foreach (var line in runtimeClient.FollowContainerLogsAsync(containerId, cancellationToken))
+        await foreach (var line in _logClient.FollowContainerLogsAsync(containerId, cancellationToken))
         {
             yield return line;
         }
@@ -135,7 +155,7 @@ public sealed class ContainerManagementService(IContainerRuntimeClient runtimeCl
 
     private async Task<Container> FindContainerAsync(string containerId, CancellationToken cancellationToken)
     {
-        var containers = await runtimeClient.ListContainersAsync(cancellationToken);
+        var containers = await _queryClient.ListContainersAsync(cancellationToken);
         foreach (var container in containers)
         {
             if (container.Id == containerId)
