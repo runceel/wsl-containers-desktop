@@ -7,7 +7,7 @@ using Microsoft.UI.Xaml.Controls;
 namespace WslContainersDesktop_App.Tables;
 
 /// <summary>
-/// Represents a splitter that redistributes width between a left table column and the trailing data columns to its right.
+/// Represents a splitter that redistributes width between the logical table columns on both sides of the splitter.
 /// </summary>
 public sealed class TableColumnSplitter : GridSplitter
 {
@@ -60,16 +60,16 @@ public sealed class TableColumnSplitter : GridSplitter
     private sealed class ResizeSession
     {
         private readonly List<ColumnSnapshot> _dataColumns;
-        private readonly ColumnSnapshot _leftColumn;
+        private readonly List<ColumnSnapshot> _leadingColumns;
         private readonly List<ColumnSnapshot> _trailingColumns;
 
         private ResizeSession(
             List<ColumnSnapshot> dataColumns,
-            ColumnSnapshot leftColumn,
+            List<ColumnSnapshot> leadingColumns,
             List<ColumnSnapshot> trailingColumns)
         {
             _dataColumns = dataColumns;
-            _leftColumn = leftColumn;
+            _leadingColumns = leadingColumns;
             _trailingColumns = trailingColumns;
         }
 
@@ -108,13 +108,13 @@ public sealed class TableColumnSplitter : GridSplitter
                 return null;
             }
 
-            ColumnSnapshot? leftColumn = null;
+            var leadingColumns = new List<ColumnSnapshot>();
             var trailingColumns = new List<ColumnSnapshot>();
             foreach (var dataColumn in dataColumns)
             {
                 if (dataColumn.PhysicalIndex < splitterPhysicalIndex)
                 {
-                    leftColumn = dataColumn;
+                    leadingColumns.Add(dataColumn);
                 }
                 else if (dataColumn.PhysicalIndex > splitterPhysicalIndex)
                 {
@@ -122,12 +122,12 @@ public sealed class TableColumnSplitter : GridSplitter
                 }
             }
 
-            if (leftColumn is null || trailingColumns.Count == 0)
+            if (leadingColumns.Count == 0 || trailingColumns.Count == 0)
             {
                 return null;
             }
 
-            return new ResizeSession(dataColumns, leftColumn, trailingColumns);
+            return new ResizeSession(dataColumns, leadingColumns, trailingColumns);
         }
 
         public bool Apply(double horizontalChange)
@@ -138,69 +138,31 @@ public sealed class TableColumnSplitter : GridSplitter
                 targetWidths[column.ColumnDefinition] = column.BaselineActualWidth;
             }
 
-            double effectiveDelta;
-            if (horizontalChange > 0d)
+            var expandLeadingColumns = horizontalChange > 0d;
+            var requestedMagnitude = Math.Abs(horizontalChange);
+            var leadingCapacity = expandLeadingColumns
+                ? GetExpansionCapacity(_leadingColumns)
+                : GetShrinkCapacity(_leadingColumns);
+            var trailingCapacity = expandLeadingColumns
+                ? GetShrinkCapacity(_trailingColumns)
+                : GetExpansionCapacity(_trailingColumns);
+
+            var effectiveMagnitude = Math.Min(requestedMagnitude, leadingCapacity);
+            effectiveMagnitude = Math.Min(effectiveMagnitude, trailingCapacity);
+            if (effectiveMagnitude <= 0d)
             {
-                var leftCapacity = ClampToZero(_leftColumn.MaxWidth - _leftColumn.BaselineActualWidth);
-                var trailingCapacity = 0d;
-                foreach (var trailingColumn in _trailingColumns)
-                {
-                    trailingCapacity += ClampToZero(trailingColumn.BaselineActualWidth - trailingColumn.MinWidth);
-                }
+                return false;
+            }
 
-                effectiveDelta = Math.Min(horizontalChange, leftCapacity);
-                effectiveDelta = Math.Min(effectiveDelta, trailingCapacity);
-                if (effectiveDelta <= 0d)
-                {
-                    return false;
-                }
-
-                var remainingDelta = effectiveDelta;
-                foreach (var trailingColumn in _trailingColumns)
-                {
-                    if (remainingDelta <= 0d)
-                    {
-                        break;
-                    }
-
-                    var shrinkAmount = Math.Min(remainingDelta, ClampToZero(trailingColumn.BaselineActualWidth - trailingColumn.MinWidth));
-                    targetWidths[trailingColumn.ColumnDefinition] = trailingColumn.BaselineActualWidth - shrinkAmount;
-                    remainingDelta -= shrinkAmount;
-                }
-
-                targetWidths[_leftColumn.ColumnDefinition] = _leftColumn.BaselineActualWidth + effectiveDelta;
+            if (expandLeadingColumns)
+            {
+                ExpandNearestFirst(_leadingColumns, effectiveMagnitude, targetWidths, nearestColumnIsLast: true);
+                ShrinkNearestFirst(_trailingColumns, effectiveMagnitude, targetWidths, nearestColumnIsLast: false);
             }
             else
             {
-                var requestedMagnitude = Math.Abs(horizontalChange);
-                var leftCapacity = ClampToZero(_leftColumn.BaselineActualWidth - _leftColumn.MinWidth);
-                var trailingCapacity = 0d;
-                foreach (var trailingColumn in _trailingColumns)
-                {
-                    trailingCapacity += ClampToZero(trailingColumn.MaxWidth - trailingColumn.BaselineActualWidth);
-                }
-
-                var effectiveMagnitude = Math.Min(requestedMagnitude, leftCapacity);
-                effectiveMagnitude = Math.Min(effectiveMagnitude, trailingCapacity);
-                if (effectiveMagnitude <= 0d)
-                {
-                    return false;
-                }
-
-                var remainingMagnitude = effectiveMagnitude;
-                foreach (var trailingColumn in _trailingColumns)
-                {
-                    if (remainingMagnitude <= 0d)
-                    {
-                        break;
-                    }
-
-                    var expandAmount = Math.Min(remainingMagnitude, ClampToZero(trailingColumn.MaxWidth - trailingColumn.BaselineActualWidth));
-                    targetWidths[trailingColumn.ColumnDefinition] = trailingColumn.BaselineActualWidth + expandAmount;
-                    remainingMagnitude -= expandAmount;
-                }
-
-                targetWidths[_leftColumn.ColumnDefinition] = _leftColumn.BaselineActualWidth - effectiveMagnitude;
+                ShrinkNearestFirst(_leadingColumns, effectiveMagnitude, targetWidths, nearestColumnIsLast: true);
+                ExpandNearestFirst(_trailingColumns, effectiveMagnitude, targetWidths, nearestColumnIsLast: false);
             }
 
             var starColumns = new List<ColumnSnapshot>();
@@ -209,20 +171,17 @@ public sealed class TableColumnSplitter : GridSplitter
                 if (column.UnitType == GridUnitType.Star)
                 {
                     starColumns.Add(column);
+                    continue;
                 }
-            }
 
-            foreach (var trailingColumn in _trailingColumns)
-            {
-                if (trailingColumn.UnitType == GridUnitType.Pixel)
+                if (column.UnitType == GridUnitType.Pixel)
                 {
-                    trailingColumn.ColumnDefinition.Width = new GridLength(targetWidths[trailingColumn.ColumnDefinition], GridUnitType.Pixel);
+                    var desiredWidth = targetWidths[column.ColumnDefinition];
+                    if (column.ColumnDefinition.Width.GridUnitType == GridUnitType.Pixel && column.ColumnDefinition.Width.Value != desiredWidth)
+                    {
+                        column.ColumnDefinition.Width = new GridLength(desiredWidth, GridUnitType.Pixel);
+                    }
                 }
-            }
-
-            if (_leftColumn.UnitType == GridUnitType.Pixel)
-            {
-                _leftColumn.ColumnDefinition.Width = new GridLength(targetWidths[_leftColumn.ColumnDefinition], GridUnitType.Pixel);
             }
 
             if (starColumns.Count > 1)
@@ -234,6 +193,82 @@ public sealed class TableColumnSplitter : GridSplitter
             }
 
             return true;
+        }
+
+        private static double GetExpansionCapacity(IReadOnlyList<ColumnSnapshot> columns)
+        {
+            var capacity = 0d;
+            foreach (var column in columns)
+            {
+                capacity += GetExpansionCapacity(column);
+            }
+
+            return capacity;
+        }
+
+        private static double GetExpansionCapacity(ColumnSnapshot column)
+            => ClampToZero(column.MaxWidth - column.BaselineActualWidth);
+
+        private static double GetShrinkCapacity(IReadOnlyList<ColumnSnapshot> columns)
+        {
+            var capacity = 0d;
+            foreach (var column in columns)
+            {
+                capacity += GetShrinkCapacity(column);
+            }
+
+            return capacity;
+        }
+
+        private static double GetShrinkCapacity(ColumnSnapshot column)
+            => ClampToZero(column.BaselineActualWidth - column.MinWidth);
+
+        private static void ExpandNearestFirst(
+            IReadOnlyList<ColumnSnapshot> columns,
+            double magnitude,
+            Dictionary<ColumnDefinition, double> targetWidths,
+            bool nearestColumnIsLast)
+        {
+            var remainingMagnitude = magnitude;
+            var increment = nearestColumnIsLast ? -1 : 1;
+            for (var index = nearestColumnIsLast ? columns.Count - 1 : 0;
+                 index >= 0 && index < columns.Count;
+                 index += increment)
+            {
+                if (remainingMagnitude <= 0d)
+                {
+                    break;
+                }
+
+                var column = columns[index];
+                var expansion = Math.Min(remainingMagnitude, GetExpansionCapacity(column));
+                targetWidths[column.ColumnDefinition] = column.BaselineActualWidth + expansion;
+                remainingMagnitude -= expansion;
+            }
+        }
+
+        private static void ShrinkNearestFirst(
+            IReadOnlyList<ColumnSnapshot> columns,
+            double magnitude,
+            Dictionary<ColumnDefinition, double> targetWidths,
+            bool nearestColumnIsLast)
+        {
+            var remainingMagnitude = magnitude;
+            var increment = nearestColumnIsLast ? -1 : 1;
+            for (var index = nearestColumnIsLast ? columns.Count - 1 : 0;
+                 index >= 0 && index < columns.Count;
+                 index += increment)
+            {
+                if (remainingMagnitude <= 0d)
+                {
+                    break;
+                }
+
+                var column = columns[index];
+                var shrinkage = Math.Min(remainingMagnitude, GetShrinkCapacity(column));
+                targetWidths[column.ColumnDefinition] = column.BaselineActualWidth - shrinkage;
+                remainingMagnitude -= shrinkage;
+            }
         }
 
         private static double ClampToZero(double value) => value < 0d ? 0d : value;

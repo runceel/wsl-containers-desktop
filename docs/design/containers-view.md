@@ -35,8 +35,9 @@
   行Gridの水平paddingを揃える。メタデータ領域と幅`96`の操作領域をヘッダー・行で共通化し、
   Application resourcesの`ContainersTableColumnLayout`によって名前・イメージ・状態・作成日時の
   列幅を同期する。変更した幅はページ遷移後も同じプロセス内で維持する。
-- ヘッダーの`TableColumnSplitter`で4列をリサイズする。境界を動かすと右側全列の余力を近い順に
-  再配分し、要求量が制約を超える場合は可動限界まで移動する。星幅の名前列はリサイズ後も星幅を維持する。
+- ヘッダーの`TableColumnSplitter`で4列をリサイズする。境界の左右にある全列の伸縮余地を
+  境界に近い順に再配分し、要求量が制約を超える場合は可動限界まで移動する。
+  星幅の名前列はリサイズ後も星幅を維持する。
   共通の表レイアウト規則は[UI / ビジュアルデザイン方針](design-policy.md#表形式一覧)、
   採用判断は[ADR-0018](../adr/0018-adopt-resizable-table-layouts-with-fixed-action-rails.md)を参照。
 - 一覧列は名前、イメージ、状態、作成日時、操作を表示する。状態列は`DisplayState`
