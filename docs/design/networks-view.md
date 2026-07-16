@@ -17,7 +17,14 @@
   `Unused`として表示する。
 - 種別はシステムネットワークを`System`、ユーザー作成ネットワークを`User-created`として表示する。
 - 表形式の`ListView`は`TableListViewItemStyle`で行コンテンツを横方向いっぱいに広げ、ヘッダーGridと
-  行Gridの水平paddingを揃える。
+  行Gridの水平paddingを揃える。メタデータ領域と幅`120`の削除操作領域を分離し、ヘッダーと行で
+  同じ固定幅を予約する。
+- Application resourcesの`NetworksTableColumnLayout`をヘッダーと行で共有し、名前・ドライバー・
+  作成日時・接続コンテナ数・種別・使用状況の列幅を同期する。`TableColumnSplitter`は右側全列の余力を
+  近い順に使って境界を移動し、星幅の使用状況列をリサイズ後も星幅として維持する。変更した幅は
+  ページ遷移後も同じプロセス内で維持する。共通の表レイアウト規則は
+  [UI / ビジュアルデザイン方針](design-policy.md#表形式一覧)、
+  採用判断は[ADR-0018](../adr/0018-adopt-resizable-table-layouts-with-fixed-action-rails.md)を参照。
 - システムネットワークまたは接続中ネットワークの削除ボタンは無効化する。
 - ネットワークが存在しない場合は空状態テキストを表示する。
 - ユーザー作成ネットワークが存在しない場合は、システムネットワークは表示対象だが削除できないことを

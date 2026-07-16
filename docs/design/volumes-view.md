@@ -13,7 +13,13 @@
 - `VolumesPage`はローカルボリューム一覧を表示する。各行は`VolumeRowViewModel`で、ボリューム名、
   ドライバー、作成日時、使用状況、削除操作を表示する。
 - 表形式の`ListView`は`TableListViewItemStyle`で行コンテンツを横方向いっぱいに広げ、ヘッダーGridと
-  行Gridの水平paddingを揃える。
+  行Gridの水平paddingを揃える。メタデータ領域と幅`120`の削除操作領域を分離し、ヘッダーと行で
+  同じ固定幅を予約する。
+- Application resourcesの`VolumesTableColumnLayout`をヘッダーと行で共有し、名前・ドライバー・
+  作成日時・使用状況の列幅を同期する。`TableColumnSplitter`は右側全列の余力を近い順に使って境界を移動し、
+  星幅の使用状況列をリサイズ後も星幅として維持する。変更した幅はページ遷移後も同じプロセス内で維持する。
+  共通の表レイアウト規則は[UI / ビジュアルデザイン方針](design-policy.md#表形式一覧)、
+  採用判断は[ADR-0018](../adr/0018-adopt-resizable-table-layouts-with-fixed-action-rails.md)を参照。
 - 使用状況は、参照中コンテナ名がある場合はコンテナ名をカンマ区切りで表示し、参照がない場合は
   `Unused`として表示する。
 - 参照中ボリュームの削除ボタンは無効化する。

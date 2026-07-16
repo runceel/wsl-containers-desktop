@@ -38,6 +38,8 @@ public sealed partial class ContainerRowViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(CanRestart))]
     [NotifyPropertyChangedFor(nameof(CanDelete))]
     [NotifyPropertyChangedFor(nameof(DisplayState))]
+    [NotifyPropertyChangedFor(nameof(IsStartActionVisible))]
+    [NotifyPropertyChangedFor(nameof(IsStopActionVisible))]
     public partial ContainerState State { get; set; }
 
     /// <summary>
@@ -57,6 +59,8 @@ public sealed partial class ContainerRowViewModel : ObservableObject
     /// </summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DisplayState))]
+    [NotifyPropertyChangedFor(nameof(IsStartActionVisible))]
+    [NotifyPropertyChangedFor(nameof(IsStopActionVisible))]
     public partial ContainerRowOperation PendingOperation { get; set; } = ContainerRowOperation.None;
 
     /// <summary>
@@ -64,6 +68,22 @@ public sealed partial class ContainerRowViewModel : ObservableObject
     /// </summary>
     public ContainerRowDisplayState DisplayState => new(State, PendingOperation);
 
+    private (bool Start, bool Stop) ActionVisibility => PendingOperation switch
+    {
+        ContainerRowOperation.Starting => (true, false),
+        ContainerRowOperation.Stopping or ContainerRowOperation.Restarting => (false, true),
+        _ => (State == ContainerState.Stopped, State == ContainerState.Running),
+    };
+
+    /// <summary>
+    /// 「起動」操作のアクションボタンを表示するかどうか。
+    /// </summary>
+    public bool IsStartActionVisible => ActionVisibility.Start;
+
+    /// <summary>
+    /// 「停止」操作のアクションボタンを表示するかどうか。
+    /// </summary>
+    public bool IsStopActionVisible => ActionVisibility.Stop;
 
     /// <summary>
     /// 「起動」操作を適用できるかどうか。

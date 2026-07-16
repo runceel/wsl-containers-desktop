@@ -12,6 +12,7 @@ using WslContainersDesktop.Infrastructure.Cli;
 using WslContainersDesktop.Infrastructure.Clients;
 using WslContainersDesktop.Infrastructure.Settings;
 using WslContainersDesktop.Infrastructure.Wsl;
+using WslContainersDesktop_App.Tables;
 using WslContainersDesktop_App.ViewModels;
 using WslContainersDesktop_App.Windows;
 
@@ -97,6 +98,7 @@ public partial class App : Application
     /// <param name="args">Details about the launch request and process.</param>
     protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
     {
+        TableColumnLayoutCatalog.RegisterResources(Resources);
         _window = new MainWindow();
         _window.Activate();
     }
