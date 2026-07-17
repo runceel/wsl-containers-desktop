@@ -284,7 +284,81 @@ public class TableColumnSplitterTests
     }
 
     [UITestMethod]
-    public async Task ResizeColumns_LastBoundary_PositiveDelta_UsesNearestLeadingColumnsWhenAdjacentIsAtMaximum()
+    public async Task BeginResize_ContinueResize_LastBoundary_PastFormerCreatedMaximum_ReachesNameMinimum()
+    {
+        await RunOnUIThreadAsync(async () =>
+        {
+            using var fixture = await SplitterHostFixture.CreateAsync(
+                preset: TableLayoutPreset.Containers,
+                hostWidth: 1024d,
+                expectedInitialActualWidths: [600d, 130d, 120d, 150d],
+                splitterColumnIndex: 5);
+
+            // Act
+            fixture.Splitter.BeginResize();
+            var resized = fixture.Splitter.ContinueResize(-170d);
+            await fixture.RefreshLayoutAsync();
+
+            // Assert
+            Assert.IsTrue(resized);
+            Assert.AreEqual(484d, fixture.GetDataColumn(0).ActualWidth, 0.001d);
+            Assert.AreEqual(100d, fixture.GetDataColumn(1).ActualWidth, 0.001d);
+            Assert.AreEqual(96d, fixture.GetDataColumn(2).ActualWidth, 0.001d);
+            Assert.AreEqual(320d, fixture.GetDataColumn(3).ActualWidth, 0.001d);
+            Assert.AreEqual(GridUnitType.Star, fixture.Layout.GetWidth(0).GridUnitType);
+            Assert.AreEqual(GridUnitType.Pixel, fixture.Layout.GetWidth(1).GridUnitType);
+            Assert.AreEqual(GridUnitType.Pixel, fixture.Layout.GetWidth(2).GridUnitType);
+            Assert.AreEqual(GridUnitType.Pixel, fixture.Layout.GetWidth(3).GridUnitType);
+
+            // Act
+            resized = fixture.Splitter.ContinueResize(-600d);
+            await fixture.RefreshLayoutAsync();
+
+            // Assert
+            Assert.IsTrue(resized);
+            Assert.AreEqual(120d, fixture.GetDataColumn(0).ActualWidth, 0.001d);
+            Assert.AreEqual(100d, fixture.GetDataColumn(1).ActualWidth, 0.001d);
+            Assert.AreEqual(96d, fixture.GetDataColumn(2).ActualWidth, 0.001d);
+            Assert.AreEqual(684d, fixture.GetDataColumn(3).ActualWidth, 0.001d);
+            Assert.AreEqual(1000d, fixture.GetDataColumn(0).ActualWidth + fixture.GetDataColumn(1).ActualWidth + fixture.GetDataColumn(2).ActualWidth + fixture.GetDataColumn(3).ActualWidth, 0.001d);
+            Assert.AreEqual(GridUnitType.Star, fixture.Layout.GetWidth(0).GridUnitType);
+            Assert.AreEqual(GridUnitType.Pixel, fixture.Layout.GetWidth(1).GridUnitType);
+            Assert.AreEqual(GridUnitType.Pixel, fixture.Layout.GetWidth(2).GridUnitType);
+            Assert.AreEqual(GridUnitType.Pixel, fixture.Layout.GetWidth(3).GridUnitType);
+        });
+    }
+
+    [UITestMethod]
+    public async Task ResizeColumns_ImagesPreset_LastBoundaryNegativeDelta_GrowsCreatedPastFormerMaximumAndKeepsStarLayout()
+    {
+        await RunOnUIThreadAsync(async () =>
+        {
+            using var fixture = await SplitterHostFixture.CreateAsync(
+                preset: TableLayoutPreset.Images,
+                hostWidth: 744d,
+                expectedInitialActualWidths: [240d, 240d, 120d, 120d],
+                splitterColumnIndex: 5);
+
+            // Act
+            var resized = fixture.Splitter.ResizeColumns(-300d);
+            await fixture.RefreshLayoutAsync();
+
+            // Assert
+            Assert.IsTrue(resized);
+            Assert.AreEqual(140d, fixture.GetDataColumn(0).ActualWidth, 0.001d);
+            Assert.AreEqual(160d, fixture.GetDataColumn(1).ActualWidth, 0.001d);
+            Assert.AreEqual(80d, fixture.GetDataColumn(2).ActualWidth, 0.001d);
+            Assert.AreEqual(340d, fixture.GetDataColumn(3).ActualWidth, 0.001d);
+            Assert.AreEqual(720d, fixture.GetDataColumn(0).ActualWidth + fixture.GetDataColumn(1).ActualWidth + fixture.GetDataColumn(2).ActualWidth + fixture.GetDataColumn(3).ActualWidth, 0.001d);
+            Assert.AreEqual(GridUnitType.Star, fixture.Layout.GetWidth(0).GridUnitType);
+            Assert.AreEqual(GridUnitType.Star, fixture.Layout.GetWidth(1).GridUnitType);
+            Assert.AreEqual(GridUnitType.Star, fixture.Layout.GetWidth(2).GridUnitType);
+            Assert.AreEqual(GridUnitType.Star, fixture.Layout.GetWidth(3).GridUnitType);
+        });
+    }
+
+    [UITestMethod]
+    public async Task ResizeColumns_LastBoundary_PositiveDelta_ExpandsNearestLeadingColumnPastFormerMaximum()
     {
         await RunOnUIThreadAsync(async () =>
         {
@@ -332,8 +406,8 @@ public class TableColumnSplitterTests
             // Assert
             Assert.IsTrue(resized);
             Assert.AreEqual(120d, fixture.GetDataColumn(0).ActualWidth, 0.001d);
-            Assert.AreEqual(120d, fixture.GetDataColumn(1).ActualWidth, 0.001d);
-            Assert.AreEqual(240d, fixture.GetDataColumn(2).ActualWidth, 0.001d);
+            Assert.AreEqual(100d, fixture.GetDataColumn(1).ActualWidth, 0.001d);
+            Assert.AreEqual(260d, fixture.GetDataColumn(2).ActualWidth, 0.001d);
             Assert.AreEqual(120d, fixture.GetDataColumn(3).ActualWidth, 0.001d);
             Assert.AreEqual(600d, fixture.GetDataColumn(0).ActualWidth + fixture.GetDataColumn(1).ActualWidth + fixture.GetDataColumn(2).ActualWidth + fixture.GetDataColumn(3).ActualWidth, 0.001d);
             Assert.AreEqual(GridUnitType.Star, fixture.Layout.GetWidth(0).GridUnitType);

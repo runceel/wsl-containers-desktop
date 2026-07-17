@@ -16,8 +16,9 @@
   行Gridの水平paddingを揃える。メタデータ領域と幅`120`の削除操作領域を分離し、ヘッダーと行で
   同じ固定幅を予約する。
 - Application resourcesの`VolumesTableColumnLayout`をヘッダーと行で共有し、名前・ドライバー・
-  作成日時・使用状況の列幅を同期する。`TableColumnSplitter`は境界の左右にある全列の伸縮余地を
-  境界に近い順に再配分して境界を移動し、星幅の使用状況列をリサイズ後も星幅として維持する。
+  作成日時・使用状況の列幅を同期する。`TableColumnSplitter`は拡張側で境界に接する列を広げ、
+  縮小側の全列を境界に近い順に最小幅まで縮める。各列に最大幅は設けず、星幅の使用状況列を
+  リサイズ後も星幅として維持する。
   変更した幅はページ遷移後も同じプロセス内で維持する。
   共通の表レイアウト規則は[UI / ビジュアルデザイン方針](design-policy.md#表形式一覧)、
   採用判断は[ADR-0018](../adr/0018-adopt-resizable-table-layouts-with-fixed-action-rails.md)を参照。

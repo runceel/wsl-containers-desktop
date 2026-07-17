@@ -453,7 +453,7 @@ public class TableLayoutBehaviorTests
                 new GridLength(150d, GridUnitType.Pixel),
             ],
             [120d, 100d, 96d, 120d],
-            [double.PositiveInfinity, 480d, 240d, 320d],
+            [double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity],
             96d);
     }
 

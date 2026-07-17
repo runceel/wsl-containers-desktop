@@ -77,7 +77,7 @@ internal static class TableColumnLayoutCatalog
                     new GridLength(150d, GridUnitType.Pixel),
                 ],
                 [120d, 100d, 96d, 120d],
-                [double.PositiveInfinity, 480d, 240d, 320d],
+                [double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity],
                 96d),
             TableLayoutPreset.Images => new TableColumnLayout(
                 4,
@@ -88,7 +88,7 @@ internal static class TableColumnLayoutCatalog
                     new GridLength(1d, GridUnitType.Star),
                 ],
                 [140d, 160d, 80d, 120d],
-                [double.PositiveInfinity, double.PositiveInfinity, 240d, 320d],
+                [double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity],
                 224d),
             TableLayoutPreset.Volumes => new TableColumnLayout(
                 4,
@@ -99,7 +99,7 @@ internal static class TableColumnLayoutCatalog
                     new GridLength(1d, GridUnitType.Star),
                 ],
                 [140d, 96d, 120d, 140d],
-                [600d, 240d, 320d, double.PositiveInfinity],
+                [double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity],
                 120d),
             TableLayoutPreset.Networks => new TableColumnLayout(
                 6,
@@ -112,7 +112,7 @@ internal static class TableColumnLayoutCatalog
                     new GridLength(1d, GridUnitType.Star),
                 ],
                 [140d, 96d, 120d, 80d, 96d, 140d],
-                [600d, 240d, 320d, 200d, 240d, double.PositiveInfinity],
+                [double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity],
                 120d),
             TableLayoutPreset.DashboardStats => new TableColumnLayout(
                 3,
@@ -122,7 +122,7 @@ internal static class TableColumnLayoutCatalog
                     new GridLength(200d, GridUnitType.Pixel),
                 ],
                 [120d, 80d, 140d],
-                [double.PositiveInfinity, 240d, 400d],
+                [double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity],
                 192d),
             _ => throw new ArgumentOutOfRangeException(nameof(preset), preset, null),
         };

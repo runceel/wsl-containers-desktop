@@ -141,35 +141,35 @@ public class TableColumnLayoutTests
                 4,
                 new[] { new GridLength(1d, GridUnitType.Star), new GridLength(130d, GridUnitType.Pixel), new GridLength(120d, GridUnitType.Pixel), new GridLength(150d, GridUnitType.Pixel) },
                 new[] { 120d, 100d, 96d, 120d },
-                new[] { double.PositiveInfinity, 480d, 240d, 320d },
+                new[] { double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity },
                 96d),
             new ExpectedLayout(
                 TableLayoutPreset.Images,
                 4,
                 new[] { new GridLength(2d, GridUnitType.Star), new GridLength(2d, GridUnitType.Star), new GridLength(1d, GridUnitType.Star), new GridLength(1d, GridUnitType.Star) },
                 new[] { 140d, 160d, 80d, 120d },
-                new[] { double.PositiveInfinity, double.PositiveInfinity, 240d, 320d },
+                new[] { double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity },
                 224d),
             new ExpectedLayout(
                 TableLayoutPreset.Volumes,
                 4,
                 new[] { new GridLength(220d, GridUnitType.Pixel), new GridLength(120d, GridUnitType.Pixel), new GridLength(180d, GridUnitType.Pixel), new GridLength(1d, GridUnitType.Star) },
                 new[] { 140d, 96d, 120d, 140d },
-                new[] { 600d, 240d, 320d, double.PositiveInfinity },
+                new[] { double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity },
                 120d),
             new ExpectedLayout(
                 TableLayoutPreset.Networks,
                 6,
                 new[] { new GridLength(180d, GridUnitType.Pixel), new GridLength(120d, GridUnitType.Pixel), new GridLength(180d, GridUnitType.Pixel), new GridLength(96d, GridUnitType.Pixel), new GridLength(120d, GridUnitType.Pixel), new GridLength(1d, GridUnitType.Star) },
                 new[] { 140d, 96d, 120d, 80d, 96d, 140d },
-                new[] { 600d, 240d, 320d, 200d, 240d, double.PositiveInfinity },
+                new[] { double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity },
                 120d),
             new ExpectedLayout(
                 TableLayoutPreset.DashboardStats,
                 3,
                 new[] { new GridLength(1d, GridUnitType.Star), new GridLength(120d, GridUnitType.Pixel), new GridLength(200d, GridUnitType.Pixel) },
                 new[] { 120d, 80d, 140d },
-                new[] { double.PositiveInfinity, 240d, 400d },
+                new[] { double.PositiveInfinity, double.PositiveInfinity, double.PositiveInfinity },
                 192d)
         };
 
@@ -234,7 +234,27 @@ public class TableColumnLayoutTests
     }
 
     [UITestMethod]
-    public void SetWidth_PixelWidthAboveMaximum_ClampsToMaximum()
+    public void SetWidth_CustomFiniteMaximum_ClampsToMaximum()
+    {
+        // Arrange
+        var layout = new TableColumnLayout(
+            1,
+            [new GridLength(100d, GridUnitType.Pixel)],
+            [50d],
+            [200d],
+            0d);
+
+        // Act
+        layout.SetWidth(0, new GridLength(900d, GridUnitType.Pixel));
+
+        // Assert
+        var width = layout.GetWidth(0);
+        Assert.AreEqual(GridUnitType.Pixel, width.GridUnitType);
+        Assert.AreEqual(200d, width.Value);
+    }
+
+    [UITestMethod]
+    public void SetWidth_PresetPixelWidthAboveFormerMaximum_DoesNotClamp()
     {
         // Arrange
         var layout = TableColumnLayoutCatalog.Create(TableLayoutPreset.Containers);
@@ -244,7 +264,7 @@ public class TableColumnLayoutTests
 
         // Assert
         Assert.AreEqual(GridUnitType.Pixel, layout.GetWidth(1).GridUnitType);
-        Assert.AreEqual(480d, layout.GetWidth(1).Value);
+        Assert.AreEqual(900d, layout.GetWidth(1).Value);
     }
 
     [UITestMethod]
