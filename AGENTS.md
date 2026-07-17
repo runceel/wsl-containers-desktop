@@ -170,6 +170,7 @@ Copilot CLIでの開発に必要なplugin導入手順は人間の開発環境セ
 | Skill | `.github/skills/feature-workflow/SKILL.md` | 6フェーズ開発フローのオーケストレーション |
 | Skill | `.github/skills/adr-workflow/SKILL.md` | ADR作成・更新の実務手順 |
 | Skill | `.github/skills/design-doc-maintenance/SKILL.md` | 設計ドキュメントのスナップショット更新手順 |
+| Skill | `.github/skills/store-release-workflow/SKILL.md` | Microsoft Storeリリースのエンドツーエンド手順 |
 | Reference | `docs/reference/wsl-containers-platform.md` | WSL Containers(`wslc`)プラットフォームの仕様サマリ |
 
 ## スコープ外（引き続き未着手）
