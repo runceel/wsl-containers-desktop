@@ -153,4 +153,82 @@ public sealed class ContainerRowViewModelTests
         // Assert
         Assert.AreEqual(new ContainerRowDisplayState(ContainerState.Stopped, ContainerRowOperation.Stopping), sut.DisplayState);
     }
+
+    [TestMethod]
+    [DataRow(ContainerState.Stopped, ContainerRowOperation.None, true, false)]
+    [DataRow(ContainerState.Running, ContainerRowOperation.None, false, true)]
+    [DataRow(ContainerState.Stopped, ContainerRowOperation.Starting, true, false)]
+    [DataRow(ContainerState.Running, ContainerRowOperation.Starting, true, false)]
+    [DataRow(ContainerState.Running, ContainerRowOperation.Stopping, false, true)]
+    [DataRow(ContainerState.Stopped, ContainerRowOperation.Stopping, false, true)]
+    [DataRow(ContainerState.Running, ContainerRowOperation.Restarting, false, true)]
+    [DataRow(ContainerState.Stopped, ContainerRowOperation.Restarting, false, true)]
+    [DataRow(ContainerState.Stopped, ContainerRowOperation.Deleting, true, false)]
+    [DataRow(ContainerState.Running, ContainerRowOperation.Deleting, false, true)]
+    public void VisibilityProperties_ForStateAndPendingOperation_SelectExactlyOneAction(
+        ContainerState state,
+        ContainerRowOperation pendingOperation,
+        bool expectedStartVisible,
+        bool expectedStopVisible)
+    {
+        // Arrange
+        var sut = new ContainerRowViewModel(CreateContainer(state));
+        sut.PendingOperation = pendingOperation;
+
+        // Act & Assert
+        Assert.AreEqual(expectedStartVisible, sut.IsStartActionVisible);
+        Assert.AreEqual(expectedStopVisible, sut.IsStopActionVisible);
+    }
+
+    [TestMethod]
+    public void State_WhenChanged_RaisesPropertyChangedForVisibilityProperties()
+    {
+        // Arrange
+        var sut = new ContainerRowViewModel(CreateContainer(ContainerState.Stopped));
+        var raisedProperties = new List<string>();
+        sut.PropertyChanged += (_, e) => raisedProperties.Add(e.PropertyName!);
+
+        // Act
+        sut.State = ContainerState.Running;
+
+        // Assert
+        CollectionAssert.Contains(raisedProperties, nameof(ContainerRowViewModel.IsStartActionVisible));
+        CollectionAssert.Contains(raisedProperties, nameof(ContainerRowViewModel.IsStopActionVisible));
+    }
+
+    [TestMethod]
+    public void PendingOperation_WhenChanged_RaisesPropertyChangedForVisibilityProperties()
+    {
+        // Arrange
+        var sut = new ContainerRowViewModel(CreateContainer(ContainerState.Stopped));
+        var raisedProperties = new List<string>();
+        sut.PropertyChanged += (_, e) => raisedProperties.Add(e.PropertyName!);
+
+        // Act
+        sut.PendingOperation = ContainerRowOperation.Starting;
+
+        // Assert
+        CollectionAssert.Contains(raisedProperties, nameof(ContainerRowViewModel.IsStartActionVisible));
+        CollectionAssert.Contains(raisedProperties, nameof(ContainerRowViewModel.IsStopActionVisible));
+    }
+
+    [TestMethod]
+    public void IsBusy_WhenTrue_PreservesCurrentVisibilityAndRaisesCanNotificationsOnly()
+    {
+        // Arrange
+        var sut = new ContainerRowViewModel(CreateContainer(ContainerState.Stopped));
+        var raisedProperties = new List<string>();
+        sut.PropertyChanged += (_, e) => raisedProperties.Add(e.PropertyName!);
+
+        // Act
+        sut.IsBusy = true;
+
+        // Assert
+        Assert.IsTrue(sut.IsStartActionVisible);
+        Assert.IsFalse(sut.IsStopActionVisible);
+        CollectionAssert.DoesNotContain(raisedProperties, nameof(ContainerRowViewModel.IsStartActionVisible));
+        CollectionAssert.DoesNotContain(raisedProperties, nameof(ContainerRowViewModel.IsStopActionVisible));
+        CollectionAssert.Contains(raisedProperties, nameof(ContainerRowViewModel.CanStart));
+        CollectionAssert.Contains(raisedProperties, nameof(ContainerRowViewModel.CanStop));
+    }
 }

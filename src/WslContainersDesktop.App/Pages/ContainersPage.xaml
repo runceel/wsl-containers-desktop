@@ -8,6 +8,7 @@
     xmlns:local="using:WslContainersDesktop_App.Pages"
     xmlns:vm="using:WslContainersDesktop_App.ViewModels"
     xmlns:conv="using:WslContainersDesktop_App.Converters"
+    xmlns:tables="using:WslContainersDesktop_App.Tables"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
@@ -85,18 +86,49 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="12">
+                    <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="12" HorizontalAlignment="Stretch">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" MinWidth="120" />
-                            <ColumnDefinition Width="130" />
-                            <ColumnDefinition Width="120" />
-                            <ColumnDefinition Width="150" />
-                            <ColumnDefinition Width="190" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="96" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock Grid.Column="0" Text="Name" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="1" Text="Image" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="2" Text="State" FontWeight="SemiBold" />
-                        <TextBlock Grid.Column="3" Text="Created" FontWeight="SemiBold" />
+                        <Grid
+                            Grid.Column="0"
+                            tables:ClipToBoundsBehavior.IsEnabled="True"
+                            tables:TableLayoutBehavior.Layout="{StaticResource ContainersTableColumnLayout}"
+                            tables:TableLayoutBehavior.Role="Header">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="0" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="1" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="2" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="3" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" x:Uid="TxtColumnHeaderName" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="2" x:Uid="TxtColumnHeaderImage" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="4" x:Uid="TxtColumnHeaderState" FontWeight="SemiBold" />
+                            <TextBlock Grid.Column="6" x:Uid="TxtColumnHeaderCreatedAt" FontWeight="SemiBold" />
+                            <tables:TableColumnSplitter
+                                Grid.Column="1"
+                                x:Uid="SpltContainersNameImage"
+                                AutomationProperties.AutomationId="SpltContainersNameImage"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch" />
+                            <tables:TableColumnSplitter
+                                Grid.Column="3"
+                                x:Uid="SpltContainersImageState"
+                                AutomationProperties.AutomationId="SpltContainersImageState"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch" />
+                            <tables:TableColumnSplitter
+                                Grid.Column="5"
+                                x:Uid="SpltContainersStateCreated"
+                                AutomationProperties.AutomationId="SpltContainersStateCreated"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch" />
+                        </Grid>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="4" />
                     </Grid>
 
                     <ListView
@@ -110,35 +142,56 @@
                             <DataTemplate x:DataType="vm:ContainerRowViewModel">
                                 <Grid Padding="12,8" ColumnSpacing="12" HorizontalAlignment="Stretch">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" MinWidth="120" />
-                                        <ColumnDefinition Width="130" />
-                                        <ColumnDefinition Width="120" />
-                                        <ColumnDefinition Width="150" />
-                                        <ColumnDefinition Width="190" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="96" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Image}" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind DisplayState, Mode=OneWay, Converter={StaticResource StateToDisplayTextConverter}}" TextTrimming="CharacterEllipsis" />
-                                    <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" TextTrimming="CharacterEllipsis" />
-                                    <StackPanel Grid.Column="4" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="4">
-                                        <!-- Start/Stopはよく使う操作のため、"..."メニューの中に隠さずトップレベルに表示する。
-                                             状態に応じてどちらか一方(または操作進行中はどちらも非表示)のみ表示する。 -->
+                                    <Grid
+                                        Grid.Column="0"
+                                        tables:ClipToBoundsBehavior.IsEnabled="True"
+                                        tables:TableLayoutBehavior.Layout="{StaticResource ContainersTableColumnLayout}"
+                                        tables:TableLayoutBehavior.Role="Row">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="0" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="1" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="2" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="3" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind Image}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{x:Bind DisplayState, Mode=OneWay, Converter={StaticResource StateToDisplayTextConverter}}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Grid.Column="6" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" TextTrimming="CharacterEllipsis" />
+                                    </Grid>
+                                    <StackPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="4">
                                         <Button
                                             x:Uid="BtnStart"
+                                            MinWidth="40"
+                                            MinHeight="40"
                                             VerticalAlignment="Center"
                                             AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnStart}"
                                             CommandParameter="{x:Bind}"
                                             Click="BtnStart_Click"
-                                            Visibility="{x:Bind CanStart, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                            IsEnabled="{x:Bind CanStart, Mode=OneWay}"
+                                            Visibility="{x:Bind IsStartActionVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <SymbolIcon Symbol="Play" />
+                                        </Button>
                                         <Button
                                             x:Uid="BtnStop"
+                                            MinWidth="40"
+                                            MinHeight="40"
                                             VerticalAlignment="Center"
                                             AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnStop}"
                                             CommandParameter="{x:Bind}"
                                             Click="BtnStop_Click"
-                                            Visibility="{x:Bind CanStop, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}" />
+                                            IsEnabled="{x:Bind CanStop, Mode=OneWay}"
+                                            Visibility="{x:Bind IsStopActionVisible, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                            <SymbolIcon Symbol="Stop" />
+                                        </Button>
                                         <Button
                                             MinWidth="40"
+                                            MinHeight="40"
                                             x:Uid="BtnMoreActions"
                                             VerticalAlignment="Center"
                                             AutomationProperties.AutomationId="{x:Bind Id, Mode=OneWay, Converter={StaticResource AutomationIdConverter}, ConverterParameter=BtnMoreActions}">

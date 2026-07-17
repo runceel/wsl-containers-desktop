@@ -68,5 +68,6 @@ docs/adr/NNNN-kebab-case-title.md
 | [0015](0015-promote-navigation-viewmodel-to-di-singleton.md) | `NavigationViewModel`をDIシングルトンに昇格しダッシュボードからの遷移に共有する | Accepted |
 | [0016](0016-set-sonnet-5-baseline-and-route-green-to-flash.md) | モデルルーティングのベースラインをsonnet-5 mediumに定めGreenを条件付きFlashにする | Accepted |
 | [0017](0017-split-containersviewmodel-and-runtime-client-into-focused-components.md) | `ContainersViewModel`とランタイムクライアントを機能単位のコンポーネントへ分割する | Accepted |
+| [0018](0018-adopt-resizable-table-layouts-with-fixed-action-rails.md) | 表形式一覧に列幅変更と固定アクションレールを採用する | Accepted |
 
 新しいADRを追加したら、この表にも1行追加すること。

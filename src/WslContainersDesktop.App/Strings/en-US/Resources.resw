@@ -177,6 +177,12 @@
   <data name="TxtDashboardStatsColumnMemory.Text" xml:space="preserve">
     <value>Memory</value>
   </data>
+  <data name="SpltDashboardStatsNameCpu.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split name and CPU columns</value>
+  </data>
+  <data name="SpltDashboardStatsCpuMemory.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split CPU and memory columns</value>
+  </data>
   <data name="BtnDashboardStatsDetails.Content" xml:space="preserve">
     <value>Details</value>
   </data>
@@ -216,11 +222,32 @@
   <data name="TxtColumnHeaderCreatedAt.Text" xml:space="preserve">
     <value>Created</value>
   </data>
-  <data name="BtnStart.Content" xml:space="preserve">
+  <data name="SpltContainersNameImage.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split name and image columns</value>
+  </data>
+  <data name="SpltContainersImageState.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split image and state columns</value>
+  </data>
+  <data name="SpltContainersStateCreated.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split state and created columns</value>
+  </data>
+  <data name="BtnStart.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
     <value>Start</value>
   </data>
-  <data name="BtnStop.Content" xml:space="preserve">
+  <data name="BtnStart.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Start</value>
+  </data>
+  <data name="BtnStop.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
     <value>Stop</value>
+  </data>
+  <data name="BtnStop.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Stop</value>
+  </data>
+  <data name="BtnMoreActions.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>More actions</value>
+  </data>
+  <data name="BtnMoreActions.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>More actions</value>
   </data>
   <data name="BtnRestart.Content" xml:space="preserve">
     <value>Restart</value>
@@ -378,6 +405,15 @@
   <data name="TxtImageColumnCreatedAt.Text" xml:space="preserve">
     <value>Created</value>
   </data>
+  <data name="SpltImagesNameId.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split name and ID columns</value>
+  </data>
+  <data name="SpltImagesIdSize.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split ID and size columns</value>
+  </data>
+  <data name="SpltImagesSizeCreated.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split size and created columns</value>
+  </data>
   <data name="VolumesPageTitle.Text" xml:space="preserve">
     <value>Volumes</value>
   </data>
@@ -404,6 +440,15 @@
   </data>
   <data name="TxtVolumeColumnUsage.Text" xml:space="preserve">
     <value>Usage</value>
+  </data>
+  <data name="SpltVolumesNameDriver.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split name and driver columns</value>
+  </data>
+  <data name="SpltVolumesDriverCreated.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split driver and created columns</value>
+  </data>
+  <data name="SpltVolumesCreatedUsage.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split created and usage columns</value>
   </data>
   <data name="BtnDeleteVolume.Content" xml:space="preserve">
     <value>Delete</value>
@@ -449,6 +494,21 @@
   </data>
   <data name="TxtNetworkColumnUsage.Text" xml:space="preserve">
     <value>Usage</value>
+  </data>
+  <data name="SpltNetworksNameDriver.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split name and driver columns</value>
+  </data>
+  <data name="SpltNetworksDriverCreated.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split driver and created columns</value>
+  </data>
+  <data name="SpltNetworksCreatedContainers.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split created and container columns</value>
+  </data>
+  <data name="SpltNetworksContainersType.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split container and type columns</value>
+  </data>
+  <data name="SpltNetworksTypeUsage.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Split type and usage columns</value>
   </data>
   <data name="BtnDeleteNetwork.Content" xml:space="preserve">
     <value>Delete</value>

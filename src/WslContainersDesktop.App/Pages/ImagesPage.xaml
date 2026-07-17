@@ -7,6 +7,7 @@
     xmlns:conv="using:WslContainersDesktop_App.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:WslContainersDesktop_App.Pages"
+    xmlns:tables="using:WslContainersDesktop_App.Tables"
     xmlns:vm="using:WslContainersDesktop_App.ViewModels"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
@@ -146,18 +147,49 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="12">
+                    <Grid Grid.Row="0" Padding="12,8" ColumnSpacing="12" HorizontalAlignment="Stretch">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="2*" />
-                            <ColumnDefinition Width="2*" />
-                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="224" />
                         </Grid.ColumnDefinitions>
-                        <TextBlock x:Name="TxtImageColumnName" x:Uid="TxtImageColumnName" Grid.Column="0" FontWeight="SemiBold" />
-                        <TextBlock x:Name="TxtImageColumnId" x:Uid="TxtImageColumnId" Grid.Column="1" FontWeight="SemiBold" />
-                        <TextBlock x:Name="TxtImageColumnSize" x:Uid="TxtImageColumnSize" Grid.Column="2" FontWeight="SemiBold" />
-                        <TextBlock x:Name="TxtImageColumnCreatedAt" x:Uid="TxtImageColumnCreatedAt" Grid.Column="3" FontWeight="SemiBold" />
+                        <Grid
+                            Grid.Column="0"
+                            tables:ClipToBoundsBehavior.IsEnabled="True"
+                            tables:TableLayoutBehavior.Layout="{StaticResource ImagesTableColumnLayout}"
+                            tables:TableLayoutBehavior.Role="Header">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="0" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="1" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="2" />
+                                <ColumnDefinition Width="8" />
+                                <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="3" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="TxtImageColumnName" x:Uid="TxtImageColumnName" Grid.Column="0" FontWeight="SemiBold" />
+                            <TextBlock x:Name="TxtImageColumnId" x:Uid="TxtImageColumnId" Grid.Column="2" FontWeight="SemiBold" />
+                            <TextBlock x:Name="TxtImageColumnSize" x:Uid="TxtImageColumnSize" Grid.Column="4" FontWeight="SemiBold" />
+                            <TextBlock x:Name="TxtImageColumnCreatedAt" x:Uid="TxtImageColumnCreatedAt" Grid.Column="6" FontWeight="SemiBold" />
+                            <tables:TableColumnSplitter
+                                Grid.Column="1"
+                                x:Uid="SpltImagesNameId"
+                                AutomationProperties.AutomationId="SpltImagesNameId"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch" />
+                            <tables:TableColumnSplitter
+                                Grid.Column="3"
+                                x:Uid="SpltImagesIdSize"
+                                AutomationProperties.AutomationId="SpltImagesIdSize"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch" />
+                            <tables:TableColumnSplitter
+                                Grid.Column="5"
+                                x:Uid="SpltImagesSizeCreated"
+                                AutomationProperties.AutomationId="SpltImagesSizeCreated"
+                                HorizontalAlignment="Stretch"
+                                VerticalAlignment="Stretch" />
+                        </Grid>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8" />
                     </Grid>
 
                     <ListView
@@ -171,17 +203,29 @@
                             <DataTemplate x:DataType="vm:ImageRowViewModel">
                                 <Grid Padding="12,8" ColumnSpacing="12" HorizontalAlignment="Stretch">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="2*" />
-                                        <ColumnDefinition Width="2*" />
-                                        <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="224" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
-                                    <TextBlock Grid.Column="1" VerticalAlignment="Center" Text="{x:Bind Id}" />
-                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind SizeBytes}" />
-                                    <TextBlock Grid.Column="3" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" />
-                                    <StackPanel Grid.Column="4" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
+                                    <Grid
+                                        Grid.Column="0"
+                                        tables:ClipToBoundsBehavior.IsEnabled="True"
+                                        tables:TableLayoutBehavior.Layout="{StaticResource ImagesTableColumnLayout}"
+                                        tables:TableLayoutBehavior.Role="Row">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="0" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="1" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="2" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" tables:TableLayoutBehavior.ColumnIndex="3" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" VerticalAlignment="Center" Text="{x:Bind DisplayName}" />
+                                        <TextBlock Grid.Column="2" VerticalAlignment="Center" Text="{x:Bind Id}" />
+                                        <TextBlock Grid.Column="4" VerticalAlignment="Center" Text="{x:Bind SizeBytes}" />
+                                        <TextBlock Grid.Column="6" VerticalAlignment="Center" Text="{x:Bind CreatedAt, Converter={StaticResource CreatedAtConverter}}" />
+                                    </Grid>
+                                    <StackPanel Grid.Column="1" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="8">
                                         <Button
                                             x:Name="BtnRunImage"
                                             x:Uid="BtnRunImage"

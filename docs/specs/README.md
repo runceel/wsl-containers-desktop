@@ -47,6 +47,7 @@
 | 6 | ネットワーク管理 | [0006-network-management.md](0006-network-management.md) | [#8](https://github.com/runceel/wsl-containers-desktop/issues/8) |
 | 7 | 設定画面 | [0007-settings.md](0007-settings.md) | [#7](https://github.com/runceel/wsl-containers-desktop/issues/7) |
 | 8 | ダッシュボード/概要画面 | [0008-dashboard-overview.md](0008-dashboard-overview.md) | [#5](https://github.com/runceel/wsl-containers-desktop/issues/5) |
+| 9 | 表形式一覧の操作性改善 | [0009-resizable-table-lists.md](0009-resizable-table-lists.md) | [#62](https://github.com/runceel/wsl-containers-desktop/issues/62) |
 
 エンタープライズ向け機能（GPOポリシー等）・GPU管理UIは、個人向けアプリの初期スコープからは
 意図的に外している（[`docs/reference/wsl-containers-platform.md`](../reference/wsl-containers-platform.md) 参照）。
