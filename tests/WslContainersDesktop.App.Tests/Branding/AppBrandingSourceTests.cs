@@ -41,10 +41,16 @@ public sealed class AppBrandingSourceTests
         // Act
         var mainWindowTitle = GetResourceValue(resourceDocument, "MainWindow.Title");
         var dashboardTitle = GetResourceValue(resourceDocument, "DashboardPageTitle.Text");
+        var appDisplayName = GetResourceValue(resourceDocument, "AppDisplayName");
+        var appDescription = GetResourceValue(resourceDocument, "AppDescription");
+        var deleteMessage = GetResourceValue(resourceDocument, "DeleteConfirmationDialog_Message");
 
         // Assert
         Assert.AreEqual("Hakonexa - WSL コンテナーマネージャー", mainWindowTitle);
         Assert.AreEqual("ダッシュボード", dashboardTitle);
+        Assert.AreEqual("Hakonexa - WSL コンテナーマネージャー", appDisplayName);
+        Assert.AreEqual("Hakonexa - WSL コンテナーマネージャー", appDescription);
+        Assert.AreEqual("'{0}' を削除してもよろしいですか？この操作は元に戻せません。", deleteMessage);
     }
 
     [TestMethod]
