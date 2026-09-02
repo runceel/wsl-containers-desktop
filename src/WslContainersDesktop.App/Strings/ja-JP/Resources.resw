@@ -1,0 +1,599 @@
+<?xml version='1.0' encoding='utf-8'?>
+<root xmlns:ns1="urn:schemas-microsoft-com:xml-msdata" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  
+  <xs:schema id="root">
+    <xs:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xs:element name="root" ns1:IsDataSet="true">
+      <xs:complexType>
+        <xs:choice maxOccurs="unbounded">
+          <xs:element name="metadata">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" />
+              </xs:sequence>
+              <xs:attribute name="name" use="required" type="xsd:string" />
+              <xs:attribute name="type" type="xsd:string" />
+              <xs:attribute name="mimetype" type="xsd:string" />
+              <xs:attribute ref="xml:space" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="assembly">
+            <xs:complexType>
+              <xs:attribute name="alias" type="xsd:string" />
+              <xs:attribute name="name" type="xsd:string" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="data">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" ns1:Ordinal="1" />
+                <xs:element name="comment" type="xsd:string" minOccurs="0" ns1:Ordinal="2" />
+              </xs:sequence>
+              <xs:attribute name="name" type="xsd:string" use="required" ns1:Ordinal="1" />
+              <xs:attribute name="type" type="xsd:string" ns1:Ordinal="3" />
+              <xs:attribute name="mimetype" type="xsd:string" ns1:Ordinal="4" />
+              <xs:attribute ref="xml:space" />
+            </xs:complexType>
+          </xs:element>
+          <xs:element name="resheader">
+            <xs:complexType>
+              <xs:sequence>
+                <xs:element name="value" type="xsd:string" minOccurs="0" ns1:Ordinal="1" />
+              </xs:sequence>
+              <xs:attribute name="name" type="xsd:string" use="required" />
+            </xs:complexType>
+          </xs:element>
+        </xs:choice>
+      </xs:complexType>
+    </xs:element>
+  </xs:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="MainWindow.Title" xml:space="preserve">
+    <value>Hakonexa - WSL コンテナーマネージャー</value>
+  </data>
+  <data name="AppTitleBar.Title" xml:space="preserve">
+    <value>Hakonexa - WSL コンテナーマネージャー</value>
+  </data>
+  <data name="NavItemDashboard.Content" xml:space="preserve">
+    <value>ダッシュボード</value>
+  </data>
+  <data name="NavItemContainers.Content" xml:space="preserve">
+    <value>コンテナー</value>
+  </data>
+  <data name="NavItemImages.Content" xml:space="preserve">
+    <value>イメージ</value>
+  </data>
+  <data name="NavItemVolumes.Content" xml:space="preserve">
+    <value>ボリューム</value>
+  </data>
+  <data name="NavItemNetworks.Content" xml:space="preserve">
+    <value>ネットワーク</value>
+  </data>
+  <data name="NavItemSettings.Content" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="DashboardPageTitle.Text" xml:space="preserve">
+    <value>ダッシュボード</value>
+  </data>
+  <data name="DashboardPageDescription.Text" xml:space="preserve">
+    <value>このコンピューター上の WSL コンテナーリソースの概要です。</value>
+  </data>
+  <data name="BtnRefreshDashboard.Content" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="LblDashboardRunningContainers.Text" xml:space="preserve">
+    <value>実行中のコンテナー</value>
+  </data>
+  <data name="LblDashboardStoppedContainers.Text" xml:space="preserve">
+    <value>停止中のコンテナー</value>
+  </data>
+  <data name="LblDashboardImages.Text" xml:space="preserve">
+    <value>イメージ</value>
+  </data>
+  <data name="LblDashboardVolumes.Text" xml:space="preserve">
+    <value>ボリューム</value>
+  </data>
+  <data name="LblDashboardNetworks.Text" xml:space="preserve">
+    <value>ネットワーク</value>
+  </data>
+  <data name="DashboardStatsTitle.Text" xml:space="preserve">
+    <value>実行中のコンテナーのリソース使用量</value>
+  </data>
+  <data name="TxtDashboardStatsColumnName.Text" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="TxtDashboardStatsColumnCpu.Text" xml:space="preserve">
+    <value>CPU</value>
+  </data>
+  <data name="TxtDashboardStatsColumnMemory.Text" xml:space="preserve">
+    <value>メモリ</value>
+  </data>
+  <data name="SpltDashboardStatsNameCpu.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>名前と CPU 列を分割</value>
+  </data>
+  <data name="SpltDashboardStatsCpuMemory.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>CPU とメモリ列を分割</value>
+  </data>
+  <data name="BtnDashboardStatsDetails.Content" xml:space="preserve">
+    <value>詳細</value>
+  </data>
+  <data name="BtnDashboardStatsLogs.Content" xml:space="preserve">
+    <value>ログ</value>
+  </data>
+  <data name="TxtDashboardStatsEmptyState.Text" xml:space="preserve">
+    <value>実行中のコンテナーはありません。</value>
+  </data>
+  <data name="TxtDashboardStatsLoading.Text" xml:space="preserve">
+    <value>読み込み中…</value>
+  </data>
+  <data name="ContainersPageTitle.Text" xml:space="preserve">
+    <value>コンテナー</value>
+  </data>
+  <data name="ContainersPageDescription.Text" xml:space="preserve">
+    <value>このコンピューター上の WSL コンテナーを表示・管理します。</value>
+  </data>
+  <data name="BtnRefresh.Content" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="TxtEmptyStateTitle.Text" xml:space="preserve">
+    <value>コンテナーが見つかりません</value>
+  </data>
+  <data name="TxtEmptyStateDescription.Text" xml:space="preserve">
+    <value>作成したコンテナーがここに表示されます。</value>
+  </data>
+  <data name="TxtColumnHeaderName.Text" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="TxtColumnHeaderImage.Text" xml:space="preserve">
+    <value>イメージ</value>
+  </data>
+  <data name="TxtColumnHeaderState.Text" xml:space="preserve">
+    <value>状態</value>
+  </data>
+  <data name="TxtColumnHeaderCreatedAt.Text" xml:space="preserve">
+    <value>作成日時</value>
+  </data>
+  <data name="SpltContainersNameImage.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>名前とイメージ列を分割</value>
+  </data>
+  <data name="SpltContainersImageState.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>イメージと状態列を分割</value>
+  </data>
+  <data name="SpltContainersStateCreated.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>状態と作成日時列を分割</value>
+  </data>
+  <data name="BtnStart.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>開始</value>
+  </data>
+  <data name="BtnStart.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>開始</value>
+  </data>
+  <data name="BtnStop.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>停止</value>
+  </data>
+  <data name="BtnStop.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>停止</value>
+  </data>
+  <data name="BtnMoreActions.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>その他の操作</value>
+  </data>
+  <data name="BtnMoreActions.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>その他の操作</value>
+  </data>
+  <data name="BtnRestart.Content" xml:space="preserve">
+    <value>再起動</value>
+  </data>
+  <data name="BtnDelete.Content" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="BtnLogs.Content" xml:space="preserve">
+    <value>ログ</value>
+  </data>
+  <data name="BtnDetails.Content" xml:space="preserve">
+    <value>詳細</value>
+  </data>
+  <data name="BtnShell.Content" xml:space="preserve">
+    <value>シェル</value>
+  </data>
+  <data name="BtnMoreActions.Content" xml:space="preserve">
+    <value>…</value>
+  </data>
+  <data name="MenuDetails.Text" xml:space="preserve">
+    <value>詳細</value>
+  </data>
+  <data name="MenuShell.Text" xml:space="preserve">
+    <value>シェル</value>
+  </data>
+  <data name="MenuLogs.Text" xml:space="preserve">
+    <value>ログ</value>
+  </data>
+  <data name="MenuRestart.Text" xml:space="preserve">
+    <value>再起動</value>
+  </data>
+  <data name="MenuDelete.Text" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="TxtLogPanelTitle.Text" xml:space="preserve">
+    <value>コンテナーのログ</value>
+  </data>
+  <data name="BtnPauseLogs.Content" xml:space="preserve">
+    <value>一時停止</value>
+  </data>
+  <data name="BtnResumeLogs.Content" xml:space="preserve">
+    <value>再開</value>
+  </data>
+  <data name="BtnClearLogs.Content" xml:space="preserve">
+    <value>クリア</value>
+  </data>
+  <data name="BtnCloseLogs.Content" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="BtnOpenLogsWindow.Content" xml:space="preserve">
+    <value>ウィンドウで開く</value>
+  </data>
+  <data name="TxtLogEmptyState.Text" xml:space="preserve">
+    <value>表示するログはありません。</value>
+  </data>
+  <data name="TxtDetailPanelTitle.Text" xml:space="preserve">
+    <value>コンテナーの詳細</value>
+  </data>
+  <data name="BtnCloseDetails.Content" xml:space="preserve">
+    <value>閉じる</value>
+  </data>
+  <data name="TxtShellPanelTitle.Text" xml:space="preserve">
+    <value>コンテナーシェル</value>
+  </data>
+  <data name="BtnOpenShellWindow.Content" xml:space="preserve">
+    <value>ウィンドウで開く</value>
+  </data>
+  <data name="BtnCloseShell.Content" xml:space="preserve">
+    <value>シェルを閉じる</value>
+  </data>
+  <data name="TxtShellCommand.Header" xml:space="preserve">
+    <value>コマンド</value>
+  </data>
+  <data name="BtnSendShellCommand.Content" xml:space="preserve">
+    <value>送信</value>
+  </data>
+  <data name="LogsWindow.Title" xml:space="preserve">
+    <value>コンテナーのログ</value>
+  </data>
+  <data name="ShellWindow.Title" xml:space="preserve">
+    <value>コンテナーシェル</value>
+  </data>
+  <data name="LogsWindowTitleBar.Title" xml:space="preserve">
+    <value>コンテナーのログ</value>
+  </data>
+  <data name="ShellWindowTitleBar.Title" xml:space="preserve">
+    <value>コンテナーシェル</value>
+  </data>
+  <data name="ImagesPageTitle.Text" xml:space="preserve">
+    <value>イメージ</value>
+  </data>
+  <data name="ImagesPageDescription.Text" xml:space="preserve">
+    <value>コンテナーイメージの取得、実行、削除を行います。</value>
+  </data>
+  <data name="BtnRefreshImages.Content" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="TxtPullReference.Header" xml:space="preserve">
+    <value>イメージ参照</value>
+  </data>
+  <data name="BtnPullImage.Content" xml:space="preserve">
+    <value>取得</value>
+  </data>
+  <data name="BtnRunImage.Content" xml:space="preserve">
+    <value>実行</value>
+  </data>
+  <data name="BtnDeleteImage.Content" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="RunImageDialog.Title" xml:space="preserve">
+    <value>イメージを実行</value>
+  </data>
+  <data name="RunImageDialog.PrimaryButtonText" xml:space="preserve">
+    <value>実行</value>
+  </data>
+  <data name="RunImageDialog.CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="TxtRunContainerName.Header" xml:space="preserve">
+    <value>コンテナー名</value>
+  </data>
+  <data name="TxtRunContainerName.PlaceholderText" xml:space="preserve">
+    <value>任意</value>
+  </data>
+  <data name="TglRunRemoveWhenStopped.Header" xml:space="preserve">
+    <value>停止時に削除</value>
+  </data>
+  <data name="TxtRunPortMappings.Header" xml:space="preserve">
+    <value>ポートマッピング</value>
+  </data>
+  <data name="TxtRunPortMappings.PlaceholderText" xml:space="preserve">
+    <value>8080:80</value>
+  </data>
+  <data name="TxtRunEnvironmentVariables.Header" xml:space="preserve">
+    <value>環境変数</value>
+  </data>
+  <data name="TxtRunEnvironmentVariables.PlaceholderText" xml:space="preserve">
+    <value>FOO=bar</value>
+  </data>
+  <data name="TxtRunCommand.Header" xml:space="preserve">
+    <value>コマンド</value>
+  </data>
+  <data name="TxtImagesEmptyState.Text" xml:space="preserve">
+    <value>イメージはありません。</value>
+  </data>
+  <data name="TxtImageColumnName.Text" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="TxtImageColumnId.Text" xml:space="preserve">
+    <value>ID</value>
+  </data>
+  <data name="TxtImageColumnSize.Text" xml:space="preserve">
+    <value>サイズ</value>
+  </data>
+  <data name="TxtImageColumnCreatedAt.Text" xml:space="preserve">
+    <value>作成日時</value>
+  </data>
+  <data name="SpltImagesNameId.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>名前と ID 列を分割</value>
+  </data>
+  <data name="SpltImagesIdSize.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>ID とサイズ列を分割</value>
+  </data>
+  <data name="SpltImagesSizeCreated.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>サイズと作成日時列を分割</value>
+  </data>
+  <data name="VolumesPageTitle.Text" xml:space="preserve">
+    <value>ボリューム</value>
+  </data>
+  <data name="VolumesPageDescription.Text" xml:space="preserve">
+    <value>コンテナーボリュームの作成・削除を行います。</value>
+  </data>
+  <data name="BtnRefreshVolumes.Content" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="TxtNewVolumeName.Header" xml:space="preserve">
+    <value>ボリューム名</value>
+  </data>
+  <data name="BtnCreateVolume.Content" xml:space="preserve">
+    <value>作成</value>
+  </data>
+  <data name="TxtVolumeColumnName.Text" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="TxtVolumeColumnDriver.Text" xml:space="preserve">
+    <value>ドライバー</value>
+  </data>
+  <data name="TxtVolumeColumnCreatedAt.Text" xml:space="preserve">
+    <value>作成日時</value>
+  </data>
+  <data name="TxtVolumeColumnUsage.Text" xml:space="preserve">
+    <value>使用状況</value>
+  </data>
+  <data name="SpltVolumesNameDriver.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>名前とドライバー列を分割</value>
+  </data>
+  <data name="SpltVolumesDriverCreated.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>ドライバーと作成日時列を分割</value>
+  </data>
+  <data name="SpltVolumesCreatedUsage.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>作成日時と使用状況列を分割</value>
+  </data>
+  <data name="BtnDeleteVolume.Content" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="TxtVolumesEmptyState.Text" xml:space="preserve">
+    <value>ボリュームはありません。</value>
+  </data>
+  <data name="NetworksPageTitle.Text" xml:space="preserve">
+    <value>ネットワーク</value>
+  </data>
+  <data name="NetworksPageDescription.Text" xml:space="preserve">
+    <value>コンテナーネットワークの作成・削除を行います。</value>
+  </data>
+  <data name="BtnRefreshNetworks.Content" xml:space="preserve">
+    <value>更新</value>
+  </data>
+  <data name="TxtNewNetworkName.Header" xml:space="preserve">
+    <value>ネットワーク名</value>
+  </data>
+  <data name="BtnCreateNetwork.Content" xml:space="preserve">
+    <value>作成</value>
+  </data>
+  <data name="InfoBarNoUserNetworks.Title" xml:space="preserve">
+    <value>ユーザー作成のネットワークはありません</value>
+  </data>
+  <data name="InfoBarNoUserNetworks.Message" xml:space="preserve">
+    <value>システムネットワークは表示されますが、削除できません。</value>
+  </data>
+  <data name="TxtNetworkColumnName.Text" xml:space="preserve">
+    <value>名前</value>
+  </data>
+  <data name="TxtNetworkColumnDriver.Text" xml:space="preserve">
+    <value>ドライバー</value>
+  </data>
+  <data name="TxtNetworkColumnCreatedAt.Text" xml:space="preserve">
+    <value>作成日時</value>
+  </data>
+  <data name="TxtNetworkColumnContainers.Text" xml:space="preserve">
+    <value>コンテナー</value>
+  </data>
+  <data name="TxtNetworkColumnType.Text" xml:space="preserve">
+    <value>種類</value>
+  </data>
+  <data name="TxtNetworkColumnUsage.Text" xml:space="preserve">
+    <value>使用状況</value>
+  </data>
+  <data name="SpltNetworksNameDriver.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>名前とドライバー列を分割</value>
+  </data>
+  <data name="SpltNetworksDriverCreated.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>ドライバーと作成日時列を分割</value>
+  </data>
+  <data name="SpltNetworksCreatedContainers.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>作成日時とコンテナー列を分割</value>
+  </data>
+  <data name="SpltNetworksContainersType.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>コンテナーと種類列を分割</value>
+  </data>
+  <data name="SpltNetworksTypeUsage.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>種類と使用状況列を分割</value>
+  </data>
+  <data name="BtnDeleteNetwork.Content" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="TxtNetworksEmptyState.Text" xml:space="preserve">
+    <value>ネットワークはありません。</value>
+  </data>
+  <data name="ContainerState_Running" xml:space="preserve">
+    <value>実行中</value>
+  </data>
+  <data name="ContainerState_Stopped" xml:space="preserve">
+    <value>停止中</value>
+  </data>
+  <data name="ContainerState_Starting" xml:space="preserve">
+    <value>開始中…</value>
+  </data>
+  <data name="ContainerState_Stopping" xml:space="preserve">
+    <value>停止中…</value>
+  </data>
+  <data name="ContainerState_Restarting" xml:space="preserve">
+    <value>再起動中…</value>
+  </data>
+  <data name="ContainerState_Deleting" xml:space="preserve">
+    <value>削除中…</value>
+  </data>
+  <data name="DeleteConfirmationDialog_Title" xml:space="preserve">
+    <value>コンテナーを削除</value>
+  </data>
+  <data name="DeleteConfirmationDialog_Message" xml:space="preserve">
+    <value>'{0}' を削除してもよろしいですか？この操作は元に戻せません。</value>
+  </data>
+  <data name="DeleteConfirmationDialog_PrimaryButtonText" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="DeleteConfirmationDialog_CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="DeleteImageConfirmationDialog_Title" xml:space="preserve">
+    <value>イメージを削除</value>
+  </data>
+  <data name="DeleteImageConfirmationDialog_Message" xml:space="preserve">
+    <value>'{0}' を削除してもよろしいですか？この操作は元に戻せません。</value>
+  </data>
+  <data name="DeleteImageConfirmationDialog_PrimaryButtonText" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="DeleteImageConfirmationDialog_CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="DeleteVolumeConfirmationDialog_Title" xml:space="preserve">
+    <value>ボリュームを削除</value>
+  </data>
+  <data name="DeleteVolumeConfirmationDialog_Message" xml:space="preserve">
+    <value>ボリューム '{0}' を削除してもよろしいですか？この操作は元に戻せません。</value>
+  </data>
+  <data name="DeleteVolumeConfirmationDialog_PrimaryButtonText" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="DeleteVolumeConfirmationDialog_CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="DeleteNetworkConfirmationDialog_Title" xml:space="preserve">
+    <value>ネットワークを削除</value>
+  </data>
+  <data name="DeleteNetworkConfirmationDialog_Message" xml:space="preserve">
+    <value>ネットワーク '{0}' を削除してもよろしいですか？この操作は元に戻せません。</value>
+  </data>
+  <data name="DeleteNetworkConfirmationDialog_PrimaryButtonText" xml:space="preserve">
+    <value>削除</value>
+  </data>
+  <data name="DeleteNetworkConfirmationDialog_CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="SettingsPageTitle.Text" xml:space="preserve">
+    <value>設定</value>
+  </data>
+  <data name="SettingsPageDescription.Text" xml:space="preserve">
+    <value>WSL 統合の状態を確認し、WSL リソース制限を設定します。</value>
+  </data>
+  <data name="SettingsAppName.Text" xml:space="preserve">
+    <value>Hakonexa - WSL コンテナーマネージャー</value>
+  </data>
+  <data name="SettingsAppPurpose.Text" xml:space="preserve">
+    <value>ネイティブ Windows デスクトップアプリから WSL コンテナーを管理します。</value>
+  </data>
+  <data name="TxtAppVersionLabel.Text" xml:space="preserve">
+    <value>アプリのバージョン:</value>
+  </data>
+  <data name="TxtWslIntegrationHeader.Text" xml:space="preserve">
+    <value>WSL 統合の状態</value>
+  </data>
+  <data name="TxtWslVersionLabel.Text" xml:space="preserve">
+    <value>WSL のバージョン:</value>
+  </data>
+  <data name="ChkWslContainersAvailable.Content" xml:space="preserve">
+    <value>WSL Containers CLI (wslc) を検出しました</value>
+  </data>
+  <data name="InfoBarRequirementsWarning.Title" xml:space="preserve">
+    <value>要件を満たしていません</value>
+  </data>
+  <data name="InfoBarRequirementsWarning.Message" xml:space="preserve">
+    <value>リソース制限を変更するには、WSL Containers CLI (wslc) を含む WSL 2.9.3 以降が必要です。</value>
+  </data>
+  <data name="TxtResourceLimitsHeader.Text" xml:space="preserve">
+    <value>リソース制限</value>
+  </data>
+  <data name="TxtResourceLimitsHint.Text" xml:space="preserve">
+    <value>空欄にすると WSL の既定値を使用します。'wsl --shutdown' を実行して WSL を再起動すると変更が反映されます。</value>
+  </data>
+  <data name="TxtMemoryMegabytes.Header" xml:space="preserve">
+    <value>メモリ (MB)</value>
+  </data>
+  <data name="TxtMemoryMegabytes.PlaceholderText" xml:space="preserve">
+    <value>WSL の既定値</value>
+  </data>
+  <data name="TxtProcessorCount.Header" xml:space="preserve">
+    <value>プロセッサ数</value>
+  </data>
+  <data name="TxtProcessorCount.PlaceholderText" xml:space="preserve">
+    <value>WSL の既定値</value>
+  </data>
+  <data name="BtnSaveResourceLimits.Content" xml:space="preserve">
+    <value>保存</value>
+  </data>
+  <data name="BtnResetResourceLimits.Content" xml:space="preserve">
+    <value>既定値に戻す</value>
+  </data>
+  <data name="ResetResourceLimitsConfirmationDialog_Title" xml:space="preserve">
+    <value>リソース制限をリセット</value>
+  </data>
+  <data name="ResetResourceLimitsConfirmationDialog_Message" xml:space="preserve">
+    <value>メモリとプロセッサの制限を WSL の既定値に戻しますか？変更を適用するには WSL を再起動（'wsl --shutdown' を実行）してください。</value>
+  </data>
+  <data name="ResetResourceLimitsConfirmationDialog_PrimaryButtonText" xml:space="preserve">
+    <value>リセット</value>
+  </data>
+  <data name="ResetResourceLimitsConfirmationDialog_CloseButtonText" xml:space="preserve">
+    <value>キャンセル</value>
+  </data>
+  <data name="AppDisplayName" xml:space="preserve">
+    <value>Hakonexa - WSL コンテナーマネージャー</value>
+  </data>
+  <data name="AppDescription" xml:space="preserve">
+    <value>Hakonexa - WSL コンテナーマネージャー</value>
+  </data>
+</root>

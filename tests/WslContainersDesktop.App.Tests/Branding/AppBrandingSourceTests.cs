@@ -33,6 +33,21 @@ public sealed class AppBrandingSourceTests
     }
 
     [TestMethod]
+    public void AppLocalization_JapaneseResources_ContainLocalizedDisplayName()
+    {
+        // Arrange
+        var resourceDocument = XDocument.Parse(ReadRepositorySourceFile(@"src\WslContainersDesktop.App\Strings\ja-JP\Resources.resw"));
+
+        // Act
+        var mainWindowTitle = GetResourceValue(resourceDocument, "MainWindow.Title");
+        var dashboardTitle = GetResourceValue(resourceDocument, "DashboardPageTitle.Text");
+
+        // Assert
+        Assert.AreEqual("Hakonexa - WSL コンテナーマネージャー", mainWindowTitle);
+        Assert.AreEqual("ダッシュボード", dashboardTitle);
+    }
+
+    [TestMethod]
     public void AppBranding_SettingsPage_UsesLocalizedAppNameAndPurposeResources()
     {
         // Arrange
