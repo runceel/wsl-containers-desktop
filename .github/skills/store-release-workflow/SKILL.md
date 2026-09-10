@@ -9,6 +9,8 @@ description: "本リポジトリの新バージョンをMicrosoft Store向けに
 MSIX生成方法そのものは既存の`winui-packaging` skillと
 [`scripts/Build-StoreMsixUpload.ps1`](../../../scripts/Build-StoreMsixUpload.ps1)を再利用し、
 ここではバージョン、テスト、PR、公開確認、Release、成果物の公開範囲を統括する。
+判断を伴う進行・Release notes作成はTerraを推奨する。モデル選択と利用不能時の対応は
+[`AGENTS.md`](../../../AGENTS.md)に従い、公開の承認はモデルやagentへ委譲しない。
 
 ## スコープ
 
@@ -103,8 +105,9 @@ MSIX生成方法そのものは既存の`winui-packaging` skillと
 
 ### 4. manifestのバージョン更新
 
-1. `quick-fix` agentへ、`Package.appxmanifest`の`Identity.Version`だけを
-   `Version="<old>"`から`Version="<new>"`へ厳密に置換し、BOMと他の文字列を保持するよう依頼する。
+1. 親が直接、`Package.appxmanifest`の`Identity.Version`だけを
+   `Version="<old>"`から`Version="<new>"`へ厳密に置換し、BOMと他の文字列を保持する。
+   この1行変更だけのために`quick-fix`へ委譲しない。
 2. `git diff --check`を実行する。
 3. `git diff --name-only`と完全なdiffを確認する。
 
@@ -155,7 +158,9 @@ package生成後、リポジトリ差分がmanifest 1行のままであること
 
 1. manifestだけをstageする。
 2. commit messageにversionを含め、実行環境が指定するcommit trailerを付ける。
-3. branchをpushし、`gh pr create`で`main`向けPRを作成する。
+3. branchをpushし、実行環境の`create_pull_request` toolで`main`向けPRを作成する。
+   toolがない環境では環境の指示が許す場合に限り`gh pr create`を使う。
+   toolがある環境でのCLI代替は、その失敗結果が明示的に許可した場合だけにする。
 4. PR本文には変更したversionとpackage検証結果を書く。`.msixupload`のローカル絶対パスは書かない。
 5. `gh pr view`でchanged filesがmanifest 1ファイル、1行置換だけであることを確認する。
 6. PR checksとmergeabilityを確認する。

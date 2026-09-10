@@ -44,12 +44,12 @@ Microsoft Learn MCP（`microsoft-docs` plugin。未導入なら下記「既存�
 
 1. **機能設計** — 何を作るか、スコープ、ユーザー価値を明確にする
 2. **詳細設計** → `rubber-duck` agentでレビュー
-3. **テスト作成**（MSTestで先に仕様をテストとして書く）→ `rubber-duck` agentでレビュー
+3. **テスト設計**（入力・出力・アサーション・エッジケースを確定。実行可能なテストはRedで書く）→ `rubber-duck` agentでレビュー
 4. **実装（厳密なTDD）** — Red → Green → Refactor を1振る舞いずつ反復
    ([`tdd-red`](.github/agents/tdd-red.agent.md) →
    [`tdd-green`](.github/agents/tdd-green.agent.md) →
    [`tdd-refactor`](.github/agents/tdd-refactor.agent.md))
-5. **テスト** — 単体テストに加え、UIに関わる変更は既存の `winui-ui-testing` skillでE2E
+5. **テスト** — 全テストスイートを実行し、UIに関わる変更は既存の `winui-ui-testing` skillでE2E
 6. **振り返り** → `rubber-duck` agentでレビュー。必要なら ADR / design doc を更新
 
 単純な機械的修正（タイポ、フォーマット、挙動を変えないリネーム等）はこのフローの対象外です。
@@ -63,8 +63,9 @@ Refactor後もGreenを維持していること、振り返りフェーズはADR/
 
 ## TDD（厳密なRed-Green-Refactor）
 
-[ADR-0002](docs/adr/0002-adopt-strict-tdd-workflow.md) により、プロダクションコードの変更は
-必ず「失敗するテストを先に書く」ことから始めます。詳細ルールは
+[ADR-0019](docs/adr/0019-adopt-gpt-role-routing-and-workflow-contracts.md) により、振る舞いの実装は
+必ず「失敗するテストを先に書く」ことから始めます。Redではテスト記述後に、コンパイルに必要な
+レビュー済みの最小シグネチャ・固定値スタブだけを例外として許可します。詳細ルールは
 [`.github/instructions/tests.instructions.md`](.github/instructions/tests.instructions.md)。
 
 - テストフレームワークは **MSTest**（[ADR-0003](docs/adr/0003-select-mstest-as-unit-test-framework.md)）。
@@ -99,25 +100,54 @@ Refactor後もGreenを維持していること、振り返りフェーズはADR/
 - Public Preview中の機能を扱うため、各ドキュメントに「最終確認日」を明記し、
   実装前には一次情報源や Microsoft Learn MCP で最新化を確認すること。
 
-## モデルルーティング（コスト最適化）
+## モデルルーティング（GPT主体）
 
-[ADR-0004](docs/adr/0004-adopt-model-routing-for-simple-changes.md) /
-[ADR-0008](docs/adr/0008-expand-model-routing-to-mechanical-workflow-steps.md) /
-[ADR-0016](docs/adr/0016-set-sonnet-5-baseline-and-route-green-to-flash.md) に基づき、
-作業の性質でモデルを使い分けます。
+現在の方針は [ADR-0019](docs/adr/0019-adopt-gpt-role-routing-and-workflow-contracts.md) を参照。
+モデル名の新しさだけで選ばず、通常作業・軽量作業・独立レビューを分けます。
 
-| 作業の性質 | 使うagent/モデル |
-|---|---|
-| タイポ修正、フォーマット、挙動を変えないリネーム、ADR/design一覧表への追記、ラバーダック指摘の軽微反映等の機械的な小修正 | [`quick-fix` agent](.github/agents/quick-fix.agent.md)（`mai-code-1-flash-picker` 固定） |
-| TDD Redフェーズ（テスト作成フェーズで入出力・アサーション値・エッジケースまで確定済みの場合） | [`tdd-red` agent](.github/agents/tdd-red.agent.md)（`mai-code-1-flash-picker` 既定。仕様未確定・新規設計判断発生時はベースラインへエスカレーション） |
-| TDD Greenフェーズ（確定済み仕様のテストを通す最小実装） | [`tdd-green` agent](.github/agents/tdd-green.agent.md)（`mai-code-1-flash-picker` 既定。新しい非自明な層配置・設計判断が必要な場合はベースラインへエスカレーション） |
-| 機能設計・詳細設計・テスト作成・ラバーダック・TDD Refactor・ADR本文作成など判断を伴う作業 | ベースラインモデル（`claude-sonnet-5` medium）。より高い品質が必要な場合は人間がセッションをopus等に切り替える |
-| どちらか迷う場合 | **必ずベースライン側を選ぶ**（コスト削減より品質・仕様漏れ防止を優先） |
+| 作業の性質 | agent / 既定モデル | 推論強度 |
+|---|---|---|
+| 機械的な変更の独立バッチ | [`quick-fix`](.github/agents/quick-fix.agent.md) / `gpt-5.6-luna` | medium |
+| レビュー済みの具体的なテスト設計をコード化するRed | [`tdd-red`](.github/agents/tdd-red.agent.md) / `gpt-5.6-luna` | medium |
+| 通常のGreen | [`tdd-green`](.github/agents/tdd-green.agent.md) / `gpt-5.6-terra` | medium |
+| Refactor / ADR本文 | [`tdd-refactor`](.github/agents/tdd-refactor.agent.md)、[`adr-writer`](.github/agents/adr-writer.agent.md) / `gpt-5.6-terra` | medium |
+| 機能設計・詳細設計・テスト設計・全体進行 | セッションの推奨モデル `gpt-5.6-terra` | medium |
+| 詳細設計・テスト設計・振り返りの独立レビュー | [`rubber-duck`](.github/agents/rubber-duck.agent.md) / `gpt-5.6-sol` | high |
+| 難所の実装・判断 | 同じ担当agentを `gpt-5.6-sol` で再実行 | high |
+| Solでも解決しない難所・長時間の自律調査 | ユーザー確認後に `gpt-6-astra` | high |
 
-「ベースラインモデル」は判断を伴う作業の既定であり、判断系エージェント（`tdd-refactor` / `adr-writer` 等）には
-モデルをピン留めしない（セッションのドライバモデルを継承する）。Flashに固定するのは
-`tdd-red` / `quick-fix` / `tdd-green`（条件付き）の3つのみ。「肝」（詳細設計・テスト作成・振り返り）は、
-ベースラインの生産＋`rubber-duck`レビューのペアで品質を担保する（[ADR-0016](docs/adr/0016-set-sonnet-5-baseline-and-route-green-to-flash.md)）。
+### 選択とエスカレーション
+
+- custom agentには既定の`model`を明示します。優先順位は **ユーザーの明示指定 → 必須の
+  エスカレーション → 条件を満たす単純GreenのLuna指定 → agentの既定** です。
+  ユーザーの制約がエスカレーションを妨げる場合は確認し、無断で変更しません。
+- `task`が対応する場合は`model`と`reasoning_effort`を明示します。推論強度をagentの未対応
+  frontmatterで設定したつもりにせず、呼び出し引数で指定します。`context_tier`は通常`default`です。
+- 文書やagentのモデル指定は**実行中の親セッションを変更しません**。親の推奨はTerraですが、
+  現在のモデルが異なる場合はそのまま明示し、自動で切り替わったとは報告しません。
+- GreenをLunaへ下げられるのは、親がレビュー済みの契約・アサーション・実装先を確認し、
+  既存パターンの機械的な実装で、新しい設計、外部連携の調整、並行処理、状態遷移を含まない場合だけです。
+  その判断を依頼に明記して`model: "gpt-5.6-luna"`を指定します。迷う場合はTerraを維持します。
+- 仕様不足・未決定の層配置は設計へ差し戻します。同じ失敗への修正が2回失敗したら反復を止め、
+  証拠と未解決点を親へ返し、Luna→Terra→Solの順に担当モデルを上げます。
+  実装は同じフェーズ専用agentで行い、読み取り専用レビュアーへ実装を依頼しません。
+- 指定モデルが利用不能なら停止し、利用可能なGPT代替をユーザーに確認します。
+  非GPTへの自動fallback、無断の下位モデル利用、失敗の成功扱いは禁止です。
+- 2回以内の直接tool callで済む機械的変更は親が直接行い、委譲を強制しません。
+  より大きい独立バッチのみ`quick-fix`を使います。TDDのフェーズ分離にはこの例外を適用しません。
+
+### 独立レビュー
+
+`rubber-duck`は読み取り・検索・Web参照だけを許可したSolのレビュアーです。
+呼び出し前に利用可能なagent一覧の正確な識別子を確認します。追加直後など未登録の場合に限り、
+利用可能な`general-purpose`をSolで呼び、編集・shell実行・委譲を禁止する指示を明記します
+（指示による制限であり、専用agentと同等のツール制限ではありません）。
+代替も利用不能ならレビュー未完了として停止します。存在しない`agent_type`を呼ばず、
+自己レビューで代替したり、再帰的にレビュアーを起動したりしません。
+依頼には対象・仕様・制約・未決定事項を渡し、指摘の重大度、根拠、修正条件を返してもらいます。
+
+モデルの役割分担は運用上の選択であり、本リポジトリで品質・費用が最適と実証済みという意味ではありません。
+見直し時は代表的な作業の完了品質、手戻り回数、所要時間、実際の消費量で比較します。
 
 ## 既存の再利用可能なskill/agent（重複させないこと）
 
@@ -167,6 +197,7 @@ Copilot CLIでの開発に必要なplugin導入手順は人間の開発環境セ
 | Agent | `.github/agents/tdd-refactor.agent.md` | TDD: Refactorフェーズ専用 |
 | Agent | `.github/agents/adr-writer.agent.md` | ADR作成/更新支援 |
 | Agent | `.github/agents/quick-fix.agent.md` | 機械的小修正専用（低コストモデル） |
+| Agent | `.github/agents/rubber-duck.agent.md` | Solによる読み取り専用の独立レビュー |
 | Skill | `.github/skills/feature-workflow/SKILL.md` | 6フェーズ開発フローのオーケストレーション |
 | Skill | `.github/skills/adr-workflow/SKILL.md` | ADR作成・更新の実務手順 |
 | Skill | `.github/skills/design-doc-maintenance/SKILL.md` | 設計ドキュメントのスナップショット更新手順 |

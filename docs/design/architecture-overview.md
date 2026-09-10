@@ -187,7 +187,7 @@ flowchart TB
 
 ## テスト戦略との対応
 
-- Domain / Application 層: MSTestによる高速な単体テスト（[ADR-0003](../adr/0003-select-mstest-as-unit-test-framework.md)）が主戦場。TDD（[ADR-0002](../adr/0002-adopt-strict-tdd-workflow.md)）はこの2層を中心に回す。
+- Domain / Application 層: MSTestによる高速な単体テスト（[ADR-0003](../adr/0003-select-mstest-as-unit-test-framework.md)）が主戦場。TDD（[ADR-0019](../adr/0019-adopt-gpt-role-routing-and-workflow-contracts.md)）はこの2層を中心に回す。
 - Infrastructure層: 実際のWSL/コンテナランタイムとの結合部分。フェイク/モックを介した単体テストに加え、必要に応じ結合テストを検討する。
 - Presentation層: ナビゲーション制御ロジック（ViewModel等）はMSTestの単体テストで検証し、
   実際の画面切り替え・起動/終了の挙動は`winui-ui-testing` skill（既存のwinui pluginが提供）による
