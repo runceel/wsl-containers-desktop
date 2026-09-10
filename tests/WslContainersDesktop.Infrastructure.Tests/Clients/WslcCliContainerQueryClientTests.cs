@@ -68,7 +68,7 @@ public sealed class WslcCliContainerQueryClientTests
     }
 
     [TestMethod]
-    public async Task ListContainersAsync_CliArguments_AreListAllFormatJson()
+    public async Task ListContainersAsync_CliArguments_AreListAllFormatJsonNoTrunc()
     {
         // Arrange
         var runner = new FakeWslcCliRunner { Result = new(0, "[]", string.Empty) };
@@ -78,7 +78,128 @@ public sealed class WslcCliContainerQueryClientTests
         await sut.ListContainersAsync();
 
         // Assert
-        CollectionAssert.AreEqual(new[] { "list", "-a", "--format", "json" }, runner.Calls[0].ToList());
+        CollectionAssert.AreEqual(new[] { "list", "-a", "--format", "json", "--no-trunc" }, runner.Calls[0].ToList());
+    }
+
+    [TestMethod]
+    public async Task ListContainersAsync_CliReturnsJsonLines_MapsCurrentRecordsToContainers()
+    {
+        // Arrange
+        const string jsonLines = """
+            {"ID":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","Names":"web","Image":"nginx:latest","State":"running","CreatedAt":"2026-09-10 12:34:56.1234567 +0900 JST"}
+
+            {"ID":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","Names":"db","Image":"postgres:latest","State":"exited","CreatedAt":"2026-09-10 12:34:56.1234567 -0700 PDT"}
+            """;
+        var runner = new FakeWslcCliRunner { Result = new(0, jsonLines, string.Empty) };
+        var sut = new WslcCliContainerQueryClient(runner);
+
+        // Act
+        var containers = await sut.ListContainersAsync();
+
+        // Assert
+        Assert.HasCount(2, containers);
+        Assert.AreEqual("sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", containers[0].Id);
+        Assert.AreEqual("web", containers[0].Name);
+        Assert.AreEqual("nginx:latest", containers[0].Image);
+        Assert.AreEqual(ContainerState.Running, containers[0].State);
+        Assert.AreEqual(
+            new DateTimeOffset(2026, 9, 10, 3, 34, 56, TimeSpan.Zero).AddTicks(1_234_567),
+            containers[0].CreatedAt);
+        Assert.AreEqual("sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", containers[1].Id);
+        Assert.AreEqual("db", containers[1].Name);
+        Assert.AreEqual("postgres:latest", containers[1].Image);
+        Assert.AreEqual(ContainerState.Stopped, containers[1].State);
+        Assert.AreEqual(
+            new DateTimeOffset(2026, 9, 10, 19, 34, 56, TimeSpan.Zero).AddTicks(1_234_567),
+            containers[1].CreatedAt);
+    }
+
+    [TestMethod]
+    public async Task ListContainersAsync_CliReturnsJsonLineWithCreatedAtWithoutFractionalSeconds_MapsCreatedAtToUtc()
+    {
+        // Arrange
+        const string json = """
+            {"ID":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","Names":"web","Image":"nginx:latest","State":"running","CreatedAt":"2026-09-10 12:34:56 +0900 JST"}
+            """;
+        var runner = new FakeWslcCliRunner { Result = new(0, json, string.Empty) };
+        var sut = new WslcCliContainerQueryClient(runner);
+
+        // Act
+        var containers = await sut.ListContainersAsync();
+
+        // Assert
+        Assert.AreEqual(new DateTimeOffset(2026, 9, 10, 3, 34, 56, TimeSpan.Zero), containers[0].CreatedAt);
+    }
+
+    [TestMethod]
+    public async Task ListContainersAsync_CliReturnsOutOfRangeNumericCreatedAt_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        const string json = """
+            {"ID":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","Names":"web","Image":"nginx:latest","State":"running","CreatedAt":9223372036854775807}
+            """;
+        var runner = new FakeWslcCliRunner { Result = new(0, json, string.Empty) };
+        var sut = new WslcCliContainerQueryClient(runner);
+
+        // Act
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListContainersAsync());
+
+        // Assert
+        Assert.AreEqual(typeof(System.Text.Json.JsonException), ex.InnerException?.GetType());
+    }
+
+    [TestMethod]
+    [DataRow("")]
+    [DataRow(" \r\n \r\n")]
+    public async Task ListContainersAsync_CliReturnsEmptyOrWhitespaceOutput_ReturnsEmptyList(string output)
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, output, string.Empty) };
+        var sut = new WslcCliContainerQueryClient(runner);
+
+        // Act
+        var containers = await sut.ListContainersAsync();
+
+        // Assert
+        Assert.IsEmpty(containers);
+    }
+
+    [TestMethod]
+    public async Task ListContainersAsync_CliReturnsMalformedMiddleJsonLine_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        const string jsonLines = """
+            {"ID":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","Names":"web","Image":"nginx:latest","State":"running","CreatedAt":"2026-09-10 12:34:56.1234567 +0900 JST"}
+            {not-json}
+            {"ID":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","Names":"db","Image":"postgres:latest","State":"exited","CreatedAt":"2026-09-10 12:34:56.1234567 -0700 PDT"}
+            """;
+        var runner = new FakeWslcCliRunner { Result = new(0, jsonLines, string.Empty) };
+        var sut = new WslcCliContainerQueryClient(runner);
+
+        // Act
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListContainersAsync());
+
+        // Assert
+        Assert.IsNotNull(ex.InnerException);
+        Assert.AreEqual(typeof(System.Text.Json.JsonException), ex.InnerException.GetType());
+    }
+
+    [TestMethod]
+    public async Task ListContainersAsync_CliReturnsJsonLineWithInvalidCreatedAtKind_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        const string json = """
+            {"ID":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","Names":"web","Image":"nginx:latest","State":"running","CreatedAt":{}}
+            """;
+        var runner = new FakeWslcCliRunner { Result = new(0, json, string.Empty) };
+        var sut = new WslcCliContainerQueryClient(runner);
+
+        // Act
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListContainersAsync());
+
+        // Assert
+        Assert.IsNotNull(ex.InnerException);
+        Assert.AreEqual(typeof(System.Text.Json.JsonException), ex.InnerException.GetType());
     }
 
     [TestMethod]
@@ -104,6 +225,20 @@ public sealed class WslcCliContainerQueryClientTests
         // Act & Assert
         var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListContainersAsync());
         Assert.IsNotNull(ex.InnerException);
+    }
+
+    [TestMethod]
+    public async Task ListContainersAsync_CliReturnsNullElementJson_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, "[null]", string.Empty) };
+        var sut = new WslcCliContainerQueryClient(runner);
+
+        // Act
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListContainersAsync());
+
+        // Assert
+        Assert.AreEqual(typeof(System.Text.Json.JsonException), ex.InnerException?.GetType());
     }
 
     [TestMethod]
@@ -175,6 +310,34 @@ public sealed class WslcCliContainerQueryClientTests
     }
 
     [TestMethod]
+    public async Task GetContainerDetailAsync_CliReturnsInspectNameWithLeadingSlash_MapsNameWithoutLeadingSlashAndPreservesImage()
+    {
+        // Arrange
+        const string json = """
+            [{
+              "Id": "sha256:abc",
+              "Name": "/web",
+              "Created": "2026-07-04T00:00:00Z",
+              "Image": "registry.example.com/library/web@sha256:abcdef",
+              "State": {},
+              "Config": {},
+              "Ports": {},
+              "Mounts": [],
+              "NetworkSettings": {}
+            }]
+            """;
+        var runner = new FakeWslcCliRunner { Result = new(0, json, string.Empty) };
+        var sut = new WslcCliContainerQueryClient(runner);
+
+        // Act
+        var detail = await sut.GetContainerDetailAsync("c1");
+
+        // Assert
+        Assert.AreEqual("web", detail.Name);
+        Assert.AreEqual("registry.example.com/library/web@sha256:abcdef", detail.Image);
+    }
+
+    [TestMethod]
     public async Task GetContainerDetailAsync_CliArguments_AreContainerInspectWithId()
     {
         // Arrange
@@ -198,5 +361,19 @@ public sealed class WslcCliContainerQueryClientTests
         // Act & Assert
         var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.GetContainerDetailAsync("c1"));
         Assert.IsNotNull(ex.InnerException);
+    }
+
+    [TestMethod]
+    public async Task GetContainerDetailAsync_CliReturnsEmptyOutput_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, string.Empty, string.Empty) };
+        var sut = new WslcCliContainerQueryClient(runner);
+
+        // Act
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.GetContainerDetailAsync("c1"));
+
+        // Assert
+        Assert.AreEqual(typeof(System.Text.Json.JsonException), ex.InnerException?.GetType());
     }
 }

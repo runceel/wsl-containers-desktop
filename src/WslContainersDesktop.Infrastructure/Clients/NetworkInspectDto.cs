@@ -16,6 +16,9 @@ internal sealed class NetworkInspectDto
     [JsonPropertyName("CreatedAt")]
     public string CreatedAt { get; set; } = string.Empty;
 
+    [JsonPropertyName("Created")]
+    public string Created { get; set; } = string.Empty;
+
     [JsonPropertyName("IsSystem")]
     public bool IsSystem { get; set; }
 }

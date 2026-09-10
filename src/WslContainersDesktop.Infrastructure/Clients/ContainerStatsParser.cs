@@ -42,26 +42,10 @@ internal static class ContainerStatsParser
         {
             if (stdout.StartsWith('['))
             {
-                return JsonSerializer.Deserialize<List<ContainerStatsDto>>(stdout) ?? [];
+                return ParseJsonArray(stdout);
             }
 
-            var list = new List<ContainerStatsDto>();
-            foreach (var line in stdout.Split('\n'))
-            {
-                var trimmed = line.Trim();
-                if (trimmed.Length == 0)
-                {
-                    continue;
-                }
-
-                var dto = JsonSerializer.Deserialize<ContainerStatsDto>(trimmed);
-                if (dto is not null)
-                {
-                    list.Add(dto);
-                }
-            }
-
-            return list;
+            return ParseJsonLines(stdout);
         }
         catch (JsonException ex)
         {
@@ -72,6 +56,40 @@ internal static class ContainerStatsParser
                 innerException: ex);
         }
     }
+
+    private static List<ContainerStatsDto> ParseJsonArray(string json)
+    {
+        var dtos = DeserializeRequired<List<ContainerStatsDto>>(
+            json,
+            "コンテナ統計のJSON配列は null にできません。");
+        if (dtos.Any(static dto => dto is null))
+        {
+            throw new JsonException("コンテナ統計のJSON配列に null 要素は含められません。");
+        }
+
+        return dtos;
+    }
+
+    private static List<ContainerStatsDto> ParseJsonLines(string json)
+    {
+        var dtos = new List<ContainerStatsDto>();
+        foreach (var line in json.Split('\n'))
+        {
+            var trimmed = line.Trim();
+            if (trimmed.Length != 0)
+            {
+                dtos.Add(DeserializeRequired<ContainerStatsDto>(
+                    trimmed,
+                    "コンテナ統計のJSONLレコードは null にできません。"));
+            }
+        }
+
+        return dtos;
+    }
+
+    private static T DeserializeRequired<T>(string json, string nullMessage)
+        where T : class
+        => JsonSerializer.Deserialize<T>(json) ?? throw new JsonException(nullMessage);
 
     public static double ParseCpuPercentage(string raw)
     {

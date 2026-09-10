@@ -150,6 +150,55 @@ public sealed class WslcCliContainerStatsClientTests
     }
 
     [TestMethod]
+    public async Task GetContainerStatsAsync_NullJsonOutput_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, "null", string.Empty) };
+        var sut = new WslcCliContainerStatsClient(runner);
+
+        // Act
+        var exception = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(
+            () => sut.GetContainerStatsAsync());
+
+        // Assert
+        Assert.IsInstanceOfType<JsonException>(exception.InnerException);
+    }
+
+    [TestMethod]
+    public async Task GetContainerStatsAsync_NullJsonArrayElement_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, "[null]", string.Empty) };
+        var sut = new WslcCliContainerStatsClient(runner);
+
+        // Act
+        var exception = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(
+            () => sut.GetContainerStatsAsync());
+
+        // Assert
+        Assert.IsInstanceOfType<JsonException>(exception.InnerException);
+    }
+
+    [TestMethod]
+    public async Task GetContainerStatsAsync_NdjsonNullRecordAfterValidRecord_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        var ndjson = string.Join(
+            "\n",
+            JsonSerializer.Serialize(new { ID = "sha256:aaa", Name = "web", CPUPerc = "12.34%", MemUsage = "512MiB / 2GiB" }),
+            "null");
+        var runner = new FakeWslcCliRunner { Result = new(0, ndjson, string.Empty) };
+        var sut = new WslcCliContainerStatsClient(runner);
+
+        // Act
+        var exception = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(
+            () => sut.GetContainerStatsAsync());
+
+        // Assert
+        Assert.IsInstanceOfType<JsonException>(exception.InnerException);
+    }
+
+    [TestMethod]
     public async Task GetContainerStatsAsync_NonZeroExitCode_ThrowsContainerRuntimeException()
     {
         var runner = new FakeWslcCliRunner { Result = new(1, string.Empty, "boom") };
