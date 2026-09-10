@@ -20,15 +20,15 @@ ADRの運用ルールの全体像は [`docs/adr/README.md`](../../../docs/adr/RE
 
 ## 手順
 
-1. `.github/agents/adr-writer.agent.md` を使うか、以下を手動で行う。
+1. `.github/agents/adr-writer.agent.md`（Terra）を使うか、以下を手動で行う。
+   モデル・推論強度は[`AGENTS.md`](../../../AGENTS.md)のモデルルーティングに従う。
 2. `docs/adr/` の既存ファイル名から次の連番を決める（歯抜けにしない）。
 3. [`docs/adr/template.md`](../../../docs/adr/template.md) をコピーして新規ファイルを作成。
 4. `Context` / `Decision` / `Consequences` を埋める（[`docs/adr/README.md`](../../../docs/adr/README.md) の
    不変性ルールを厳守: 一度書いたら本文は書き換えない）。
 5. [`docs/adr/README.md`](../../../docs/adr/README.md) の一覧表に1行追加する
-   （内容判断が完了した後の目次反映のみであれば、
-   [ADR-0008](../../../docs/adr/0008-expand-model-routing-to-mechanical-workflow-steps.md)により
-   `quick-fix` agentに委譲してよい）。
+   （目次だけの小修正は直接行う。確定済みの機械的変更が大きい独立バッチになる場合だけ
+   `quick-fix`へ委譲する。本文の判断は委譲対象外）。
 6. 関連する `docs/design/` のドキュメントがあれば、そこから今回のADRへリンクを追加する。
 
 ## 既存の決定を覆す場合
@@ -39,6 +39,12 @@ ADRの運用ルールの全体像は [`docs/adr/README.md`](../../../docs/adr/RE
 
 ## rubber-duckとの関係
 
-決定内容自体に自信がない場合は、ADRを書く前に `task` ツールで `agent_type: "rubber-duck"` を使い、
-決定の妥当性をレビューしてから起票する（[`feature-workflow`](../feature-workflow/SKILL.md) の
-詳細設計フェーズと同じ扱い）。
+決定内容自体に自信がない場合は、ADRを書く前にSolの`rubber-duck`で妥当性をレビューする。
+登録確認・未登録時の読み取り専用代替は`AGENTS.md`の「独立レビュー」に従う。
+重要な開発フロー内の判断は[`feature-workflow`](../feature-workflow/SKILL.md)のレビュー条件に従う。
+モデルやレビュアーが利用不能なら未完了として停止する。
+
+## 完了と振り返り
+
+採用判断、置換関係、索引と現在の運用ルールの整合を確認する。既存ADRの本文は置換時も不変。
+繰り返し起こる運用のずれだけをskill改善の対象とし、個別ADRの判断を共通手順へ混ぜない。

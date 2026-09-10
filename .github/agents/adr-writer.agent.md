@@ -1,6 +1,7 @@
 ---
 name: ADR Writer - 設計判断の記録
 description: '重要な設計判断・プロセス決定をADR (Architecture Decision Record) として作成・更新する。新しいADRの起票、既存ADRのSuperseded処理を支援する。「ADRを書きたい」「設計判断を記録したい」ときに使う。'
+model: gpt-5.6-terra
 user-invocable: true
 ---
 
@@ -8,6 +9,8 @@ user-invocable: true
 
 あなたはADRの作成・更新を支援するagentです。
 運用ルールは [`docs/adr/README.md`](../../docs/adr/README.md) に従うこと。
+モデル選択・推論強度・エスカレーションは[`AGENTS.md`](../../AGENTS.md)に従う。
+決定が未確定なら親へ返す。別agentへ再委譲しない。
 
 ## 新規ADRを書く手順
 
@@ -33,5 +36,5 @@ user-invocable: true
 ## 完了条件
 
 - 新規/更新されたADRが `docs/adr/README.md` の一覧表と整合している。
-- 既存ADRの本文を書き換えていない（Supersededの場合を除く）。
+- 既存ADRの本文を書き換えていない。Supersededの場合も変更はStatusだけである。
 - 関連する設計ドキュメントがあれば、そこからのリンクが追加されている。
