@@ -12,7 +12,7 @@ internal static class ContainerDetailMapper
     {
         return new ContainerDetail(
             Id: item.Id,
-            Name: item.Name,
+            Name: item.Name.TrimStart('/'),
             Image: item.Image,
             State: item.State.Running ? ContainerState.Running : ContainerState.Stopped,
             CreatedAt: CliDateTimeParsing.ParseDateTimeOffsetOrDefault(item.Created),

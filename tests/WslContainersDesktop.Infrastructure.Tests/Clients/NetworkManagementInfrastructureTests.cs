@@ -9,6 +9,136 @@ namespace WslContainersDesktop.Infrastructure.Tests.Clients;
 public sealed class NetworkManagementInfrastructureTests
 {
     [TestMethod]
+    public async Task ListNetworksAsync_CliReturnsJsonLinesWithDockerCompatibleFieldsAndCreated_MapsNetworksAndKeepsUserNetworksNonSystem()
+    {
+        // Arrange
+        const string listJson = "{\"Driver\":\"bridge\",\"Id\":\"abc\",\"Name\":\"app-net\",\"Scope\":\"local\",\"Labels\":{}}\r\n\r\n{\"Driver\":\"overlay\",\"Id\":\"def\",\"Name\":\"jobs-net\",\"Scope\":\"swarm\",\"Labels\":{}}\r\n";
+        var runner = new FakeWslcCliRunner();
+        runner.RunAsyncFunc = (arguments, cancellationToken) =>
+        {
+            if (arguments.SequenceEqual(new[] { "network", "list", "--format", "json" }))
+            {
+                return Task.FromResult(new CliResult(0, listJson, string.Empty));
+            }
+
+            if (arguments.SequenceEqual(new[] { "network", "inspect", "app-net" }))
+            {
+                return Task.FromResult(new CliResult(0, "[{\"Created\":\"2026-07-02T09:00:00Z\",\"Driver\":\"bridge\",\"Name\":\"app-net\"}]", string.Empty));
+            }
+
+            if (arguments.SequenceEqual(new[] { "network", "inspect", "jobs-net" }))
+            {
+                return Task.FromResult(new CliResult(0, "[{\"Created\":\"2026-07-03T09:00:00Z\",\"Driver\":\"overlay\",\"Name\":\"jobs-net\"}]", string.Empty));
+            }
+
+            return Task.FromResult(new CliResult(0, string.Empty, string.Empty));
+        };
+        var sut = new WslcCliNetworkRuntimeClient(runner);
+
+        // Act
+        var networks = await sut.ListNetworksAsync();
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "app-net", "jobs-net" }, networks.Select(network => network.Name).ToList());
+        CollectionAssert.AreEqual(new[] { "bridge", "overlay" }, networks.Select(network => network.Driver).ToList());
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                DateTimeOffset.Parse("2026-07-02T09:00:00Z"),
+                DateTimeOffset.Parse("2026-07-03T09:00:00Z"),
+            },
+            networks.Select(network => network.CreatedAt).ToList());
+        Assert.IsTrue(networks.All(network => !network.IsSystem));
+    }
+
+    [TestMethod]
+    [DataRow("")]
+    [DataRow(" \r\n\t ")]
+    public async Task ListNetworksAsync_CliReturnsEmptyOrWhitespaceOnlyListOutput_ReturnsEmptyWithoutInspecting(string output)
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, output, string.Empty) };
+        var sut = new WslcCliNetworkRuntimeClient(runner);
+
+        // Act
+        var networks = await sut.ListNetworksAsync();
+
+        // Assert
+        Assert.IsEmpty(networks);
+        Assert.HasCount(1, runner.Calls);
+        CollectionAssert.AreEqual(new[] { "network", "list", "--format", "json" }, runner.Calls[0].ToList());
+    }
+
+    [TestMethod]
+    public async Task ListNetworksAsync_InspectReturnsEmptyOutput_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner();
+        runner.RunAsyncFunc = (arguments, cancellationToken) =>
+        {
+            if (arguments.SequenceEqual(new[] { "network", "list", "--format", "json" }))
+            {
+                return Task.FromResult(new CliResult(0, "[{\"Driver\":\"bridge\",\"Name\":\"app-net\"}]", string.Empty));
+            }
+
+            return Task.FromResult(new CliResult(0, string.Empty, string.Empty));
+        };
+        var sut = new WslcCliNetworkRuntimeClient(runner);
+
+        // Act
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListNetworksAsync());
+
+        // Assert
+        Assert.AreEqual(typeof(System.Text.Json.JsonException), ex.InnerException?.GetType());
+    }
+
+    [TestMethod]
+    public async Task ListNetworksAsync_InspectReturnsNullJson_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner();
+        runner.RunAsyncFunc = (arguments, cancellationToken) =>
+        {
+            if (arguments.SequenceEqual(new[] { "network", "list", "--format", "json" }))
+            {
+                return Task.FromResult(new CliResult(0, "[{\"Driver\":\"bridge\",\"Name\":\"app-net\"}]", string.Empty));
+            }
+
+            return Task.FromResult(new CliResult(0, "null", string.Empty));
+        };
+        var sut = new WslcCliNetworkRuntimeClient(runner);
+
+        // Act
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListNetworksAsync());
+
+        // Assert
+        Assert.AreEqual(typeof(System.Text.Json.JsonException), ex.InnerException?.GetType());
+    }
+
+    [TestMethod]
+    public async Task ListNetworksAsync_InspectReturnsNullElementJson_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner();
+        runner.RunAsyncFunc = (arguments, cancellationToken) =>
+        {
+            if (arguments.SequenceEqual(new[] { "network", "list", "--format", "json" }))
+            {
+                return Task.FromResult(new CliResult(0, "[{\"Driver\":\"bridge\",\"Name\":\"app-net\"}]", string.Empty));
+            }
+
+            return Task.FromResult(new CliResult(0, "[null]", string.Empty));
+        };
+        var sut = new WslcCliNetworkRuntimeClient(runner);
+
+        // Act
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListNetworksAsync());
+
+        // Assert
+        Assert.AreEqual(typeof(System.Text.Json.JsonException), ex.InnerException?.GetType());
+    }
+
+    [TestMethod]
     public async Task ListNetworksAsync_CliReturnsNetworkAndInspectWithoutCreatedAt_MapsJsonToContainerNetworkWithMinValueAndUserNetworkIsNotSystem()
     {
         // Arrange

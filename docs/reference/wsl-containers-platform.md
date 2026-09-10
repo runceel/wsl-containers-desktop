@@ -1,6 +1,6 @@
 # WSL Containers プラットフォーム仕様サマリ
 
-> **最終確認日: 2026-07-03**（Microsoft Build 2026 発表直後の情報。**Public Preview** のため
+> **最終確認日: 2026-09-10**（WSL / wslc 2.9.11.0 で確認。**Public Preview** のため
 > 仕様は変わりやすい。実装前に必ず一次情報源または Microsoft Learn MCP で最新情報を確認すること）
 
 本アプリ（Hakonexa - WSL Containers Manager）は、この「WSL Containers」機能をGUIで管理するための
@@ -42,28 +42,36 @@ Microsoft Build 2026 で、WSL (Windows Subsystem for Linux) に **WSL Container
   wslc run --rm --gpus all pytorch/pytorch:2.5.1-cuda12.4-cudnn9-runtime python -c "import torch; print(torch.cuda.is_available())"
   ```
 
-#### `wslc stats`（稼働中コンテナのリソース使用量）— 実機確認済み（wslc 2.9.3.0）
+#### 一覧・検査コマンドのJSON出力（wslc 2.9.8以降）
 
-- 実機（wslc `2.9.3.0`, 2026-07-03 確認）で検証した事実。本アプリのダッシュボードが利用する。
+- `--format json` を指定する一覧コマンドは、JSON配列ではなく**JSON Lines**（1行に1つのJSONオブジェクト）を返す。
+  成功した一覧が空の場合、標準出力は `[]` ではなく空文字列になる。旧バージョンのJSON配列も存在するため、
+  利用側は両方を扱う必要がある。
+- 対象となる主な一覧コマンドは次のとおり:
+  `wslc list -a --format json`、`wslc image list --format json --no-trunc`、
+  `wslc volume list --format json`、`wslc network list --format json`、
+  `wslc stats --format json`。
+- コンテナ一覧の現在のフィールドは `ID`、`Names`、`Image`、文字列の `State`、
+  文字列の `CreatedAt`（例: `2026-07-10 15:02:32 +0900 JST`）。`--no-trunc` を付けない場合、
+  IDが短縮されることがある。
+- イメージ一覧の現在のフィールドは `ID`、文字列の `CreatedAt`、人間向けの10進サイズ文字列
+  （例: `69.6MB`）。旧バージョンでは `Id`、Unix秒の `Created`、バイト数の `Size` が使われる。
+- ボリューム一覧とネットワーク一覧にはDocker互換の追加フィールドが含まれる。既存の `Name` / `Driver` は
+  引き続き利用でき、ネットワーク一覧では `IsSystem` が省略されることがある。
+- コンテナ検査結果の `Name` は先頭に `/` が付くことがあり、`Image` はイメージダイジェストを含むことがある。
+  ネットワーク検査結果の作成日時は現在 `Created`、旧形式では `CreatedAt` である。
+
+#### `wslc stats`（稼働中コンテナのリソース使用量）— 実機確認済み（wslc 2.9.11.0）
+
+- 実機（wslc `2.9.11.0`, 2026-09-10 確認）で検証した事実。本アプリのダッシュボードが利用する。
 - **`--no-stream` オプションは存在しない**。`stats` は常にスナップショット（1回分）を返すため、
   Docker CLI の `docs stats --no-stream` に相当する指定は不要。誤って付けると `wslc` は
   終了コード 1 で失敗する。
 - 正しいコマンドは `wslc stats --format json`（`--format` は `json` / `table`、既定は `table`）。
   その他のオプションは `-a`/`--all`、`--no-trunc`。
-- 出力は**JSON配列**で、各要素は以下のキーを持つ（値はすべて文字列）:
+- 出力は**JSON Lines**で、各要素は以下のキーを持つ（値はすべて文字列）。旧バージョンではJSON配列の場合がある:
   ```json
-  [
-    {
-      "BlockIO": "0 B / 0 B",
-      "CPUPerc": "0.00%",
-      "ID": "…",
-      "MemPerc": "0.01%",
-      "MemUsage": "1.82 MiB / 15.37 GiB",
-      "Name": "wcd-demo-idle",
-      "NetIO": "0 B / 0 B",
-      "PIDs": "3"
-    }
-  ]
+  {"BlockIO":"0 B / 0 B","CPUPerc":"0.00%","ID":"…","MemPerc":"0.01%","MemUsage":"1.82 MiB / 15.37 GiB","Name":"wcd-demo-idle","NetIO":"0 B / 0 B","PIDs":"3"}
   ```
   - メモリは `使用量 / 上限` を**空白区切り**（例: `"1.82 MiB / 15.37 GiB"`）で返す。
     単位は2進接頭辞（`MiB`/`GiB` 等）。CPUは末尾に `%` が付く（例: `"0.00%"`）。

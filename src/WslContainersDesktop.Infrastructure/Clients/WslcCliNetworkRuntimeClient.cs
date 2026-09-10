@@ -9,6 +9,10 @@ namespace WslContainersDesktop.Infrastructure.Clients;
 /// </summary>
 public sealed class WslcCliNetworkRuntimeClient(IWslcCliRunner cliRunner) : INetworkRuntimeClient
 {
+    private static readonly string[] ListNetworksCommand = ["network", "list", "--format", "json"];
+
+    private const string ListNetworksCommandText = "network list --format json";
+
     /// ネットワーク検査時に同時に実行する最大並列数。
     private const int InspectionConcurrencyLimit = 4;
 
@@ -17,12 +21,14 @@ public sealed class WslcCliNetworkRuntimeClient(IWslcCliRunner cliRunner) : INet
     /// <inheritdoc/>
     public async Task<IReadOnlyList<ContainerNetworkResource>> ListNetworksAsync(CancellationToken cancellationToken = default)
     {
-        var result = await _executor.RunAsync(["network", "list", "--format", "json"], cancellationToken);
+        var result = await _executor.RunAsync(ListNetworksCommand, cancellationToken);
 
         var items = WslcCliCommandExecutor.DeserializeJsonList<NetworkListItemDto>(
             result,
-            command: "network list --format json",
-            failureMessage: "コンテナーネットワーク一覧の解析に失敗しました。");
+            command: ListNetworksCommandText,
+            failureMessage: "コンテナーネットワーク一覧の解析に失敗しました。",
+            allowEmptyOutput: true,
+            allowJsonLines: true);
         if (items is null)
         {
             return [];
@@ -55,17 +61,22 @@ public sealed class WslcCliNetworkRuntimeClient(IWslcCliRunner cliRunner) : INet
             result,
             command: $"network inspect {listItem.Name}",
             failureMessage: "コンテナーネットワーク詳細情報の解析に失敗しました。");
-        var item = items?.FirstOrDefault();
-        if (item is null)
+        return MapNetwork(listItem, items?.FirstOrDefault());
+    }
+
+    private static ContainerNetworkResource MapNetwork(NetworkListItemDto listItem, NetworkInspectDto? inspectItem)
+    {
+        if (inspectItem is null)
         {
             return new ContainerNetworkResource(listItem.Name, listItem.Driver, DateTimeOffset.MinValue, [], listItem.IsSystem);
         }
 
         return new ContainerNetworkResource(
-            Name: string.IsNullOrEmpty(item.Name) ? listItem.Name : item.Name,
-            Driver: string.IsNullOrEmpty(item.Driver) ? listItem.Driver : item.Driver,
-            CreatedAt: CliDateTimeParsing.ParseDateTimeOffsetOrDefault(item.CreatedAt),
+            Name: string.IsNullOrEmpty(inspectItem.Name) ? listItem.Name : inspectItem.Name,
+            Driver: string.IsNullOrEmpty(inspectItem.Driver) ? listItem.Driver : inspectItem.Driver,
+            CreatedAt: CliDateTimeParsing.ParseDateTimeOffsetOrDefault(
+                string.IsNullOrEmpty(inspectItem.Created) ? inspectItem.CreatedAt : inspectItem.Created),
             ConnectedContainerNames: [],
-            IsSystem: listItem.IsSystem || item.IsSystem);
+            IsSystem: listItem.IsSystem || inspectItem.IsSystem);
     }
 }

@@ -19,7 +19,9 @@ public sealed class WslcCliImageRuntimeClient(IWslcCliRunner cliRunner) : IImage
         var items = WslcCliCommandExecutor.DeserializeJsonList<ImageListItemDto>(
             result,
             command: "image list --format json --no-trunc",
-            failureMessage: "コンテナーイメージ一覧の解析に失敗しました。");
+            failureMessage: "コンテナーイメージ一覧の解析に失敗しました。",
+            allowEmptyOutput: true,
+            allowJsonLines: true);
         if (items is null)
         {
             return [];
@@ -30,8 +32,8 @@ public sealed class WslcCliImageRuntimeClient(IWslcCliRunner cliRunner) : IImage
                 Id: item.Id,
                 Repository: item.Repository,
                 Tag: item.Tag,
-                SizeBytes: item.Size,
-                CreatedAt: DateTimeOffset.FromUnixTimeSeconds(item.Created)))
+                SizeBytes: item.SizeBytes,
+                CreatedAt: item.CreatedAt))
             .ToList();
     }
 

@@ -10,6 +10,10 @@ namespace WslContainersDesktop.Infrastructure.Clients;
 /// </summary>
 public sealed class WslcCliContainerQueryClient(IWslcCliRunner cliRunner) : IContainerQueryClient
 {
+    private static readonly string[] ListContainersCommand = ["list", "-a", "--format", "json", "--no-trunc"];
+
+    private const string ListContainersCommandText = "list -a --format json --no-trunc";
+
     /// <summary>
     /// wslc SDKの <c>ContainerState.Running</c> に対応する数値。
     /// </summary>
@@ -20,12 +24,14 @@ public sealed class WslcCliContainerQueryClient(IWslcCliRunner cliRunner) : ICon
     /// <inheritdoc/>
     public async Task<IReadOnlyList<Container>> ListContainersAsync(CancellationToken cancellationToken = default)
     {
-        var result = await _executor.RunAsync(["list", "-a", "--format", "json"], cancellationToken);
+        var result = await _executor.RunAsync(ListContainersCommand, cancellationToken);
 
         var items = WslcCliCommandExecutor.DeserializeJsonList<ContainerListItemDto>(
             result,
-            command: "list -a --format json",
-            failureMessage: "コンテナ一覧の解析に失敗しました。");
+            command: ListContainersCommandText,
+            failureMessage: "コンテナ一覧の解析に失敗しました。",
+            allowEmptyOutput: true,
+            allowJsonLines: true);
         if (items is null)
         {
             return [];
@@ -37,7 +43,7 @@ public sealed class WslcCliContainerQueryClient(IWslcCliRunner cliRunner) : ICon
                 Name: item.Name,
                 Image: item.Image,
                 State: item.State == RunningStateValue ? ContainerState.Running : ContainerState.Stopped,
-                CreatedAt: DateTimeOffset.FromUnixTimeSeconds(item.CreatedAt)))
+                CreatedAt: item.CreatedAt))
             .ToList();
     }
 

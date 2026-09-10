@@ -43,11 +43,36 @@ internal sealed class WslcCliCommandExecutor(IWslcCliRunner cliRunner)
     /// <param name="result">CLI実行結果。</param>
     /// <param name="command">失敗時に例外へ含めるコマンド文字列。</param>
     /// <param name="failureMessage">解析失敗時のメッセージ。</param>
-    public static List<TDto>? DeserializeJsonList<TDto>(CliResult result, string command, string failureMessage)
+    /// <param name="allowEmptyOutput">空白のみの標準出力を空の一覧として扱うかどうか。</param>
+    /// <param name="allowJsonLines">JSON Lines形式を受け入れるかどうか。</param>
+    public static List<TDto> DeserializeJsonList<TDto>(
+        CliResult result,
+        string command,
+        string failureMessage,
+        bool allowEmptyOutput = false,
+        bool allowJsonLines = false)
     {
         try
         {
-            return JsonSerializer.Deserialize<List<TDto>>(result.StandardOutput);
+            if (allowEmptyOutput && string.IsNullOrWhiteSpace(result.StandardOutput))
+            {
+                return [];
+            }
+
+            if (allowJsonLines && !result.StandardOutput.TrimStart().StartsWith('['))
+            {
+                return DeserializeJsonLines<TDto>(result.StandardOutput);
+            }
+
+            var items = JsonSerializer.Deserialize<List<TDto>>(result.StandardOutput)
+                ?? throw new JsonException("JSON配列のルートがnullです。");
+
+            if (items.Any(item => item is null))
+            {
+                throw new JsonException("JSON配列にnullの要素が含まれています。");
+            }
+
+            return items;
         }
         catch (JsonException ex)
         {
@@ -57,6 +82,20 @@ internal sealed class WslcCliCommandExecutor(IWslcCliRunner cliRunner)
                 message: failureMessage,
                 innerException: ex);
         }
+    }
+
+    private static List<TDto> DeserializeJsonLines<TDto>(string standardOutput)
+    {
+        return standardOutput
+            .Split(["\r\n", "\n"], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(DeserializeJsonLine<TDto>)
+            .ToList();
+    }
+
+    private static TDto DeserializeJsonLine<TDto>(string line)
+    {
+        return JsonSerializer.Deserialize<TDto>(line)
+            ?? throw new JsonException("JSON Linesの要素がnullです。");
     }
 
     /// <summary>

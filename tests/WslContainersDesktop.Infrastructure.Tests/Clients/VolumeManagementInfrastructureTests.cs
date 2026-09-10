@@ -9,6 +9,135 @@ namespace WslContainersDesktop.Infrastructure.Tests.Clients;
 public sealed class VolumeManagementInfrastructureTests
 {
     [TestMethod]
+    public async Task ListVolumesAsync_CliReturnsJsonLinesWithDockerCompatibleFields_MapsVolumesAfterInspectingEachName()
+    {
+        // Arrange
+        const string listJson = "{\"Driver\":\"guest\",\"Name\":\"vol-demo\",\"Labels\":{},\"Scope\":\"local\"}\r\n\r\n{\"Driver\":\"guest\",\"Name\":\"vol-cache\",\"Labels\":{},\"Scope\":\"local\"}\r\n";
+        var runner = new FakeWslcCliRunner();
+        runner.RunAsyncFunc = (arguments, cancellationToken) =>
+        {
+            if (arguments.SequenceEqual(new[] { "volume", "list", "--format", "json" }))
+            {
+                return Task.FromResult(new CliResult(0, listJson, string.Empty));
+            }
+
+            if (arguments.SequenceEqual(new[] { "volume", "inspect", "vol-demo" }))
+            {
+                return Task.FromResult(new CliResult(0, "[{\"CreatedAt\":\"2026-07-02T09:00:00Z\",\"Driver\":\"guest\",\"Name\":\"vol-demo\"}]", string.Empty));
+            }
+
+            if (arguments.SequenceEqual(new[] { "volume", "inspect", "vol-cache" }))
+            {
+                return Task.FromResult(new CliResult(0, "[{\"CreatedAt\":\"2026-07-03T09:00:00Z\",\"Driver\":\"guest\",\"Name\":\"vol-cache\"}]", string.Empty));
+            }
+
+            return Task.FromResult(new CliResult(0, string.Empty, string.Empty));
+        };
+        var sut = new WslcCliVolumeRuntimeClient(runner);
+
+        // Act
+        var volumes = await sut.ListVolumesAsync();
+
+        // Assert
+        CollectionAssert.AreEqual(new[] { "vol-demo", "vol-cache" }, volumes.Select(volume => volume.Name).ToList());
+        CollectionAssert.AreEqual(new[] { "guest", "guest" }, volumes.Select(volume => volume.Driver).ToList());
+        CollectionAssert.AreEqual(
+            new[]
+            {
+                DateTimeOffset.Parse("2026-07-02T09:00:00Z"),
+                DateTimeOffset.Parse("2026-07-03T09:00:00Z"),
+            },
+            volumes.Select(volume => volume.CreatedAt).ToList());
+    }
+
+    [TestMethod]
+    [DataRow("")]
+    [DataRow(" \r\n\t ")]
+    public async Task ListVolumesAsync_CliReturnsEmptyOrWhitespaceOnlyListOutput_ReturnsEmptyWithoutInspecting(string output)
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner { Result = new(0, output, string.Empty) };
+        var sut = new WslcCliVolumeRuntimeClient(runner);
+
+        // Act
+        var volumes = await sut.ListVolumesAsync();
+
+        // Assert
+        Assert.IsEmpty(volumes);
+        Assert.HasCount(1, runner.Calls);
+        CollectionAssert.AreEqual(new[] { "volume", "list", "--format", "json" }, runner.Calls[0].ToList());
+    }
+
+    [TestMethod]
+    public async Task ListVolumesAsync_InspectReturnsEmptyOutput_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner();
+        runner.RunAsyncFunc = (arguments, cancellationToken) =>
+        {
+            if (arguments.SequenceEqual(new[] { "volume", "list", "--format", "json" }))
+            {
+                return Task.FromResult(new CliResult(0, "[{\"Driver\":\"guest\",\"Name\":\"vol-demo\"}]", string.Empty));
+            }
+
+            return Task.FromResult(new CliResult(0, string.Empty, string.Empty));
+        };
+        var sut = new WslcCliVolumeRuntimeClient(runner);
+
+        // Act
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListVolumesAsync());
+
+        // Assert
+        Assert.AreEqual(typeof(System.Text.Json.JsonException), ex.InnerException?.GetType());
+    }
+
+    [TestMethod]
+    public async Task ListVolumesAsync_InspectReturnsNullJson_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner();
+        runner.RunAsyncFunc = (arguments, cancellationToken) =>
+        {
+            if (arguments.SequenceEqual(new[] { "volume", "list", "--format", "json" }))
+            {
+                return Task.FromResult(new CliResult(0, "[{\"Driver\":\"guest\",\"Name\":\"vol-demo\"}]", string.Empty));
+            }
+
+            return Task.FromResult(new CliResult(0, "null", string.Empty));
+        };
+        var sut = new WslcCliVolumeRuntimeClient(runner);
+
+        // Act
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListVolumesAsync());
+
+        // Assert
+        Assert.AreEqual(typeof(System.Text.Json.JsonException), ex.InnerException?.GetType());
+    }
+
+    [TestMethod]
+    public async Task ListVolumesAsync_InspectReturnsNullElementJson_ThrowsContainerRuntimeExceptionWithJsonException()
+    {
+        // Arrange
+        var runner = new FakeWslcCliRunner();
+        runner.RunAsyncFunc = (arguments, cancellationToken) =>
+        {
+            if (arguments.SequenceEqual(new[] { "volume", "list", "--format", "json" }))
+            {
+                return Task.FromResult(new CliResult(0, "[{\"Driver\":\"guest\",\"Name\":\"vol-demo\"}]", string.Empty));
+            }
+
+            return Task.FromResult(new CliResult(0, "[null]", string.Empty));
+        };
+        var sut = new WslcCliVolumeRuntimeClient(runner);
+
+        // Act
+        var ex = await Assert.ThrowsExactlyAsync<ContainerRuntimeException>(() => sut.ListVolumesAsync());
+
+        // Assert
+        Assert.AreEqual(typeof(System.Text.Json.JsonException), ex.InnerException?.GetType());
+    }
+
+    [TestMethod]
     public async Task ListVolumesAsync_CliReturnsVolumesAndInspectReturnsCreatedAt_MapsJsonToContainerVolumes()
     {
         // Arrange
